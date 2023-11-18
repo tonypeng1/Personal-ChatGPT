@@ -96,6 +96,37 @@
 import openai
 import streamlit as st
 
+def chatgpt():
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        full_response = ""
+        for response in openai.ChatCompletion.create(
+            model=st.session_state["openai_model"],
+            messages=[{"role": "system", "content": "You are based out of Austin, Texas. You are a software engineer " +
+                    "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
+                    "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
+                    "You always prefer quick explanations unless specifically asked for. When rendering code samples " +
+                    "always include the import statements. When giving required code solutions include complete code " +
+                    "with no omission. When giving long responses add the source of the information as URLs. " +
+                    "Assume the role of experienced Software Engineer and You are fine with strong opinion as long as " +
+                    "the source of the information can be pointed out and always question my understanding. " +
+                    "When rephrasing paragraphs, use lightly casual, straight-to-the-point language."}] +
+                [
+                {"role": m["role"], "content": m["content"]}
+                for m in st.session_state.messages
+                ],
+            temperature=temperature,
+            stream=True,
+        ):
+            full_response += response.choices[0].delta.get("content", "")
+            message_placeholder.markdown(full_response + "▌")
+        message_placeholder.markdown(full_response)
+    st.session_state.messages.append({"role": "assistant", "content": full_response})
+
 st.title("Personal ChatGPT")
 st.sidebar.title("Options")
 model_name = st.sidebar.radio("Choose model:",
@@ -129,63 +160,65 @@ for message in st.session_state.messages:
 
 if uploaded_file is not None and to_chatgpt:
     st.sidebar.write(prompt)
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+    chatgpt()
+    # st.session_state.messages.append({"role": "user", "content": prompt})
+    # with st.chat_message("user"):
+    #     st.markdown(prompt)
 
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        full_response = ""
-        for response in openai.ChatCompletion.create(
-            model=st.session_state["openai_model"],
-            messages=[{"role": "system", "content": "You are based out of Austin, Texas. You are a software engineer " +
-                       "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
-                       "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
-                       "You always prefer quick explanations unless specifically asked for. When rendering code samples " +
-                       "always include the import statements. When giving required code solutions include complete code " +
-                       "with no omission. When giving long responses add the source of the information as URLs. " +
-                       "Assume the role of experienced Software Engineer and You are fine with strong opinion as long as " +
-                       "the source of the information can be pointed out and always question my understanding. " +
-                       "When rephrasing paragraphs, use lightly casual, straight-to-the-point language."}] +
-                [
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-                ],
-            temperature=temperature,
-            stream=True,
-        ):
-            full_response += response.choices[0].delta.get("content", "")
-            message_placeholder.markdown(full_response + "▌")
-        message_placeholder.markdown(full_response)
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
+    # with st.chat_message("assistant"):
+    #     message_placeholder = st.empty()
+    #     full_response = ""
+    #     for response in openai.ChatCompletion.create(
+    #         model=st.session_state["openai_model"],
+    #         messages=[{"role": "system", "content": "You are based out of Austin, Texas. You are a software engineer " +
+    #                    "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
+    #                    "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
+    #                    "You always prefer quick explanations unless specifically asked for. When rendering code samples " +
+    #                    "always include the import statements. When giving required code solutions include complete code " +
+    #                    "with no omission. When giving long responses add the source of the information as URLs. " +
+    #                    "Assume the role of experienced Software Engineer and You are fine with strong opinion as long as " +
+    #                    "the source of the information can be pointed out and always question my understanding. " +
+    #                    "When rephrasing paragraphs, use lightly casual, straight-to-the-point language."}] +
+    #             [
+    #             {"role": m["role"], "content": m["content"]}
+    #             for m in st.session_state.messages
+    #             ],
+    #         temperature=temperature,
+    #         stream=True,
+    #     ):
+    #         full_response += response.choices[0].delta.get("content", "")
+    #         message_placeholder.markdown(full_response + "▌")
+    #     message_placeholder.markdown(full_response)
+    # st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 if prompt := st.chat_input("What is up?"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+    chatgpt()
+    # st.session_state.messages.append({"role": "user", "content": prompt})
+    # with st.chat_message("user"):
+    #     st.markdown(prompt)
 
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        full_response = ""
-        for response in openai.ChatCompletion.create(
-            model=st.session_state["openai_model"],
-            messages=[{"role": "system", "content": "You are based out of Austin, Texas. You are a software engineer " +
-                       "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
-                       "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
-                       "You always prefer quick explanations unless specifically asked for. When rendering code samples " +
-                       "always include the import statements. When giving required code solutions include complete code " +
-                       "with no omission. When giving long responses add the source of the information as URLs. " +
-                       "Assume the role of experienced Software Engineer and You are fine with strong opinion as long as " +
-                       "the source of the information can be pointed out and always question my understanding. " +
-                       "When rephrasing paragraphs, use lightly casual, straight-to-the-point language."}] +
-                [
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-                ],
-            temperature=temperature,
-            stream=True,
-        ):
-            full_response += response.choices[0].delta.get("content", "")
-            message_placeholder.markdown(full_response + "▌")
-        message_placeholder.markdown(full_response)
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
+    # with st.chat_message("assistant"):
+    #     message_placeholder = st.empty()
+    #     full_response = ""
+    #     for response in openai.ChatCompletion.create(
+    #         model=st.session_state["openai_model"],
+    #         messages=[{"role": "system", "content": "You are based out of Austin, Texas. You are a software engineer " +
+    #                    "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
+    #                    "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
+    #                    "You always prefer quick explanations unless specifically asked for. When rendering code samples " +
+    #                    "always include the import statements. When giving required code solutions include complete code " +
+    #                    "with no omission. When giving long responses add the source of the information as URLs. " +
+    #                    "Assume the role of experienced Software Engineer and You are fine with strong opinion as long as " +
+    #                    "the source of the information can be pointed out and always question my understanding. " +
+    #                    "When rephrasing paragraphs, use lightly casual, straight-to-the-point language."}] +
+    #             [
+    #             {"role": m["role"], "content": m["content"]}
+    #             for m in st.session_state.messages
+    #             ],
+    #         temperature=temperature,
+    #         stream=True,
+    #     ):
+    #         full_response += response.choices[0].delta.get("content", "")
+    #         message_placeholder.markdown(full_response + "▌")
+    #     message_placeholder.markdown(full_response)
+    # st.session_state.messages.append({"role": "assistant", "content": full_response})
