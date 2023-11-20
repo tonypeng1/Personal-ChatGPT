@@ -1,10 +1,50 @@
 import openai
 import streamlit as st
+import mysql.connector
+from datetime import date
 
-def chatgpt():
-    st.session_state.messages.append({"role": "user", "content": prompt})
+def init_connection():
+    conn = mysql.connector.connect(**st.secrets["mysql"])
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+        """CREATE TABLE IF NOT EXISTS history
+            (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                Date DATE,
+                Role TEXT,
+                Content TEXT
+            );"""
+        )
+
+    return conn
+
+def load_previous_chat():
+    with conn.cursor() as cursor:
+        sql = "SELECT Date, Role, Content FROM history"
+        cursor.execute(sql)
+
+        st.session_state.messages = []
+        for (date, role, content) in cursor:
+            st.session_state.messages.append({"role": role, "content": content})
+
+def save_to_mysql(role1, content1):
+    with conn.cursor() as cursor:
+        sql = "INSERT INTO history (Date, Role, Content) VALUES (%s, %s, %s)"
+        val = (today, role1, content1)
+        cursor.execute(sql, val)
+        conn.commit()
+
+def delete_all_rows():
+    with conn.cursor() as cursor:
+        sql = "DELETE FROM history"
+        cursor.execute(sql)
+        conn.commit()
+
+def chatgpt(prompt1):
+    st.session_state.messages.append({"role": "user", "content": prompt1})
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.markdown(prompt1)
 
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
@@ -31,39 +71,62 @@ def chatgpt():
             message_placeholder.markdown(full_response + "▌")
         message_placeholder.markdown(full_response)
     st.session_state.messages.append({"role": "assistant", "content": full_response})
+    save_to_mysql("user", prompt1)
+    save_to_mysql("assistant", full_response)
+
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+today = date.today()
+conn = init_connection()
 
 st.title("Personal ChatGPT")
 st.sidebar.title("Options")
 model_name = st.sidebar.radio("Choose model:",
                                 ("gpt-3.5-turbo-1106", "gpt-4", "gpt-4-1106-preview"), index=2)
-temperature = st.sidebar.number_input("Input the temperture value (from 0 to 2):",
+temperature = st.sidebar.number_input("Input the temperture value (from 0 to 1.6):",
                                       min_value=0.0, max_value=1.6, value=1.0, step=0.2)
-clear_button = st.sidebar.button("Clear Conversation", key="clear")
+load_history = st.sidebar.button("Load chat history")
+new_chat_button = st.sidebar.button("New chat", key="new")
+empty_database = st.sidebar.button("Delete chat history in database")
 uploaded_file = st.sidebar.file_uploader("Upload a file")
 to_chatgpt = st.sidebar.button("Send to chatGPT")
 
-if uploaded_file is not None and not to_chatgpt:
-    prompt = uploaded_file.read().decode("utf-8")
-    st.sidebar.write(prompt)
 
-if to_chatgpt:
-    prompt = uploaded_file.read().decode("utf-8")
+if "first_run" not in st.session_state or st.session_state.first_run:
+    if load_history:
+        load_previous_chat()
+        st.session_state.first_run = False
 
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+if new_chat_button:
+    st.session_state.messages = []
+    # delete_all_rows()
 
 if "openai_model" not in st.session_state:
     st.session_state["openai_model"] = model_name
 
-if clear_button or "messages" not in st.session_state:
+if empty_database:
+    delete_all_rows()
+    st.session_state.messages = []
+    st.sidebar.write("Chat history in database is empty!")
+
+# Create or reset "messages" in session state as an empty list
+if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# Print each message on page
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+if uploaded_file is not None and not to_chatgpt:
+    prompt_f = uploaded_file.read().decode("utf-8")
+    st.sidebar.write(prompt_f)
+
+# Call openai api
 if uploaded_file is not None and to_chatgpt:
-    st.sidebar.write(prompt)
-    chatgpt()
+    prompt_f = uploaded_file.read().decode("utf-8")
+    chatgpt(prompt_f)
 
 if prompt := st.chat_input("What is up?"):
-    chatgpt()
+    chatgpt(prompt)
+
+conn.close()
