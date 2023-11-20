@@ -98,6 +98,7 @@ if "first_run" not in st.session_state or st.session_state.first_run:
 
 if new_chat_button:
     st.session_state.messages = []
+    st.session_state.first_run = True
     # delete_all_rows()
 
 if "openai_model" not in st.session_state:
