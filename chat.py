@@ -1,45 +1,230 @@
 import openai
 import streamlit as st
 import mysql.connector
-from datetime import date
+from datetime import datetime
+from datetime import timedelta
+import textwrap
 
 def init_connection():
-    conn = mysql.connector.connect(**st.secrets["mysql"])
+    try:
+        conn = mysql.connector.connect(**st.secrets["mysql"])
 
-    with conn.cursor() as cursor:
-        cursor.execute(
-        """CREATE TABLE IF NOT EXISTS history
-            (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                Date DATE,
-                Role TEXT,
-                Content TEXT
-            );"""
-        )
+        with conn.cursor() as cursor:
+            cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS session
+                (
+                    session_id INT AUTO_INCREMENT PRIMARY KEY,
+                    start_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    end_timestamp DATETIME,
+                    summary TEXT
+                );
+            """
+            )
+            cursor.execute(
+            """CREATE TABLE IF NOT EXISTS message
+                (
+                    message_id INT AUTO_INCREMENT PRIMARY KEY,
+                    session_id INT NOT NULL,
+                    timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    role TEXT,
+                    content TEXT,
+                    FOREIGN KEY (session_id) REFERENCES session(session_id)
+                );
+            """
+            )
+        conn.commit()
+
+    except mysql.connector.Error as error:
+        st.write(f"Failed to create tables: {error}")
 
     return conn
 
-def load_previous_chat():
-    with conn.cursor() as cursor:
-        sql = "SELECT Date, Role, Content FROM history"
-        cursor.execute(sql)
+def load_previous_chat_session(session1):
+    try:
+        with conn.cursor() as cursor:
+            sql = "SELECT role, content FROM message WHERE session_id = %s"
+            val = (session1,)
+            cursor.execute(sql, val)
 
-        st.session_state.messages = []
-        for (date, role, content) in cursor:
-            st.session_state.messages.append({"role": role, "content": content})
+            st.session_state.messages = []
+            for (role, content) in cursor:
+                st.session_state.messages.append({"role": role, "content": content})
 
-def save_to_mysql(role1, content1):
-    with conn.cursor() as cursor:
-        sql = "INSERT INTO history (Date, Role, Content) VALUES (%s, %s, %s)"
-        val = (today, role1, content1)
-        cursor.execute(sql, val)
-        conn.commit()
+    except mysql.connector.Error as error:
+        st.write(f"Failed to load tables: {error}")
+
+def get_session_id_by_summary(summary1):
+    try:
+        with conn.cursor() as cursor:
+            sql = "SELECT session_id FROM session WHERE summary = %s"
+            val = (summary1,)
+            cursor.execute(sql, val)
+
+            id = cursor.fetchone()
+            if id:
+                return id[0]
+            return None
+
+    except mysql.connector.Error as error:
+        st.write(f"Fail to get session id by summary: {error}")
+
+def load_previous_chat_session_for_summary(session1):
+    try:
+        with conn.cursor() as cursor:
+            sql = "SELECT role, content FROM message WHERE session_id = %s LIMIT 1"
+            val = (session1,)
+            cursor.execute(sql, val)
+            row = cursor.fetchone()
+            if row and row[0] == "user":
+                return textwrap.shorten(row[1], 150, placeholder=' ~')
+            return None
+
+    except mysql.connector.Error as error:
+        st.write(f"Failed to load previous chat session for summary: {error}")
+        return None
+
+def load_previous_chat_session_id(date_start, date_end):
+    try:
+        with conn.cursor() as cursor:
+            sql = "SELECT DISTINCT(session_id) AS d FROM message WHERE DATE(timestamp) BETWEEN %s AND %s ORDER BY d DESC"
+            val = (date_start, date_end)
+            cursor.execute(sql, val)
+
+            result = []
+            for session in cursor:
+                result.append(session[0])
+
+            return result
+
+    except mysql.connector.Error as error:
+        st.write(f"Failed to load tables: {error}")
+
+def get_new_session_id():
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+            """
+            SELECT MAX(session_id) FROM session;
+            """
+            )
+            result = cursor.fetchone()
+            if result is not None and result[0] is not None:
+                st.session_state.session = result[0] + 1
+            else:
+                st.session_state.session = 1
+
+    except mysql.connector.Error as error:
+        st.write(f"Failed to get new session id: {error}")
+
+def start_session_save_to_mysql():
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+            """
+            INSERT INTO session (end_timestamp) VALUE (null);
+            """
+            )
+            conn.commit()
+
+    except mysql.connector.Error as error:
+        st.write(f"Failed to start a new session: {error}")
+
+def end_session_save_to_mysql():
+    try:
+        with conn.cursor() as cursor:
+            sql = "UPDATE session SET end_timestamp = %s WHERE session_id = %s;"
+            val = (time, st.session_state.session)
+            cursor.execute(sql, val)
+            conn.commit()
+
+    except mysql.connector.Error as error:
+        st.write(f"Failed to end a session: {error}")
+
+def save_session_summary_to_mysql(id, summary_text):
+    try:
+        with conn.cursor() as cursor:
+            sql = "UPDATE session SET summary = %s WHERE session_id = %s;"
+            val = (summary_text, id)
+            cursor.execute(sql, val)
+            conn.commit()
+
+    except mysql.connector.Error as error:
+        st.write(f"Failed to save the summary of a session: {error}")
+
+def save_to_mysql_message(session_id1, role1, content1):
+    try:
+        with conn.cursor() as cursor:
+            sql = "INSERT INTO message (session_id, role, content) VALUES (%s, %s, %s)"
+            val = (session_id1, role1, content1)
+            cursor.execute(sql, val)
+            conn.commit()
+
+    except mysql.connector.Error as error:
+        st.write(f"Failed to save new message: {error}")
 
 def delete_all_rows():
-    with conn.cursor() as cursor:
-        sql = "DELETE FROM history"
-        cursor.execute(sql)
-        conn.commit()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SET FOREIGN_KEY_CHECKS=0;")
+
+            cursor.execute("TRUNCATE TABLE message;")
+            cursor.execute("TRUNCATE TABLE session;")
+
+            cursor.execute("SET FOREIGN_KEY_CHECKS=1;")
+            conn.commit()
+
+    except mysql.connector.Error as error:
+        st.write(f"Failed to finish deleting data: {error}")
+
+def convert_date(date1):
+    if date1 == "Today":
+        return today, today
+    elif date1 == "Yesterday":
+        return (today - timedelta(days = 1)), (today - timedelta(days = 1))
+    elif date1 == "Previous 7 days":
+        return (today - timedelta(days = 7)), (today - timedelta(days = 2))
+    elif date1 == "Previous 30 days":
+        return (today - timedelta(days = 30)), (today - timedelta(days = 8))
+    elif date1 == "Older":
+        # st.write(f"The date is of the type: {type((today - timedelta(days = 30)))}")
+        if date_earlist < (today - timedelta(days = 30)):
+            return date_earlist, (today - timedelta(days = 30))
+        else:
+            return (date_earlist - timedelta(days = 31)), (date_earlist - timedelta(days = 31))
+
+def get_the_earliest_date():
+    try:
+        with conn.cursor() as cursor:
+            sql = "SELECT MIN(DATE(timestamp)) FROM message"
+            cursor.execute(sql)
+
+            earliest = cursor.fetchone()
+            if earliest:
+                return earliest[0]
+            else:
+                return None
+
+    except mysql.connector.Error as error:
+        st.write(f"Failed to get the earliest date: {error}")
+
+def get_summary_by_session_id(session_id_list):
+    try:
+        summary_list = []
+        with conn.cursor() as cursor:
+            for s in session_id_list:
+                sql = "SELECT summary FROM session WHERE session_id = %s"
+                val = (s,)
+                cursor.execute(sql, val)
+
+                summary = cursor.fetchone()
+                if summary:
+                    summary_list.append(summary[0])
+
+            return summary_list
+
+    except mysql.connector.Error as error:
+        st.write(f"Failed to load summary: {error}")
 
 def chatgpt(prompt1):
     st.session_state.messages.append({"role": "user", "content": prompt1})
@@ -70,13 +255,33 @@ def chatgpt(prompt1):
             full_response += response.choices[0].delta.get("content", "")
             message_placeholder.markdown(full_response + "▌")
         message_placeholder.markdown(full_response)
+
     st.session_state.messages.append({"role": "assistant", "content": full_response})
-    save_to_mysql("user", prompt1)
-    save_to_mysql("assistant", full_response)
+
+    save_to_mysql_message(st.session_state.session, "user", prompt1)
+    save_to_mysql_message(st.session_state.session, "assistant", full_response)
+
+def chatgpt_summary(chat_text):
+    response = openai.Completion.create(
+      engine="davinci", 
+      prompt="Summarize the following chat session into a single sentence:\n\n" + chat_text, 
+      max_tokens=50,  # Adjust the max tokens as per the summarization requirements
+      n=1,
+      stop=None,
+      temperature=0.5
+      )
+    summary = response.choices[0].text.strip()
+
+    return summary
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
-today = date.today()
 conn = init_connection()
+
+today = datetime.now().date()
+time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+date_earlist = get_the_earliest_date()
+# st.write(f"The earlist date is: {date_earlist}")
+# st.write(f"The earlist date is of the type: {type(date_earlist)}")
 
 st.title("Personal ChatGPT")
 st.sidebar.title("Options")
@@ -84,34 +289,101 @@ model_name = st.sidebar.radio("Choose model:",
                                 ("gpt-3.5-turbo-1106", "gpt-4", "gpt-4-1106-preview"), index=2)
 temperature = st.sidebar.number_input("Input the temperture value (from 0 to 1.6):",
                                       min_value=0.0, max_value=1.6, value=1.0, step=0.2)
-load_history = st.sidebar.button("Load chat history")
-new_chat_button = st.sidebar.button("New chat", key="new")
+
+# Initialize session states
+if 'selectbox_first_level_index' not in st.session_state:
+    st.session_state.selectbox_first_level_index = None
+
+if "first_run" not in st.session_state:
+    st.session_state.first_run = True  # need to reset if used later in code to start a session
+
+if "session" not in st.session_state:
+    get_new_session_id()  # set current session id to either 1 or = the max id in table + 1
+
+if "openai_model" not in st.session_state:
+    st.session_state["openai_model"] = model_name
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+load_history_level_1 = st.sidebar.selectbox(
+    label='Load previous chat date:',
+    placeholder='Pick a date',
+    options=('Today', 'Yesterday', 'Previous 7 days', 'Previous 30 days', 'Older'),
+    index=st.session_state.selectbox_first_level_index,
+    key="first_level"
+    )
+
+# list of session_ids of a date range
+today_sessions = load_previous_chat_session_id(*convert_date('Today'))
+yesterday_sessions = load_previous_chat_session_id(*convert_date('Yesterday'))
+seven_days_sessions = load_previous_chat_session_id(*convert_date('Previous 7 days'))
+thirty_days_sessions = load_previous_chat_session_id(*convert_date('Previous 30 days'))
+older_sessions = load_previous_chat_session_id(*convert_date('Older'))
+
+for s in [today_sessions, yesterday_sessions, seven_days_sessions, thirty_days_sessions, 
+          older_sessions]:
+    if not bool(s):
+        s.append("No sessions available")
+    else:
+        # st.write(f"Session list: {s}")
+        for s1 in s:
+            # st.write(f"Session id: {s1} /n")
+            session_summary = load_previous_chat_session_for_summary(s1)
+            # st.write(f"Session text: {chat_session_text} /n")
+            # session_summary = chatgpt_summary(chat_session_text)
+            # st.write(f"Summary of session {s1}: {session_summary} /n")
+            save_session_summary_to_mysql(s1, session_summary)
+
+level_two_options = {
+    None : ["No date selection"],
+    "Today" : get_summary_by_session_id(today_sessions),
+    "Yesterday" : get_summary_by_session_id(yesterday_sessions),
+    "Previous 7 days" : get_summary_by_session_id(seven_days_sessions),
+    "Previous 30 days" : get_summary_by_session_id(thirty_days_sessions),
+    "Older" : get_summary_by_session_id(older_sessions)
+}
+
+load_history_level_2 = st.sidebar.selectbox(
+        label="Load a previous chat session:",
+        placeholder='Pick a session',
+        options=level_two_options[load_history_level_1],
+        index=None)
+
+new_chat_button = st.sidebar.button("New chat session", key="new")
 empty_database = st.sidebar.button("Delete chat history in database")
 uploaded_file = st.sidebar.file_uploader("Upload a file")
 to_chatgpt = st.sidebar.button("Send to chatGPT")
 
+if st.session_state.first_run is True:
+    get_new_session_id()
+    start_session_save_to_mysql()
+    st.session_state.first_run = False
 
-if "first_run" not in st.session_state or st.session_state.first_run:
-    if load_history:
-        load_previous_chat()
-        st.session_state.first_run = False
+if load_history_level_2:
+    end_session_save_to_mysql()
+    session_id = get_session_id_by_summary(load_history_level_2)
+    load_previous_chat_session(session_id)
+    get_new_session_id()
+    start_session_save_to_mysql()
+    for message in st.session_state.messages:
+        save_to_mysql_message(st.session_state.session, message["role"], message["content"])
+    st.session_state.selectbox_first_level_index = None
 
 if new_chat_button:
+    end_session_save_to_mysql()
     st.session_state.messages = []
-    st.session_state.first_run = True
-    # delete_all_rows()
 
-if "openai_model" not in st.session_state:
-    st.session_state["openai_model"] = model_name
+    get_new_session_id()
+    start_session_save_to_mysql()
 
 if empty_database:
     delete_all_rows()
     st.session_state.messages = []
     st.sidebar.write("Chat history in database is empty!")
 
-# Create or reset "messages" in session state as an empty list
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+    get_new_session_id()
+    start_session_save_to_mysql()
 
 # Print each message on page
 for message in st.session_state.messages:
