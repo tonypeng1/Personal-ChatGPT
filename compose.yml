@@ -1,11 +1,7 @@
 services:
   app:
     container_name: chat_gpt
-    image: python:3.11-slim
-    working_dir: /app
-    volumes:
-      - ./:/app
-    command: bash -c "pip install -r requirements.txt && streamlit run chat.py"
+    image: streamlit-mysql
     ports:
       - 8501:8501
 
