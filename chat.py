@@ -179,13 +179,16 @@ def get_and_set_current_session_id():
 def determine_if_the_current_session_is_not_closed():
     try:
         with conn.cursor() as cursor:
+            # st.write(f"Current session is {st.session_state.session}")
             sql = "SELECT end_timestamp FROM session WHERE session_id = %s"
             val = (st.session_state.session,)
             cursor.execute(sql, val)
 
             end = cursor.fetchone()
             # st.write(f"end stamp returns: {end}")
-            if end[0] is None:
+            if end is None:
+                return True
+            elif end[0] is None:
                 return True
             else:
                 return False
@@ -245,7 +248,7 @@ def save_to_mysql_message(session_id1, role1, content1):
 
 def get_session_summary_and_save_to_session_table(session_id1):
     # chat_session_text = load_previous_chat_session_first_question_for_summary(s1)
-    chat_session_text = load_previous_chat_session_all_questions_for_summary(session_id1)
+    # chat_session_text = load_previous_chat_session_all_questions_for_summary(session_id1)
     chat_session_text_user_only = load_previous_chat_session_all_questions_for_summary_only_users(session_id1)
     # st.write(f"Session text (user only): {chat_session_text_user_only} /n")
     # session_summary = chat_session_text
@@ -263,6 +266,8 @@ def delete_all_rows():
 
             cursor.execute("SET FOREIGN_KEY_CHECKS=1;")
             conn.commit()
+
+            st.session_state.messages = []
 
     except mysql.connector.Error as error:
         st.write(f"Failed to finish deleting data: {error}")
@@ -314,9 +319,17 @@ def get_summary_by_session_id_return_dic(session_id_list):
                                 tuple(session_id_list))
 
                 summary_dict = {}
+                i = 0
                 for session_id, summary in cursor.fetchall():
+                    # st.write(f"session_id is: f{session_id} and summary is: {summary}")
                     if summary is not None:
                         summary_dict[session_id] = summary
+                        i += 1
+                    else:
+                        if i == 0:
+                            summary_dict[session_id] = "Summary not yet available for the current active session."
+                        else:
+                            pass
                 return dict(reversed(list(summary_dict.items())))
 
         # summary_list = []
@@ -393,7 +406,9 @@ def chatgpt_summary(chat_text):
 def chatgpt_summary_user_only(chat_text_user_only):
     response = openai.Completion.create(
       engine="text-davinci-003",
-      prompt="Use one sentence to describe the main topics of the user's questions in following chat session. No more than twenty words in the sentence.\n\n" +
+      prompt="Use a sentence to describe the main topics of the user's questions in following chat session. " + 
+      "No more than sixteen words in a sentence. Do not start the sentence with 'The user' or 'Questions about'. " + 
+      "A partial sentence is fine.\n\n" +
       chat_text_user_only,
       max_tokens=50,  # Adjust the max tokens as per the summarization requirements
       n=1,
@@ -463,7 +478,7 @@ date_earlist = get_the_earliest_date()
 st.title("Personal ChatGPT")
 st.sidebar.title("Options")
 model_name = st.sidebar.radio("Choose model:",
-                                ("gpt-3.5-turbo-1106", "gpt-4", "gpt-4-1106-preview"), index=0)
+                                ("gpt-3.5-turbo-1106", "gpt-4", "gpt-4-1106-preview"), index=2)
 temperature = st.sidebar.number_input("Input the temperture value (from 0 to 1.6):",
                                       min_value=0.0, max_value=1.6, value=1.0, step=0.2)
 
