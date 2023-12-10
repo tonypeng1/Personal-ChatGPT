@@ -350,6 +350,18 @@ def delete_all_rows(conn: connect) -> None:
         st.error(f"Failed to finish deleting data: {error}")
         raise
 
+def delete_the_messages_of_a_chat_session(conn: connect, session_id1) -> None:
+    try:
+        with conn.cursor() as cursor:
+            sql = "DELETE FROM message WHERE session_id = %s"
+            val = (session_id1, )
+            cursor.execute(sql, val)
+            conn.commit()
+
+    except Error as error:
+        st.error(f"Failed to delete the messages of a chat session: {error}")
+        raise
+
 def convert_date(date1: str, date_early: datetime) -> Tuple[datetime, datetime]:
     """
     Convert a human-readable date range string into actual datetime objects.
@@ -380,7 +392,7 @@ def convert_date(date1: str, date_early: datetime) -> Tuple[datetime, datetime]:
         else:
             return today, today # since there is no data in the tables, just return an arbratriry date
     else:
-        st.error(f"Failed to finish deleting data: {error}")
+        st.error(f"Not permissible date range.")
 
 
 def get_the_earliest_date(conn: connect) -> Optional[str]:
@@ -624,6 +636,9 @@ if "load_history_level_2" not in st.session_state:
 if "file_upload" not in st.session_state:
     st.session_state.file_upload = False
 
+if "delete_session" not in st.session_state:
+    st.session_state.delete_session = False
+
 if "empty_data" not in st.session_state:
     st.session_state.empty_data = False
 
@@ -672,7 +687,8 @@ load_history_level_2 = st.sidebar.selectbox(
 # st.write(f"The return of level 2 click is: {load_history_level_2}")
 
 new_chat_button = st.sidebar.button("New chat session", key="new")
-empty_database = st.sidebar.button("Delete chat history in database")
+delete_a_session = st.sidebar.button("Delete the loaded session")
+empty_database = st.sidebar.button("Delete the entire chat history")
 uploaded_file = st.sidebar.file_uploader("Upload a file")
 to_chatgpt = st.sidebar.button("Send to chatGPT")
 
@@ -685,7 +701,7 @@ if new_chat_button:
     st.session_state.session_not_close = False
     st.session_state.file_upload = False
 
-if load_history_level_2:
+if load_history_level_2 and not new_chat_button:
     # st.write(f"session choice: {load_history_level_2}")
     st.session_state.load_history_level_2 = True
     load_previous_chat_session(connection, load_history_level_2)
@@ -694,6 +710,27 @@ if load_history_level_2:
     st.session_state.session_not_close = False
     st.session_state.file_upload = False
     # st.write(f"value of st.session_state.load_history_level_2 when first click is: {st.session_state.load_history_level_2}")
+
+if delete_a_session:
+    st.session_state.delete_session = True
+    st.error("Do you really wanna delete this chat history?", icon="🚨")
+
+if st.session_state.delete_session:
+    confirmation = st.selectbox(
+        label="Confirm your answer (If you choose 'Yes', this chat history of thie loaded session will be deleted):",
+        placeholder="Pick a choice",
+        options=['No', 'Yes'],
+        index=None
+    )
+    if confirmation == 'Yes':
+        delete_the_messages_of_a_chat_session(connection, load_history_level_2)
+        st.warning("Data deleted.", icon="🚨")
+        st.session_state.delete_session = False
+        st.session_state.messages = []
+        st.session_state.new_session = True
+    elif confirmation == 'No':
+        st.success("Data not deleted.")
+        st.session_state.delete_session = False
 
 if empty_database:
     st.session_state.empty_data = True
