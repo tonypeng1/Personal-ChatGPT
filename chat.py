@@ -9,13 +9,20 @@ from mysql.connector import connect, Error
 
 import openai
 from openai.error import OpenAIError
-from datetime import datetime
-from datetime import timedelta
-from typing import Optional
+from datetime import datetime, timedelta
+from typing import Optional, Tuple, List, Dict
 import textwrap
 # from streamlit_modal import Modal
 
-def init_connection():
+def init_connection() -> None:
+    """
+    Initializes the database connection and creates tables 'session' 
+    and 'message' if they do not already exist.
+
+    Uses Streamlit secrets for the connection parameters.
+    Throws an error through the Streamlit interface if the connection or 
+    table creation fails.
+    """
     try:
         conn = connect(**st.secrets["mysql"])
 
@@ -47,6 +54,7 @@ def init_connection():
 
     except Error as error:
         st.error(f"Failed to create tables: {error}")
+        raise
 
     return conn
 
@@ -74,6 +82,7 @@ def load_previous_chat_session(conn: connect, session1: str) -> None:
 
     except Error as error:
         st.error(f"Failed to load previous chat sessions: {error}")
+        raise
 
 # def return_format_function(level1):
 #     if level1 == "Today":
@@ -123,14 +132,27 @@ def load_previous_chat_session(conn: connect, session1: str) -> None:
 #     except Error as error:
 #         st.write(f"Failed to load previous chat sessions for summary: {error}")
 
-def load_previous_chat_session_all_questions_for_summary_only_users(conn: connect, session1):
+def load_previous_chat_session_all_questions_for_summary_only_users(conn: connect, session1:str) -> Optional[str]:
+    """
+    Loads and concatenates the content of all messages sent by the user in a given chat session.
+
+    Args:
+        conn: A MySQL database connection object.
+        session_id: The unique identifier for the chat session.
+
+    Returns:
+        A string containing all user messages concatenated together, or None if an error occurs.
+
+    Raises:
+        Raises an error and logs it with Streamlit if the database operation fails.
+    """
     try:
         with conn.cursor() as cursor:
             sql = "SELECT role, content FROM message WHERE session_id = %s"
             val = (session1,)
             cursor.execute(sql, val)
 
-            chat_user = str()
+            chat_user = ""
             for (role, content) in cursor:
                 if role == 'user':
                     chat_user += (role + ": " + content + " ")
@@ -138,17 +160,40 @@ def load_previous_chat_session_all_questions_for_summary_only_users(conn: connec
 
     except Error as error:
         st.error(f"Failed to load previous chat sessions for summary (user only): {error}")
+        return None
 
-def load_previous_chat_session_id(conn: connect, date_start, date_end):
+def load_previous_chat_session_ids(conn: connect, date_start: str, date_end: str):
+    """
+    Load distinct session IDs from messages within a specified date range.
+
+    Parameters:
+    - conn: Connection object through which the query will be executed.
+    - date_start: A string representing the start date in 'YYYY-MM-DD' format.
+    - date_end: A string representing the end date in 'YYYY-MM-DD' format.
+
+    Returns:
+    - A list of distinct session IDs as integers.
+    - If an empty list, return [0]
+
+    Raises:
+    - Raises an exception if the database query fails.
+    """
     try:
         with conn.cursor() as cursor:
-            sql = "SELECT DISTINCT(session_id) AS d FROM message WHERE DATE(timestamp) BETWEEN %s AND %s ORDER BY d DESC"
+            sql = """
+            SELECT DISTINCT(session_id) AS d 
+            FROM message 
+            WHERE DATE(timestamp) BETWEEN %s AND %s 
+            ORDER BY d DESC
+            """
             val = (date_start, date_end)
             cursor.execute(sql, val)
 
-            result = []
-            for session in cursor:
-                result.append(session[0])
+            # result = []
+            # for session in cursor:
+            #     result.append(session[0])
+
+            result = [session[0] for session in cursor]
 
             if not bool(result):
                 result = [0]
@@ -157,6 +202,7 @@ def load_previous_chat_session_id(conn: connect, date_start, date_end):
 
     except Error as error:
         st.error(f"Failed to load chat session id: {error}")
+        raise
 
 # def get_new_session_id():
 #     try:
@@ -181,7 +227,7 @@ def get_and_set_current_session_id(conn: connect) -> None:
     """
     Retrieves the highest session ID from the 'session' table and sets it
     as the current session ID in the Streamlit session state. If no session id 
-    is found, it defaults to 1.
+    is found, set to None.
 
     Parameters:
     conn (Connection): A mysql connection object to the database.
@@ -200,10 +246,11 @@ def get_and_set_current_session_id(conn: connect) -> None:
             if result is not None and result[0] is not None:
                 st.session_state.session = result[0]
             else:
-                st.session_state.session = 1
+                st.session_state.session = None
 
     except Error as error:
         st.error(f"Failed to get the current session id: {error}")
+        raise
 
     # st.write(f"Within the get_and_set_current_session_id function, the session is: {st.session_state.session}")
 
@@ -239,35 +286,65 @@ def determine_if_the_current_session_is_not_closed(conn: connect) -> bool:
         st.error(f"Failed to determine if the current session is closed: {error}")
         return None
 
-def start_session_save_to_mysql(conn: connect):
+def start_session_save_to_mysql_and_increment_session_id(conn: connect):
+    """
+    Start a new session by inserting a null value at the end timestamp column of the session table.
+
+    Args:
+        conn: A MySQL connection object to interact with the database.
+
+    Returns:
+        None. Inserts a new session record and increments the session counter in `st.session_state.session`.
+    """
     try:
         with conn.cursor() as cursor:
-            cursor.execute(
-            """
-            INSERT INTO session (end_timestamp) VALUE (null);
-            """
-            )
+            cursor.execute("INSERT INTO session (end_timestamp) VALUE (null);")
             conn.commit()
 
-            st.session_state.session += 1
+            if st.session_state.session is not None:
+                st.session_state.session += 1
+            else:
+                st.session_state.session = 1
 
     except Error as error:
         st.error(f"Failed to start a new session: {error}")
+        raise
 
-def end_session_save_to_mysql(conn: connect):
+def end_session_save_to_mysql_and_save_summary(conn: connect, current_time) -> None:
+    """
+    End the current session by updating the end timestamp in the session table in the MySQL database.
+
+    Args:
+        conn: A MySQL connection object to interact with the database.
+
+    Returns:
+        None. Updates the database with the end timestamp for the current session.
+    """
     try:
         with conn.cursor() as cursor:
             sql = "UPDATE session SET end_timestamp = %s WHERE session_id = %s;"
-            val = (time, st.session_state.session)
+            val = (current_time, st.session_state.session)
             cursor.execute(sql, val)
             conn.commit()
 
     except Error as error:
         st.error(f"Failed to end a session: {error}")
+        raise
 
-    get_session_summary_and_save_to_session_table(st.session_state.session)  # Save session summary after ending session
+    get_session_summary_and_save_to_session_table(conn, st.session_state.session)  # Save session summary after ending session
 
-def save_session_summary_to_mysql(conn: connect, id, summary_text):
+def save_session_summary_to_mysql(conn: connect, id: int, summary_text: str) -> None:
+    """
+    Updates the session summary text in the "session" table in a MySQL database.
+
+    Parameters:
+    - conn (MySQLConnection): An established MySQL connection object.
+    - id (int): The unique identifier for the session to be updated.
+    - summary_text (str): The new summary text for the session.
+
+    Raises:
+    - Error: If the database update operation fails.
+    """
     try:
         with conn.cursor() as cursor:
             sql = "UPDATE session SET summary = %s WHERE session_id = %s;"
@@ -277,8 +354,21 @@ def save_session_summary_to_mysql(conn: connect, id, summary_text):
 
     except Error as error:
         st.error(f"Failed to save the summary of a session: {error}")
+        raise
 
-def save_to_mysql_message(conn: connect, session_id1, role1, content1):
+def save_to_mysql_message(conn: connect, session_id1: int, role1: str, content1: str) -> None:
+    """
+    Inserts a new message into the "message" table in a MySQL database table.
+
+    Parameters:
+    - conn (MySQLConnection): A connection object to the MySQL database.
+    - session_id1 (int): The session ID associated with the message.
+    - role1 (str): The role of the user sending the message.
+    - content1 (str): The content of the message.
+
+    Raises:
+    - Error: If the message could not be saved.
+    """
     try:
         with conn.cursor() as cursor:
             sql = "INSERT INTO message (session_id, role, content) VALUES (%s, %s, %s)"
@@ -288,25 +378,40 @@ def save_to_mysql_message(conn: connect, session_id1, role1, content1):
 
     except Error as error:
         st.error(f"Failed to save new message: {error}")
+        raise
 
-def get_session_summary_and_save_to_session_table(session_id1):
-    # chat_session_text = load_previous_chat_session_first_question_for_summary(s1)
-    # chat_session_text = load_previous_chat_session_all_questions_for_summary(session_id1)
-    chat_session_text_user_only = load_previous_chat_session_all_questions_for_summary_only_users(connection, session_id1)
+def get_session_summary_and_save_to_session_table(conn: connect, session_id1: int) -> None:
+    """
+    Retrieves the chat session's text, generates a summary for user messages only,
+    and saves the summary to the session table in the database.
+
+    Parameters:
+    - session_id1 (str): The unique identifier of the chat session.
+
+    """
+    chat_session_text_user_only = load_previous_chat_session_all_questions_for_summary_only_users(conn, session_id1)
     # st.write(f"Session text (user only): {chat_session_text_user_only} /n")
-    # session_summary = chat_session_text
     session_summary = chatgpt_summary_user_only(chat_session_text_user_only)
     # st.write(f"Summary of session {session_id1}: {session_summary} /n")
-    save_session_summary_to_mysql(connection, session_id1, session_summary)
+    save_session_summary_to_mysql(conn, session_id1, session_summary)
 
-def delete_all_rows(conn: connect):
+def delete_all_rows(conn: connect) -> None:
+    """Delete all rows from 'message' and 'session' tables.
+
+    This function will disable foreign key checks, truncate the message and
+    session tables, and then re-enable foreign key checks to maintain integrity.
+
+    Parameters:
+    - conn: MySQLConnection object representing the database connection.
+
+    Raises:
+    - Raises an exception if any SQL errors occur during the deletion process.
+    """
     try:
         with conn.cursor() as cursor:
             cursor.execute("SET FOREIGN_KEY_CHECKS=0;")
-
             cursor.execute("TRUNCATE TABLE message;")
             cursor.execute("TRUNCATE TABLE session;")
-
             cursor.execute("SET FOREIGN_KEY_CHECKS=1;")
             conn.commit()
 
@@ -314,8 +419,20 @@ def delete_all_rows(conn: connect):
 
     except Error as error:
         st.error(f"Failed to finish deleting data: {error}")
+        raise
 
-def convert_date(date1):
+def convert_date(date1: str, date_early: datetime) -> Tuple[datetime, datetime]:
+    """
+    Convert a human-readable date range string into actual datetime objects.
+
+    Parameters:
+    - date1: A string representing a predefined date range. 
+      Accepted values are "Today", "Yesterday", "Previous 7 days", "Previous 30 days", "Older".
+    - date_earliest: An optional datetime object representing the earliest possible date.
+
+    Returns:
+    A tuple of two datetime objects representing the start and end of the date range.
+    """
     if date1 == "Today":
         return today, today
     elif date1 == "Yesterday":
@@ -326,13 +443,16 @@ def convert_date(date1):
         return (today - timedelta(days = 30)), (today - timedelta(days = 8))
     elif date1 == "Older":
         # st.write(f"The date is of the type: {type((today - timedelta(days = 30)))}")
-        if date_earlist is not None:
-            if date_earlist < (today - timedelta(days = 30)):
-                return date_earlist, (today - timedelta(days = 30))
+        if date_early is not None:
+            if date_early < (today - timedelta(days = 30)):
+                return date_early, (today - timedelta(days = 30))
             else:
-                return (date_earlist - timedelta(days = 31)), (date_earlist - timedelta(days = 31))
+                return (date_early - timedelta(days = 31)), (date_early - timedelta(days = 31))
         else:
             return today, today # since there is no data in the tables, just return an arbratriry date
+    else:
+        st.error(f"Failed to finish deleting data: {error}")
+
 
 def get_the_earliest_date(conn: connect) -> Optional[str]:
     """
@@ -359,7 +479,17 @@ def get_the_earliest_date(conn: connect) -> Optional[str]:
         st.error(f"Failed to get the earliest date: {error}")
         return None
 
-def get_summary_by_session_id_return_dic(conn: connect, session_id_list):
+def get_summary_by_session_id_return_dic(conn: connect, session_id_list: List[int]) -> Optional[Dict[int, str]]:
+    """
+    Retrieves a summary for each session ID provided in the list.
+
+    Parameters:
+    - conn: The MySQLConnection object used to connect to the database.
+    - session_id_list: A list of session IDs for which to retrieve summaries.
+
+    Returns:
+    A dictionary mapping session IDs to their summaries if successful, or None if an error occurs.
+    """
     try:
         if session_id_list == [0]:
             summary_dict = {0: "No sessions available"}
@@ -381,32 +511,32 @@ def get_summary_by_session_id_return_dic(conn: connect, session_id_list):
                     else:
                         if i == 0:
                             summary_dict[session_id] = "Summary not yet available for the current active session."
-                        else:
-                            pass
+                        # else:
+                        #     pass
                 return dict(reversed(list(summary_dict.items())))
-
-        # summary_list = []
-        # with conn.cursor() as cursor:
-        #     for s in session_id_list:
-        #         sql = "SELECT summary FROM session WHERE session_id = %s"
-        #         val = (s,)
-        #         cursor.execute(sql, val)
-
-        #         summary = cursor.fetchone()
-        #         if summary:
-        #             summary_list.append(summary[0])
-
-        #     dic = {session_id_list[i]: summary_list[i] for i in range(len(session_id_list))}
-
-        #     return dic
 
     except Error as error:
         st.error(f"Failed to load summary: {error}")
         return None
 
-def chatgpt(conn: connect, prompt1):
-    determine_if_terminate_current_ssession_and_start_a_new_one()
+def chatgpt(conn: connect, prompt1: str, temp: float, current_time: datetime) -> None:
+    """
+    Processes a chat prompt using OpenAI's ChatCompletion model, updates the chat interface,
+    and saves the chat to the "message" table.
+
+    Parameters:
+    - conn: A connection to the database.
+    - prompt1: The user's input prompt as a string.
+    - temp: The temperature parameter for the OpenAI model, controlling the randomness of the output.
+    - current_time: A datetime object representing the current time.
+
+    This function does not return anything. It updates the session state with the message history,
+    renders the chat messages on the web interface, and saves the messages to a MySQL database.
+    """
+    
+    determine_if_terminate_current_ssession_and_start_a_new_one(conn, current_time)
     st.session_state.messages.append({"role": "user", "content": prompt1})
+
     with st.chat_message("user"):
         st.markdown(prompt1)
 
@@ -429,7 +559,7 @@ def chatgpt(conn: connect, prompt1):
                     {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages
                     ],
-                temperature=temperature,
+                temperature=temp,
                 stream=True,
             ):
                 full_response += response.choices[0].delta.get("content", "")
@@ -445,26 +575,20 @@ def chatgpt(conn: connect, prompt1):
     save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
     save_to_mysql_message(conn, st.session_state.session, "assistant", full_response)
 
-    # get_session_summary_and_save_to_session_table(st.session_state.session)
+def chatgpt_summary_user_only(chat_text_user_only: str) -> str:
+    """
+    Generates a summary sentence for the main topics of a user's chat input using OpenAI's Completion API.
 
-# def chatgpt_summary(chat_text):
-#     try:
-#         response = openai.Completion.create(
-#         engine="text-davinci-003",
-#         prompt="Use a few words to describe the main topics of the following chat session. No more than five words.\n\n" +
-#         chat_text,
-#         max_tokens=50,  # Adjust the max tokens as per the summarization requirements
-#         n=1,
-#         stop=None,
-#         temperature=0.5
-#         )
-#         summary = response.choices[0].text.strip()
-#         return summary
+    Parameters:
+    chat_text_user_only (str): The chat text input from the user which needs to be summarized.
 
-#     except OpenAIError as e:
-#             st.write(f"An error occurred with OpenAI in getting chat summary: {e}")
+    Returns:
+    str: A summary sentence of the user's chat input.
 
-def chatgpt_summary_user_only(chat_text_user_only):
+    Note:
+    The prompt instructs the AI to avoid starting the sentence with "The user" or "Questions about"
+    and limits the summary to a maximum of sixteen words.
+    """
     response = openai.Completion.create(
       engine="text-davinci-003",
       prompt="Use a sentence to summary the main topics of the user's questions in following chat session. " + 
@@ -481,49 +605,53 @@ def chatgpt_summary_user_only(chat_text_user_only):
 
     return summary
 
-def determine_if_terminate_current_ssession_and_start_a_new_one():
+def determine_if_terminate_current_ssession_and_start_a_new_one(conn: connect, current_time):
     # st.write(f"value of st.session_state.session_not_close when enter determine function is: {st.session_state.session_not_close}")
-    if st.session_state.first_run and ((not st.session_state.load_history_level_2 and not st.session_state.file_upload)
-                                       and not st.session_state.new_session):
+    # if st.session_state.new_table and ((not st.session_state.load_history_level_2 and not st.session_state.file_upload)
+    #                                    and not st.session_state.new_session):
+    if st.session_state.new_table:
         # get_new_session_id()  # Get the session_id after "get_new_session_id()" is run. To be used when saving to the message table.
-        start_session_save_to_mysql(connection)  # always run after "get_new_session_id()"
-        get_and_set_current_session_id(connection)
-        st.session_state.first_run = False
+        start_session_save_to_mysql_and_increment_session_id(connection)
+        # get_and_set_current_session_id(connection)
+
+        st.session_state.new_table = False
     elif st.session_state.new_session:
-        end_session_save_to_mysql(connection)
-        start_session_save_to_mysql(connection)
-        get_and_set_current_session_id(connection)
+        end_session_save_to_mysql_and_save_summary(connection, current_time)
+        start_session_save_to_mysql_and_increment_session_id(connection)
+        # get_and_set_current_session_id(connection)
+
         st.session_state.new_session = False
-        st.session_state.first_run = False
+        # st.session_state.new_table = False
     elif st.session_state.session_not_close:
         # st.write("Enter session_not_vlose elif is True")
-        end_session_save_to_mysql(connection)
-        start_session_save_to_mysql(connection)
-        get_and_set_current_session_id(connection)
+        end_session_save_to_mysql_and_save_summary(connection, current_time)
+        start_session_save_to_mysql_and_increment_session_id(connection)
+        # get_and_set_current_session_id(connection)
 
         for message in st.session_state.messages:  # Since a new promp is entered, need to save previous messages to mysql.
-            save_to_mysql_message(st.session_state.session, message["role"], message["content"])
+            save_to_mysql_message(conn, st.session_state.session, message["role"], message["content"])
             # st.write(f"save to message table: {message['role']}: {message['content']}")
 
         st.session_state.session_not_close = False
     elif st.session_state.load_history_level_2:
         # st.write("Code enters determine_if_terminate_current_ssession_and_start_a_new_one level 2")
-        end_session_save_to_mysql(connection)
-        start_session_save_to_mysql(connection)
-        get_and_set_current_session_id(connection)
+        end_session_save_to_mysql_and_save_summary(connection, current_time)
+        start_session_save_to_mysql_and_increment_session_id(connection)
+        # get_and_set_current_session_id(connection)
 
         for message in st.session_state.messages:  # Since a new promp is entered, need to save previous messages to mysql.
-            save_to_mysql_message(st.session_state.session, message["role"], message["content"])
+            save_to_mysql_message(conn, st.session_state.session, message["role"], message["content"])
 
-        st.session_state.selectbox_first_level_index = None
+        # st.session_state.selectbox_first_level_index = None
         st.session_state.load_history_level_2 = False
-        st.session_state.first_run = False
+        # st.session_state.new_table = False
     elif st.session_state.file_upload:
-        end_session_save_to_mysql(connection)
-        start_session_save_to_mysql(connection)
-        get_and_set_current_session_id(connection)
+        end_session_save_to_mysql_and_save_summary(connection, current_time)
+        start_session_save_to_mysql_and_increment_session_id(connection)
+        # get_and_set_current_session_id(connection)
+
         st.session_state.file_upload = False
-        st.session_state.first_run = False
+        # st.session_state.new_table = False
     else:
         pass
 
@@ -545,23 +673,28 @@ temperature = st.sidebar.number_input("Input the temperture value (from 0 to 1.6
                                       min_value=0.0, max_value=1.0, value=0.7, step=0.1)
 
 # Initialize session states
-if 'selectbox_first_level_index' not in st.session_state:  # if None, a selection box will initialize empty.
-    st.session_state.selectbox_first_level_index = None
+# if 'selectbox_first_level_index' not in st.session_state:  # if None, a selection box will initialize empty.
+#     st.session_state.selectbox_first_level_index = None
 
-if "first_run" not in st.session_state:
-    # st.write(f"first run not in st.session_state is True")
-    st.session_state.first_run = True  # need to reset if used later in code to start a session.
+# if "new_table" not in st.session_state:
+#     # st.write(f"first run not in st.session_state is True")
+#     st.session_state.new_table = True  # need to reset if used later in code to start a session.
 
-if "session_not_close" not in st.session_state:
-    st.session_state.session_not_close = False
+# if "session_not_close" not in st.session_state:
+#     st.session_state.session_not_close = False
 
 if "session" not in st.session_state:
     # st.write(f"session not in st.session_state is True")
     get_and_set_current_session_id(connection)
-    st.session_state.session_not_close = determine_if_the_current_session_is_not_closed(connection)
-    if st.session_state.session_not_close:
-        load_previous_chat_session(connection, st.session_state.session)
-        st.session_state.first_run = False
+
+    if st.session_state.session is not None:
+        st.session_state.session_not_close = determine_if_the_current_session_is_not_closed(connection)
+        if st.session_state.session_not_close:
+            load_previous_chat_session(connection, st.session_state.session)
+            st.session_state.new_table = False
+            st.session_state.new_session = False
+    else:
+        st.session_state.new_table = True
 
 # st.write(f"Current session is: {st.session_state.session}")
 
@@ -590,17 +723,17 @@ load_history_level_1 = st.sidebar.selectbox(
     label='Load a previous chat date:',
     placeholder='Pick a date',
     options=['Today', 'Yesterday', 'Previous 7 days', 'Previous 30 days', 'Older'],
-    index=st.session_state.selectbox_first_level_index,
+    index=None,
     key="first_level"
     )
 
 # list of session_ids of a date range
-today_sessions = load_previous_chat_session_id(connection, *convert_date('Today'))
+today_sessions = load_previous_chat_session_ids(connection, *convert_date('Today', date_earlist))
 # st.write(f"today's session ids: {today_sessions}")
-yesterday_sessions = load_previous_chat_session_id(connection, *convert_date('Yesterday'))
-seven_days_sessions = load_previous_chat_session_id(connection, *convert_date('Previous 7 days'))
-thirty_days_sessions = load_previous_chat_session_id(connection,*convert_date('Previous 30 days'))
-older_sessions = load_previous_chat_session_id(connection, *convert_date('Older'))
+yesterday_sessions = load_previous_chat_session_ids(connection, *convert_date('Yesterday', date_earlist))
+seven_days_sessions = load_previous_chat_session_ids(connection, *convert_date('Previous 7 days', date_earlist))
+thirty_days_sessions = load_previous_chat_session_ids(connection,*convert_date('Previous 30 days', date_earlist))
+older_sessions = load_previous_chat_session_ids(connection, *convert_date('Older', date_earlist))
 
 today_dic = get_summary_by_session_id_return_dic(connection, today_sessions)
 # st.write(f"today's returned dic: {today_dic}")
@@ -632,17 +765,24 @@ empty_database = st.sidebar.button("Delete chat history in database")
 uploaded_file = st.sidebar.file_uploader("Upload a file")
 to_chatgpt = st.sidebar.button("Send to chatGPT")
 
-if load_history_level_2:
-    # st.write(f"session choice: {load_history_level_2}")
-    st.session_state.load_history_level_2 = True
-    load_previous_chat_session(connection, load_history_level_2)
-    # st.write(f"value of st.session_state.load_history_level_2 when first click is: {st.session_state.load_history_level_2}")
-
 if new_chat_button:
     st.session_state.new_session = True  # This state is needed to determin if a new session needs to be created
     # st.write(f"Enter new chat: {new_chat_button}")
     st.session_state.messages = []
+    st.session_state.new_table = False
     st.session_state.load_history_level_2 = False
+    st.session_state.session_not_close = False
+    st.session_state.file_upload = False
+
+if load_history_level_2:
+    # st.write(f"session choice: {load_history_level_2}")
+    st.session_state.load_history_level_2 = True
+    load_previous_chat_session(connection, load_history_level_2)
+    st.session_state.new_table = False
+    st.session_state.new_session = False
+    st.session_state.session_not_close = False
+    # st.write(f"value of st.session_state.load_history_level_2 when first click is: {st.session_state.load_history_level_2}")
+
 
 # modal = Modal("Attention", key="popup")
 # if empty_database:
@@ -704,10 +844,16 @@ if uploaded_file is not None and not to_chatgpt:
 # Call openai api
 if uploaded_file is not None and to_chatgpt:
     prompt_f = uploaded_file.read().decode("utf-8")
+
     st.session_state.file_upload = True
-    chatgpt(prompt_f)
+    st.session_state.new_table = False
+    st.session_state.new_session = False
+    st.session_state.session_not_close = False
+    st.session_state.load_history_level_2 = False
+
+    chatgpt(connection, prompt_f, temperature, time)
 
 if prompt := st.chat_input("What is up?"):
-    chatgpt(connection, prompt)
+    chatgpt(connection, prompt, temperature, time)
 
 connection.close()
