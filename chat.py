@@ -16,8 +16,8 @@ import textwrap
 
 def init_connection() -> None:
     """
-    Initializes the database connection and creates tables 'session' 
-    and 'message' if they do not already exist.
+    Initializes the database connection and creates tables 'session',
+    'message' and 'behavior' if they do not already exist.
 
     Uses Streamlit secrets for the connection parameters.
     Throws an error through the Streamlit interface if the connection or 
@@ -47,6 +47,16 @@ def init_connection() -> None:
                     role TEXT,
                     content TEXT,
                     FOREIGN KEY (session_id) REFERENCES session(session_id)
+                );
+            """
+            )
+            cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS behavior
+                (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    choice TEXT
                 );
             """
             )
@@ -84,7 +94,71 @@ def load_previous_chat_session(conn: connect, session1: str) -> None:
         st.error(f"Failed to load previous chat sessions: {error}")
         raise
 
-def load_previous_chat_session_all_questions_for_summary_only_users(conn: connect, session1:str) -> Optional[str]:
+def insert_initial_default_model_behavior(conn: connect, behavior1: str) -> None:
+    try:
+        with conn.cursor() as cursor:
+            sql = "INSERT INTO behavior (choice) SELECT %s FROM DUAL WHERE NOT EXISTS (SELECT * FROM behavior);"
+            val = (behavior1, )
+            cursor.execute(sql, val)
+            conn.commit()
+
+    except Error as error:
+        st.error(f"Failed to save the initial default model behavior: {error}")
+        raise
+
+def save_model_behavior_to_mysql(conn: connect, behavior1: str) -> None:
+    try:
+        with conn.cursor() as cursor:
+            sql = "INSERT INTO behavior (choice) VALUE (%s)"
+            val = (behavior1, )
+            cursor.execute(sql, val)
+            conn.commit()
+
+    except Error as error:
+        st.error(f"Failed to save model behavior: {error}")
+        raise
+
+def Load_the_last_saved_model_behavior(conn: connect) -> None:
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT choice FROM behavior WHERE id=(SELECT MAX(id) FROM behavior);")
+
+            result = cursor.fetchone()
+            if result is not None and result[0] is not None:
+                st.session_state.behavior = result[0]
+            else:
+                st.session_state.behavior = None
+
+    except Error as error:
+        st.error(f"Failed to read the last saved behavior: {error}")
+        raise
+
+def return_behavior_index(behavior1: st) -> int:
+    behavior_dic = {
+        'Deterministic (T=0.0, top_p=0.2)': 0,
+        'Conservative (T=0.3, top_p=0.4)': 1,
+        'Balanced (T=0.6, top_p=0.6)': 2,
+        'Diverse (T=0.8, top_p=0.8)': 3, 
+        'Creative (T=1.0, top_p=1.0)': 4
+    }
+    return behavior_dic[behavior1]
+
+def return_temp_and_top_values_from_model_behavior(behavior1: str) -> tuple[float, float]:
+    if behavior1 == "Deterministic (T=0.0, top_p=0.2)":
+        return (0.0, 0.2)
+    elif behavior1 == "Conservative (T=0.3, top_p=0.4)":
+        return (0.4, 0.4)
+    elif behavior1 == "Balanced (T=0.6, top_p=0.6)":
+        return (0.6, 0.6)
+    elif behavior1 == "Diverse (T=0.8, top_p=0.8)":
+        return (0.8, 0.8)
+    elif behavior1 == "Creative (T=1.0, top_p=1.0)":
+        return (1.0, 1.0)
+    else:
+        st.error(f"Model behavior not in the predefined list.")
+
+
+def load_previous_chat_session_all_questions_for_summary_only_users(conn: connect, session1: str) -> Optional[str]:
     """
     Loads and concatenates the content of all messages sent by the user in a given chat session.
 
@@ -341,6 +415,7 @@ def delete_all_rows(conn: connect) -> None:
             cursor.execute("SET FOREIGN_KEY_CHECKS=0;")
             cursor.execute("TRUNCATE TABLE message;")
             cursor.execute("TRUNCATE TABLE session;")
+            cursor.execute("TRUNCATE TABLE behavior;")
             cursor.execute("SET FOREIGN_KEY_CHECKS=1;")
             conn.commit()
 
@@ -460,7 +535,7 @@ def get_summary_by_session_id_return_dic(conn: connect, session_id_list: List[in
         st.error(f"Failed to load summary: {error}")
         return None
 
-def chatgpt(conn: connect, prompt1: str, temp: float, current_time: datetime) -> None:
+def chatgpt(conn: connect, prompt1: str, temp: float, p: float, max_tok: int, current_time: datetime) -> None:
     """
     Processes a chat prompt using OpenAI's ChatCompletion model, updates the chat interface,
     and saves the chat to the "message" table.
@@ -475,6 +550,9 @@ def chatgpt(conn: connect, prompt1: str, temp: float, current_time: datetime) ->
     renders the chat messages on the web interface, and saves the messages to a MySQL database.
     """
 
+    st.write(f"Inside chatgpt function temprature = {temp}, and top_p = {p}")
+    st.write(f"Model used inside chatgpt function is {st.session_state.openai_model}")
+    st.write(f"Max_tokens inside chatgpt function is {max_tok}")
     determine_if_terminate_current_session_and_start_a_new_one(conn, current_time)
     st.session_state.messages.append({"role": "user", "content": prompt1})
 
@@ -501,6 +579,8 @@ def chatgpt(conn: connect, prompt1: str, temp: float, current_time: datetime) ->
                     for m in st.session_state.messages
                     ],
                 temperature=temp,
+                top_p=p,
+                max_tokens=max_tok,
                 stream=True,
             ):
                 full_response += response.choices[0].delta.get("content", "")
@@ -603,8 +683,44 @@ st.title("Personal ChatGPT")
 st.sidebar.title("Options")
 model_name = st.sidebar.radio("Choose model:",
                                 ("gpt-3.5-turbo-1106", "gpt-4", "gpt-4-1106-preview"), index=2)
-temperature = st.sidebar.number_input("Input the temperture value (from 0 to 1.6):",
-                                      min_value=0.0, max_value=1.0, value=0.7, step=0.1)
+# temperature = st.sidebar.number_input("Input the temperture value (from 0 to 1.6):",
+#                                       min_value=0.0, max_value=1.0, value=0.7, step=0.1)
+
+st.session_state.openai_model = model_name
+
+if "behavior" not in st.session_state:
+    st.session_state.behavior = ""
+
+# If the behavior table is empty
+insert_initial_default_model_behavior(connection, 'Deterministic (T=0.0, top_p=0.2)')
+
+Load_the_last_saved_model_behavior(connection)  # load from database and save to session_state
+behavior_index = return_behavior_index(st.session_state.behavior)  # from string to int
+(temperature, top_p) = return_temp_and_top_values_from_model_behavior(st.session_state.behavior)
+# st.write(f"temprature = {temperature}, and top_p = {top_p}")
+
+behavior = st.sidebar.selectbox(
+    label="Select the behavior of your model",
+    placeholder='Pick a behavior',
+    options=['Deterministic (T=0.0, top_p=0.2)', 'Conservative (T=0.3, top_p=0.4)', 
+             'Balanced (T=0.6, top_p=0.6)', 'Diverse (T=0.8, top_p=0.8)', 'Creative (T=1.0, top_p=1.0)'],
+    index=behavior_index,
+    key="behavior1"
+    )
+
+if behavior:
+    save_model_behavior_to_mysql(connection, behavior)
+    # Load_the_last_saved_model_behavior(connection)
+    # (temperature, top_p) = return_temp_and_top_values_from_model_behavior(behavior)
+    # # st.write(f"temprature = {temperature}, and top_p = {top_p}")
+
+max_token = st.sidebar.number_input(
+    label="Select the maximum number of tokens",
+    min_value=300,
+    max_value=1800,
+    value=900,
+    step=300
+    )
 
 if "session" not in st.session_state:
     # st.write(f"session not in st.session_state is True")
@@ -615,7 +731,7 @@ if "session" not in st.session_state:
         if st.session_state.session_not_close:
             load_previous_chat_session(connection, st.session_state.session)
             st.session_state.new_table = False
-            st.session_state.new_session = False
+            # st.session_state.new_session = False
     else:
         st.session_state.new_table = True
 
@@ -711,6 +827,33 @@ if load_history_level_2 and not new_chat_button:
     st.session_state.file_upload = False
     # st.write(f"value of st.session_state.load_history_level_2 when first click is: {st.session_state.load_history_level_2}")
 
+
+
+if uploaded_file is not None and not to_chatgpt:
+    prompt_f = uploaded_file.read().decode("utf-8")
+    st.sidebar.write(prompt_f)
+
+# Call openai api
+if uploaded_file is not None and to_chatgpt:
+    prompt_f = uploaded_file.read().decode("utf-8")
+
+    st.session_state.file_upload = True
+    st.session_state.new_table = False
+    st.session_state.new_session = False
+    st.session_state.session_not_close = False
+    st.session_state.load_history_level_2 = False
+
+    chatgpt(connection, prompt_f, temperature, top_p, max_token, time)
+
+# Print each message on page
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+if prompt := st.chat_input("What is up?"):
+    chatgpt(connection, prompt, temperature, top_p, max_token, time)
+
+
 if delete_a_session:
     st.session_state.delete_session = True
     st.error("Do you really wanna delete this chat history?", icon="🚨")
@@ -728,6 +871,7 @@ if st.session_state.delete_session:
         st.session_state.delete_session = False
         st.session_state.messages = []
         st.session_state.new_session = True
+        st.rerun()
     elif confirmation == 'No':
         st.success("Data not deleted.")
         st.session_state.delete_session = False
@@ -748,32 +892,9 @@ if st.session_state.empty_data:
         st.warning("Data deleted.", icon="🚨")
         st.session_state.empty_data = False
         st.session_state.new_session = True
+        st.rerun()
     elif confirmation == 'No':
         st.success("Data not deleted.")
         st.session_state.empty_data = False
-
-if uploaded_file is not None and not to_chatgpt:
-    prompt_f = uploaded_file.read().decode("utf-8")
-    st.sidebar.write(prompt_f)
-
-# Call openai api
-if uploaded_file is not None and to_chatgpt:
-    prompt_f = uploaded_file.read().decode("utf-8")
-
-    st.session_state.file_upload = True
-    st.session_state.new_table = False
-    st.session_state.new_session = False
-    st.session_state.session_not_close = False
-    st.session_state.load_history_level_2 = False
-
-    chatgpt(connection, prompt_f, temperature, time)
-
-# Print each message on page
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-if prompt := st.chat_input("What is up?"):
-    chatgpt(connection, prompt, temperature, time)
 
 connection.close()
