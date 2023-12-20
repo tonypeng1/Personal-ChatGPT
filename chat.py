@@ -858,7 +858,7 @@ if delete_a_session:
     st.session_state.delete_session = True
     st.error("Do you really wanna delete this chat history?", icon="🚨")
 
-if st.session_state.delete_session:
+if st.session_state.delete_session and not st.session_state.get("confirmation", False):
     confirmation = st.selectbox(
         label="Confirm your answer (If you choose 'Yes', this chat history of thie loaded session will be deleted):",
         placeholder="Pick a choice",
@@ -871,10 +871,17 @@ if st.session_state.delete_session:
         st.session_state.delete_session = False
         st.session_state.messages = []
         st.session_state.new_session = True
+        st.session_state.confirmation = True
         st.rerun()
     elif confirmation == 'No':
         st.success("Data not deleted.")
         st.session_state.delete_session = False
+        st.session_state.confirmation = True
+
+if st.session_state.get("confirmation", False):
+    st.session_state.confirmation = False
+
+
 
 if empty_database:
     st.session_state.empty_data = True
