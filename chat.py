@@ -526,7 +526,7 @@ def get_summary_by_session_id_return_dic(conn: connect, session_id_list: List[in
                         i += 1
                     else:
                         if i == 0:
-                            summary_dict[session_id] = "Summary not yet available for the current active session."
+                            summary_dict[session_id] = "Summary not yet available for the currently active session."
                         # else:
                         #     pass
                 return dict(reversed(list(summary_dict.items())))
@@ -550,9 +550,9 @@ def chatgpt(conn: connect, prompt1: str, temp: float, p: float, max_tok: int, cu
     renders the chat messages on the web interface, and saves the messages to a MySQL database.
     """
 
-    st.write(f"Inside chatgpt function temprature = {temp}, and top_p = {p}")
-    st.write(f"Model used inside chatgpt function is {st.session_state.openai_model}")
-    st.write(f"Max_tokens inside chatgpt function is {max_tok}")
+    # st.write(f"Inside chatgpt function temprature = {temp}, and top_p = {p}")
+    # st.write(f"Model used inside chatgpt function is {st.session_state.openai_model}")
+    # st.write(f"Max_tokens inside chatgpt function is {max_tok}")
     determine_if_terminate_current_session_and_start_a_new_one(conn, current_time)
     st.session_state.messages.append({"role": "user", "content": prompt1})
 
@@ -670,6 +670,10 @@ def determine_if_terminate_current_session_and_start_a_new_one(conn: connect, cu
             st.session_state[state] = False  # Resets the state to False
             break  # Breaks after handling a state, assuming only one state can be true at a time
 
+def set_new_session_to_false():
+    st.session_state.new_session = False
+
+
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 connection = init_connection()
 
@@ -758,8 +762,11 @@ if "delete_session" not in st.session_state:
 if "empty_data" not in st.session_state:
     st.session_state.empty_data = False
 
-if "confirmation" not in st.session_state:
-    st.session_state.confirmation = False
+# if "confirmation_session" not in st.session_state:
+#     st.session_state.confirmation_session = False
+
+# if "confirmation_all" not in st.session_state:
+#     st.session_state.confirmation_all = False
 
 load_history_level_1 = st.sidebar.selectbox(
     label='Load a previous chat date:',
@@ -798,7 +805,8 @@ load_history_level_2 = st.sidebar.selectbox(
         placeholder='Pick a session',
         options=list((level_two_options[load_history_level_1]).keys()),
         index=None,
-        format_func=lambda x:level_two_options[load_history_level_1][x]
+        format_func=lambda x:level_two_options[load_history_level_1][x],
+        on_change=set_new_session_to_false
         )
 # st.write(f"The return of level 2 click is: {load_history_level_2}")
 
@@ -807,6 +815,9 @@ delete_a_session = st.sidebar.button("Delete the loaded session")
 empty_database = st.sidebar.button("Delete the entire chat history")
 uploaded_file = st.sidebar.file_uploader("Upload a file")
 to_chatgpt = st.sidebar.button("Send to chatGPT")
+
+# if load_history_level_2:
+#     st.session_state.new_session = False
 
 if new_chat_button:
     st.session_state.new_session = True  # This state is needed to determin if a new session needs to be created
@@ -817,7 +828,7 @@ if new_chat_button:
     st.session_state.session_not_close = False
     st.session_state.file_upload = False
 
-if load_history_level_2 and not new_chat_button:
+if load_history_level_2 and not st.session_state.new_session:
     # st.write(f"session choice: {load_history_level_2}")
     st.session_state.load_history_level_2 = True
     load_previous_chat_session(connection, load_history_level_2)
@@ -858,25 +869,32 @@ if delete_a_session:
     st.session_state.delete_session = True
     st.error("Do you really wanna delete this chat history?", icon="🚨")
 
-if st.session_state.delete_session and not st.session_state.get("confirmation", False):
-    confirmation = st.selectbox(
-        label="Confirm your answer (If you choose 'Yes', this chat history of thie loaded session will be deleted):",
-        placeholder="Pick a choice",
-        options=['No', 'Yes'],
-        index=None
-    )
-    if confirmation == 'Yes':
+placeholder_confirmation_sesson = st.empty()
+# placeholder_confirmation_session_no = st.empty()
+
+# if st.session_state.delete_session and not st.session_state.get("confirmation_session", False):
+if st.session_state.delete_session:
+    with placeholder_confirmation_sesson.container():
+        confirmation_1 = st.selectbox(
+            label="Confirm your answer (If you choose 'Yes', this chat history of thie loaded session will be deleted):",
+            placeholder="Pick a choice",
+            options=['No', 'Yes'],
+            index=None
+        )
+    if confirmation_1 == 'Yes':
         delete_the_messages_of_a_chat_session(connection, load_history_level_2)
-        st.warning("Data deleted.", icon="🚨")
+        # st.warning("Data deleted.", icon="🚨")
         st.session_state.delete_session = False
         st.session_state.messages = []
         st.session_state.new_session = True
-        st.session_state.confirmation = True
+        # st.session_state.confirmation_session = True
         st.rerun()
-    elif confirmation == 'No':
-        st.success("Data not deleted.")
+    elif confirmation_1 == 'No':
+        # with placeholder_confirmation_session_no.container():
+        #     st.success("Data not deleted.")
         st.session_state.delete_session = False
-        st.session_state.confirmation = True
+        st.rerun()
+        # st.session_state.confirmation_session = True
 
 if st.session_state.get("confirmation", False):
     st.session_state.confirmation = False
@@ -888,19 +906,20 @@ if empty_database:
     st.error("Do you really, really, wanna delete all chat history?", icon="🚨")
 
 if st.session_state.empty_data:
-    confirmation = st.selectbox(
+    confirmation_2 = st.selectbox(
         label="Confirm your answer (If you choose 'Yes', ALL CHAT HISTORY in the database will be deleted):",
         placeholder="Pick a choice",
         options=['No', 'Yes'],
-        index=None
+        index=None,
+        key="second_confirmation"
     )
-    if confirmation == 'Yes':
+    if confirmation_2 == 'Yes':
         delete_all_rows(connection)
         st.warning("Data deleted.", icon="🚨")
         st.session_state.empty_data = False
         st.session_state.new_session = True
         st.rerun()
-    elif confirmation == 'No':
+    elif confirmation_2 == 'No':
         st.success("Data not deleted.")
         st.session_state.empty_data = False
 
