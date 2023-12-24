@@ -1,6 +1,9 @@
 # import sys
 # import subprocess
 import streamlit as st
+import markdown
+from pygments.formatters import HtmlFormatter
+import re
 # st.write("Python version:", sys.version)
 # st.write("Installed packages:", subprocess.check_output([sys.executable, "-m", "pip", "freeze"]).decode("utf-8"))
 
@@ -75,7 +78,7 @@ def load_previous_chat_session(conn: connect, session1: str) -> None:
 
     Args:
         conn: A MySQL connection object.
-        session_id: The ID of the chat session to retrieve messages from.
+        session1: The ID of the chat session to retrieve messages from.
 
     Returns:
         None. Messages are loaded into `st.session_state.messages`.
@@ -181,7 +184,8 @@ def load_previous_chat_session_all_questions_for_summary_only_users(conn: connec
             chat_user = ""
             for (role, content) in cursor:
                 if role == 'user':
-                    chat_user += (role + ": " + content + " ")
+                    # chat_user += (role + ": " + content + " ")
+                    chat_user += content + " "
             return chat_user
 
     except Error as error:
@@ -393,9 +397,9 @@ def get_session_summary_and_save_to_session_table(conn: connect, session_id1: in
 
     """
     chat_session_text_user_only = load_previous_chat_session_all_questions_for_summary_only_users(conn, session_id1)
-    # st.write(f"Session text (user only): {chat_session_text_user_only} /n")
+    st.write(f"Session text (user only): {chat_session_text_user_only} /n")
     session_summary = chatgpt_summary_user_only(chat_session_text_user_only)
-    # st.write(f"Summary of session {session_id1}: {session_summary} /n")
+    st.write(f"Summary of session {session_id1}: {session_summary} /n")
     save_session_summary_to_mysql(conn, session_id1, session_summary)
 
 def delete_all_rows(conn: connect) -> None:
@@ -614,9 +618,8 @@ def chatgpt_summary_user_only(chat_text_user_only: str) -> str:
       engine="text-davinci-003",
       prompt="Use a sentence to summary the main topics of the user's questions in following chat session. " + 
       "DO NOT start the sentence with 'The user' or 'Questions about'. For example, if the summary is 'Questions about handling errors " + 
-      "in OpenAI API.', just return 'Handling errors in OpenAI API'. No more than sixteen words in a sentence. " + 
-      "A partial sentence is fine.\n\n" +
-      chat_text_user_only,
+      "in OpenAI API.', just return 'Handling errors in OpenAI API'. DO NOT use special characters that can not be used in a file name. " + 
+      "No more than sixteen words in a sentence. A partial sentence is fine.\n\n" + chat_text_user_only,
       max_tokens=50,  # Adjust the max tokens as per the summarization requirements
       n=1,
       stop=None,
@@ -670,8 +673,80 @@ def determine_if_terminate_current_session_and_start_a_new_one(conn: connect, cu
             st.session_state[state] = False  # Resets the state to False
             break  # Breaks after handling a state, assuming only one state can be true at a time
 
-def set_new_session_to_false():
+def set_new_session_to_false(): 
     st.session_state.new_session = False
+
+def get_summary_and_return_as_file_name(conn: connect, session1: int) -> Optional[str]:
+    try:
+        with conn.cursor() as cursor:
+            sql = "SELECT summary FROM session WHERE session_id = %s"
+            val = (session1, )
+            cursor.execute(sql, val)
+
+            result = cursor.fetchone()
+            if result is not None and result[0] is not None:
+                string = result[0].replace(" ", "_")
+                string = string.replace(".", "")
+                return string
+            else:
+                return None
+
+    except Error as error:
+        st.error(f"Failed to get session summary: {error}")
+        return None
+
+def convert_messages_to_markdown(messages, code_block_indent='                 '):
+    # st.write(f"messages in convert function is: {messages}")
+    markdown_lines = []
+    for message in messages:
+        role = message['role']
+        content = message['content']
+        lines = content.split('\n')
+        indented_lines = []
+        in_code_block = False  # Flag to track whether we're inside a code block
+
+        for line in lines:
+            if line.strip().startswith('```'):
+                in_code_block = not in_code_block
+                indented_lines.append(line)
+            elif not in_code_block:
+                line = f"> {line}"
+                indented_lines.append(line)
+            else:
+                # Inside a code block
+                indented_line = code_block_indent + line  # Apply indentation
+                indented_lines.append(indented_line)
+
+        indented_content = '\n'.join(indented_lines)
+        # markdown_lines.append(f"**{role.capitalize()}**:\n{indented_content}\n")
+        # markdown_lines.append(f"***{role.capitalize()}***:\n{indented_content}\n")
+        markdown_lines.append(f"###*{role.capitalize()}*:\n{indented_content}\n")
+    return '\n\n'.join(markdown_lines)
+
+def markdown_to_html(md_content):
+    html_content = markdown.markdown(md_content, extensions=['fenced_code', 'codehilite'])
+    # html_content = re.sub(r'<code>', '<code class="codehilite">', html_content)  # Add class to inline code
+    html_content = re.sub(
+        r'<code>', 
+        '<code style="background-color: #f7f7f7; color: green;">', 
+        html_content)
+    html_content = re.sub(
+        r'<em>', 
+        '<em style="color: blue;">', 
+        html_content)
+    css = HtmlFormatter(style='tango').get_style_defs('.codehilite')
+    return f"<style>{css}</style>{html_content}"
+    # return html_content
+
+def is_valid_file_name(file_name: str) -> bool:
+    illegal_chars = r'[\\/:"*?<>|]'
+    reserved_words = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9']
+
+    if re.search(illegal_chars, file_name) or file_name in reserved_words or len(file_name) > 255:
+        return False
+    else:
+        return True
+
 
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -722,7 +797,7 @@ max_token = st.sidebar.number_input(
     label="Select the maximum number of tokens",
     min_value=300,
     max_value=1800,
-    value=900,
+    value=1200,
     step=300
     )
 
@@ -761,12 +836,6 @@ if "delete_session" not in st.session_state:
 
 if "empty_data" not in st.session_state:
     st.session_state.empty_data = False
-
-# if "confirmation_session" not in st.session_state:
-#     st.session_state.confirmation_session = False
-
-# if "confirmation_all" not in st.session_state:
-#     st.session_state.confirmation_all = False
 
 load_history_level_1 = st.sidebar.selectbox(
     label='Load a previous chat date:',
@@ -811,10 +880,6 @@ load_history_level_2 = st.sidebar.selectbox(
 # st.write(f"The return of level 2 click is: {load_history_level_2}")
 
 new_chat_button = st.sidebar.button("New chat session", key="new")
-delete_a_session = st.sidebar.button("Delete the loaded session")
-empty_database = st.sidebar.button("Delete the entire chat history")
-uploaded_file = st.sidebar.file_uploader("Upload a file")
-to_chatgpt = st.sidebar.button("Send to chatGPT")
 
 # if load_history_level_2:
 #     st.session_state.new_session = False
@@ -838,7 +903,30 @@ if load_history_level_2 and not st.session_state.new_session:
     st.session_state.file_upload = False
     # st.write(f"value of st.session_state.load_history_level_2 when first click is: {st.session_state.load_history_level_2}")
 
+    session_md = convert_messages_to_markdown(st.session_state.messages)
+    session_html = markdown_to_html(session_md)
 
+    file_name = get_summary_and_return_as_file_name(connection, load_history_level_2) + ".html"
+    
+    download_chat_session = st.sidebar.download_button(
+        label="Save loaded session",
+        # data=session_md,
+        # file_name=get_summary_and_return_as_file_name(connection, load_history_level_2) + ".md",
+        data=session_html,
+        file_name=file_name,
+        mime="text/markdown",
+        # on_click=is_valid_file_name(file_name)
+    )
+    if download_chat_session:
+        if is_valid_file_name(file_name):
+            st.success("Data saved.")
+        else:
+            st.error(f"The file name '{file_name}' is not a valid file name. File not saved!", icon="🚨")
+
+delete_a_session = st.sidebar.button("Delete loaded session from database")
+
+uploaded_file = st.sidebar.file_uploader("Upload a file")
+to_chatgpt = st.sidebar.button("Send to chatGPT")
 
 if uploaded_file is not None and not to_chatgpt:
     prompt_f = uploaded_file.read().decode("utf-8")
@@ -865,12 +953,15 @@ if prompt := st.chat_input("What is up?"):
     chatgpt(connection, prompt, temperature, top_p, max_token, time)
 
 
+
 if delete_a_session:
-    st.session_state.delete_session = True
-    st.error("Do you really wanna delete this chat history?", icon="🚨")
+    if load_history_level_2 is not None:
+        st.session_state.delete_session = True
+        st.error("Do you really wanna delete this chat history?", icon="🚨")
+    else:
+        st.warning("No previous saved session loaded. Please select one from the above drop-down lists.")
 
 placeholder_confirmation_sesson = st.empty()
-# placeholder_confirmation_session_no = st.empty()
 
 # if st.session_state.delete_session and not st.session_state.get("confirmation_session", False):
 if st.session_state.delete_session:
@@ -887,35 +978,35 @@ if st.session_state.delete_session:
         st.session_state.delete_session = False
         st.session_state.messages = []
         st.session_state.new_session = True
-        # st.session_state.confirmation_session = True
         st.rerun()
     elif confirmation_1 == 'No':
         # with placeholder_confirmation_session_no.container():
-        #     st.success("Data not deleted.")
+        st.success("Data not deleted.")
         st.session_state.delete_session = False
-        st.rerun()
-        # st.session_state.confirmation_session = True
-
-if st.session_state.get("confirmation", False):
-    st.session_state.confirmation = False
+        # st.rerun()
 
 
+
+empty_database = st.sidebar.button("Delete the entire chat history")
 
 if empty_database:
     st.session_state.empty_data = True
     st.error("Do you really, really, wanna delete all chat history?", icon="🚨")
 
+placeholder_confirmation_all = st.empty()
+
 if st.session_state.empty_data:
-    confirmation_2 = st.selectbox(
-        label="Confirm your answer (If you choose 'Yes', ALL CHAT HISTORY in the database will be deleted):",
-        placeholder="Pick a choice",
-        options=['No', 'Yes'],
-        index=None,
-        key="second_confirmation"
-    )
+    with placeholder_confirmation_all.container():
+        confirmation_2 = st.selectbox(
+            label="Confirm your answer (If you choose 'Yes', ALL CHAT HISTORY in the database will be deleted):",
+            placeholder="Pick a choice",
+            options=['No', 'Yes'],
+            index=None,
+            key="second_confirmation"
+        )
     if confirmation_2 == 'Yes':
         delete_all_rows(connection)
-        st.warning("Data deleted.", icon="🚨")
+        st.warning("All data in the database deleted.", icon="🚨")
         st.session_state.empty_data = False
         st.session_state.new_session = True
         st.rerun()
