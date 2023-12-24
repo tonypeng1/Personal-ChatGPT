@@ -397,9 +397,9 @@ def get_session_summary_and_save_to_session_table(conn: connect, session_id1: in
 
     """
     chat_session_text_user_only = load_previous_chat_session_all_questions_for_summary_only_users(conn, session_id1)
-    st.write(f"Session text (user only): {chat_session_text_user_only} /n")
+    # st.write(f"Session text (user only): {chat_session_text_user_only} /n")
     session_summary = chatgpt_summary_user_only(chat_session_text_user_only)
-    st.write(f"Summary of session {session_id1}: {session_summary} /n")
+    # st.write(f"Summary of session {session_id1}: {session_summary} /n")
     save_session_summary_to_mysql(conn, session_id1, session_summary)
 
 def delete_all_rows(conn: connect) -> None:
