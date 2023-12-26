@@ -555,10 +555,12 @@ def chatgpt(conn: connect, prompt1: str, temp: float, p: float, max_tok: int, cu
     """
 
     # st.write(f"Inside chatgpt function temprature = {temp}, and top_p = {p}")
-    # st.write(f"Model used inside chatgpt function is {st.session_state.openai_model}")
+    # st.write(f"Model used inside chatgpt function is {st.session_state['openai_model']}")
     # st.write(f"Max_tokens inside chatgpt function is {max_tok}")
-    determine_if_terminate_current_session_and_start_a_new_one(conn, current_time)
+    determine_if_terminate_current_session_and_start_a_new_one(conn, current_time, load_history_level_2)
+    # st.write(f"In chatgpt before appending: {st.session_state.messages}")
     st.session_state.messages.append({"role": "user", "content": prompt1})
+    # st.write(f"In chatgpt after appending: {st.session_state.messages}")
 
     with st.chat_message("user"):
         st.markdown(prompt1)
@@ -568,7 +570,7 @@ def chatgpt(conn: connect, prompt1: str, temp: float, p: float, max_tok: int, cu
         full_response = ""
         try:
             for response in openai.ChatCompletion.create(
-                model=st.session_state["openai_model"],
+                model=st.session_state['openai_model'],
                 messages=[{"role": "system", "content": "You are based out of Austin, Texas. You are a software engineer " +
                         "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
                         "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
@@ -590,13 +592,18 @@ def chatgpt(conn: connect, prompt1: str, temp: float, p: float, max_tok: int, cu
                 full_response += response.choices[0].delta.get("content", "")
                 message_placeholder.markdown(full_response + "▌")
             message_placeholder.markdown(full_response)
+
+            # st.write(f"The model used for the returned response is: {response['model']}")
+
         except OpenAIError as e:
             st.write(f"An error occurred with OpenAI in getting chat response: {e}")
         except Exception as e:
             st.write(f"An unexpected error occurred: {e}")
 
     st.session_state.messages.append({"role": "assistant", "content": full_response})
+    # st.write(f"In chatgpt after appending response: {st.session_state.messages}")
 
+    st.write(f"Session id in chatgpt before saving: {st.session_state.session}")
     save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
     save_to_mysql_message(conn, st.session_state.session, "assistant", full_response)
 
@@ -640,7 +647,7 @@ def end_session_and_start_new(conn: connect, current_time: str) -> None:
     end_session_save_to_mysql_and_save_summary(conn, current_time)
     start_session_save_to_mysql_and_increment_session_id(conn)
 
-def handle_messages(conn: connect) -> None:
+def save_session_state_messages(conn: connect) -> None:
     """
     Iterates over messages in the session state and saves each to MySQL.
 
@@ -650,7 +657,7 @@ def handle_messages(conn: connect) -> None:
     for message in st.session_state.messages:
         save_to_mysql_message(conn, st.session_state.session, message["role"], message["content"])
 
-def determine_if_terminate_current_session_and_start_a_new_one(conn: connect, current_time: str) -> None:
+def determine_if_terminate_current_session_and_start_a_new_one(conn: connect, current_time: str, delete_session_id:int) -> None:
     """
     Determines if the current session should be terminated based on `st.session_state` and starts a new one if necessary.
 
@@ -662,8 +669,10 @@ def determine_if_terminate_current_session_and_start_a_new_one(conn: connect, cu
     state_actions = {
         'new_table': lambda: start_session_save_to_mysql_and_increment_session_id(conn),
         'new_session': lambda: end_session_and_start_new(conn, current_time),
-        'session_not_close': lambda: (end_session_and_start_new(conn, current_time), handle_messages(conn)),
-        'load_history_level_2': lambda: (end_session_and_start_new(conn, current_time), handle_messages(conn)),
+        'session_not_close': lambda: (end_session_and_start_new(conn, current_time), save_session_state_messages(conn)),
+        # 'load_history_level_2': lambda: (end_session_and_start_new(conn, current_time), save_session_state_messages(conn)),
+        'load_history_level_2': lambda: (end_session_and_start_new(conn, current_time), 
+                                         delete_the_messages_of_a_chat_session(conn, delete_session_id)),
         'file_upload': lambda: end_session_and_start_new(conn, current_time)
     }
 
@@ -747,6 +756,29 @@ def is_valid_file_name(file_name: str) -> bool:
     else:
         return True
 
+def remove_if_a_session_not_exist_in_date_range(level_2_options: dict) -> dict:
+    date_range_to_remove = []
+    for key1, content1 in level_2_options.items():
+        if key1 is not None:
+            for key2 in content1:
+                if key2 == 0:
+                    date_range_to_remove.append(key1)
+
+    for key in date_range_to_remove:
+        del level_2_options[key]
+
+    return level_2_options
+
+def get_available_date_range(level_2_new_options: dict) -> list:
+    date_range_list = []
+    for key, content in level_2_new_options.items():
+        if key is not None:
+            date_range_list.append(key)
+    
+    if not date_range_list:
+        date_range_list.append("No saved sessions in database")
+
+    return date_range_list
 
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -758,12 +790,15 @@ date_earlist = get_the_earliest_date(connection)
 # st.write(f"The earlist date is: {date_earlist}")
 # st.write(f"The earlist date is of the type: {type(date_earlist)}")
 
+new_chat_button = st.sidebar.button("New chat session", key="new")
 st.title("Personal ChatGPT")
 st.sidebar.title("Options")
 model_name = st.sidebar.radio("Choose model:",
                                 ("gpt-3.5-turbo-1106", "gpt-4", "gpt-4-1106-preview"), index=2)
 # temperature = st.sidebar.number_input("Input the temperture value (from 0 to 1.6):",
 #                                       min_value=0.0, max_value=1.0, value=0.7, step=0.1)
+
+# st.write(f"The model chosen is: {model_name}")
 
 st.session_state.openai_model = model_name
 
@@ -801,6 +836,7 @@ max_token = st.sidebar.number_input(
     step=300
     )
 
+
 if "session" not in st.session_state:
     # st.write(f"session not in st.session_state is True")
     get_and_set_current_session_id(connection)
@@ -814,7 +850,7 @@ if "session" not in st.session_state:
     else:
         st.session_state.new_table = True
 
-# st.write(f"Current session is: {st.session_state.session}")
+st.write(f"Session id after if 'session' not in: {st.session_state.session}")
 
 if "openai_model" not in st.session_state:
     st.session_state.openai_model = model_name
@@ -837,13 +873,6 @@ if "delete_session" not in st.session_state:
 if "empty_data" not in st.session_state:
     st.session_state.empty_data = False
 
-load_history_level_1 = st.sidebar.selectbox(
-    label='Load a previous chat date:',
-    placeholder='Pick a date',
-    options=['Today', 'Yesterday', 'Previous 7 days', 'Previous 30 days', 'Older'],
-    index=None,
-    key="first_level"
-    )
 
 # list of session_ids of a date range
 today_sessions = load_previous_chat_session_ids(connection, *convert_date('Today', date_earlist))
@@ -860,6 +889,14 @@ seven_days_dic = get_summary_by_session_id_return_dic(connection, seven_days_ses
 thirty_days_dic = get_summary_by_session_id_return_dic(connection, thirty_days_sessions)
 older_dic = get_summary_by_session_id_return_dic(connection, older_sessions)
 
+# st.write(f"today dic: {today_dic}")
+# st.write(f"yesterday dic: {yesterday_dic}")
+# st.write(f"seven-days dic: {seven_days_dic}")
+# st.write(f"thirty-days dic: {thirty_days_dic}")
+# st.write(f"older dic: {older_dic}")
+
+
+
 level_two_options = {
     None : {0: "No date selection"},
     "Today" : today_dic,
@@ -869,17 +906,46 @@ level_two_options = {
     "Older" : older_dic
 }
 
+# st.write(level_two_options)
+
+level_two_options_new = remove_if_a_session_not_exist_in_date_range(level_two_options)
+
+# st.write(level_two_options_new)
+
+level_one_options = get_available_date_range(level_two_options_new)
+
+# level_one_options_new = get_available_date_range(level_two_options_new)
+
+# st.write(level_one_options_new)
+
+# load_history_level_1 = st.sidebar.selectbox(
+#     label='Load a previous chat date:',
+#     placeholder='Pick a date',
+#     options=['Today', 'Yesterday', 'Previous 7 days', 'Previous 30 days', 'Older'],
+#     index=None,
+#     key="first_level"
+#     )
+
+load_history_level_1 = st.sidebar.selectbox(
+    label='Load a previous chat date:',
+    placeholder='Pick a date',
+    options=level_one_options,
+    index=None,
+    key="first_level"
+    )
+
 load_history_level_2 = st.sidebar.selectbox(
         label="Load a previous chat session:",
         placeholder='Pick a session',
-        options=list((level_two_options[load_history_level_1]).keys()),
+        options=list((level_two_options_new[load_history_level_1]).keys()),
         index=None,
-        format_func=lambda x:level_two_options[load_history_level_1][x],
+        format_func=lambda x:level_two_options_new[load_history_level_1][x],
         on_change=set_new_session_to_false
         )
+
 # st.write(f"The return of level 2 click is: {load_history_level_2}")
 
-new_chat_button = st.sidebar.button("New chat session", key="new")
+# new_chat_button = st.sidebar.button("New chat session", key="new")
 
 # if load_history_level_2:
 #     st.session_state.new_session = False
@@ -932,7 +998,15 @@ if uploaded_file is not None and not to_chatgpt:
     prompt_f = uploaded_file.read().decode("utf-8")
     st.sidebar.write(prompt_f)
 
-# Call openai api
+
+# st.write(f"Before print to screen: {st.session_state.messages}")
+
+# Print each message on page (this code prints pre-existing message before chatgpt(), where the latest messages will be printed.)
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+
 if uploaded_file is not None and to_chatgpt:
     prompt_f = uploaded_file.read().decode("utf-8")
 
@@ -942,12 +1016,11 @@ if uploaded_file is not None and to_chatgpt:
     st.session_state.session_not_close = False
     st.session_state.load_history_level_2 = False
 
+    st.write(f"Session id before upload into chatgpt: {st.session_state.session}")
     chatgpt(connection, prompt_f, temperature, top_p, max_token, time)
 
-# Print each message on page
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    st.rerun()
+
 
 if prompt := st.chat_input("What is up?"):
     chatgpt(connection, prompt, temperature, top_p, max_token, time)
@@ -959,7 +1032,7 @@ if delete_a_session:
         st.session_state.delete_session = True
         st.error("Do you really wanna delete this chat history?", icon="🚨")
     else:
-        st.warning("No previous saved session loaded. Please select one from the above drop-down lists.")
+        st.warning("No previously saved session loaded. Please select one from the above drop-down lists.")
 
 placeholder_confirmation_sesson = st.empty()
 
@@ -991,14 +1064,14 @@ empty_database = st.sidebar.button("Delete the entire chat history")
 
 if empty_database:
     st.session_state.empty_data = True
-    st.error("Do you really, really, wanna delete all chat history?", icon="🚨")
+    st.error("Do you really, really, wanna delete ALL CHAT HISTORY?", icon="🚨")
 
 placeholder_confirmation_all = st.empty()
 
 if st.session_state.empty_data:
     with placeholder_confirmation_all.container():
         confirmation_2 = st.selectbox(
-            label="Confirm your answer (If you choose 'Yes', ALL CHAT HISTORY in the database will be deleted):",
+            label="CONFIRM YOUR ANSWER (If you choose 'Yes', ALL CHAT HISTORY in the database will be deleted):",
             placeholder="Pick a choice",
             options=['No', 'Yes'],
             index=None,
