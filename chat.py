@@ -603,7 +603,7 @@ def chatgpt(conn: connect, prompt1: str, temp: float, p: float, max_tok: int, cu
     st.session_state.messages.append({"role": "assistant", "content": full_response})
     # st.write(f"In chatgpt after appending response: {st.session_state.messages}")
 
-    st.write(f"Session id in chatgpt before saving: {st.session_state.session}")
+    # st.write(f"Session id in chatgpt before saving: {st.session_state.session}")
     save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
     save_to_mysql_message(conn, st.session_state.session, "assistant", full_response)
 
@@ -850,7 +850,7 @@ if "session" not in st.session_state:
     else:
         st.session_state.new_table = True
 
-st.write(f"Session id after if 'session' not in: {st.session_state.session}")
+# st.write(f"Session id after if 'session' not in: {st.session_state.session}")
 
 if "openai_model" not in st.session_state:
     st.session_state.openai_model = model_name
@@ -1016,7 +1016,7 @@ if uploaded_file is not None and to_chatgpt:
     st.session_state.session_not_close = False
     st.session_state.load_history_level_2 = False
 
-    st.write(f"Session id before upload into chatgpt: {st.session_state.session}")
+    # st.write(f"Session id before upload into chatgpt: {st.session_state.session}")
     chatgpt(connection, prompt_f, temperature, top_p, max_token, time)
 
     st.rerun()
