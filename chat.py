@@ -98,9 +98,27 @@ def load_previous_chat_session(conn: connect, session1: str) -> None:
         raise
 
 def insert_initial_default_model_behavior(conn: connect, behavior1: str) -> None:
+    """
+    Inserts the initial default model behavior into the 'behavior' table if it does not already exist.
+
+    This function attempts to insert a new row into the 'behavior' table with the provided choice.
+    The insertion will only occur if the table is currently empty, ensuring that the default
+    behavior is set only once.
+
+    Args:
+        conn: A connection object to the database.
+        behavior1: A string representing the default behavior to be inserted.
+
+    Raises:
+        Raises an exception if the database operation fails.
+    """
     try:
         with conn.cursor() as cursor:
-            sql = "INSERT INTO behavior (choice) SELECT %s FROM DUAL WHERE NOT EXISTS (SELECT * FROM behavior);"
+            sql = """
+            INSERT INTO behavior (choice) 
+            SELECT %s FROM DUAL 
+            WHERE NOT EXISTS (SELECT * FROM behavior);
+            """
             val = (behavior1, )
             cursor.execute(sql, val)
             conn.commit()
@@ -110,6 +128,18 @@ def insert_initial_default_model_behavior(conn: connect, behavior1: str) -> None
         raise
 
 def save_model_behavior_to_mysql(conn: connect, behavior1: str) -> None:
+    """
+    Saves a model behavior to the 'behavior' table in the MySQL database.
+
+    This function inserts a new row into the 'behavior' table with the provided choice.
+
+    Args:
+        conn: A connection object to the MySQL database.
+        behavior1: A string representing the behavior to be saved.
+
+    Raises:
+        Raises an exception if the database operation fails.
+    """
     try:
         with conn.cursor() as cursor:
             sql = "INSERT INTO behavior (choice) VALUE (%s)"
@@ -122,9 +152,23 @@ def save_model_behavior_to_mysql(conn: connect, behavior1: str) -> None:
         raise
 
 def Load_the_last_saved_model_behavior(conn: connect) -> None:
+    """
+    Retrieves the last saved model behavior from the 'behavior' table in the MySQL database.
+
+    This function selects the most recent 'choice' entry from the 'behavior' table based on the highest ID.
+
+    Args:
+        conn: A connection object to the MySQL database.
+
+    Returns:
+        The last saved model behavior as a string, or None if no behavior is found.
+
+    Raises:
+        Raises an exception if the database operation fails.
+    """
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT choice FROM behavior WHERE id=(SELECT MAX(id) FROM behavior);")
+            cursor.execute("SELECT choice FROM behavior ORDER BY id DESC LIMIT 1;")
 
             result = cursor.fetchone()
             if result is not None and result[0] is not None:
@@ -136,7 +180,22 @@ def Load_the_last_saved_model_behavior(conn: connect) -> None:
         st.error(f"Failed to read the last saved behavior: {error}")
         raise
 
-def return_behavior_index(behavior1: st) -> int:
+def return_behavior_index(behavior1: str) -> int:
+    """
+    Returns the index of a given behavior from a predefined dictionary of behaviors.
+
+    This function maps a behavior description to its corresponding index based on a predefined
+    dictionary of behavior descriptions and their associated indices.
+
+    Args:
+        behavior (str): A string representing the behavior description.
+
+    Returns:
+        An integer representing the index of the behavior.
+
+    Raises:
+        KeyError: If the behavior description is not found in the predefined dictionary.
+    """
     behavior_dic = {
         'Deterministic (T=0.0, top_p=0.2)': 0,
         'Conservative (T=0.3, top_p=0.4)': 1,
@@ -144,22 +203,40 @@ def return_behavior_index(behavior1: st) -> int:
         'Diverse (T=0.8, top_p=0.8)': 3, 
         'Creative (T=1.0, top_p=1.0)': 4
     }
+
+    if behavior1 not in behavior_dic:
+        raise KeyError(f"Behavior '{behavior}' not found in the behavior dictionary.")
+    
     return behavior_dic[behavior1]
 
 def return_temp_and_top_values_from_model_behavior(behavior1: str) -> tuple[float, float]:
-    if behavior1 == "Deterministic (T=0.0, top_p=0.2)":
-        return (0.0, 0.2)
-    elif behavior1 == "Conservative (T=0.3, top_p=0.4)":
-        return (0.4, 0.4)
-    elif behavior1 == "Balanced (T=0.6, top_p=0.6)":
-        return (0.6, 0.6)
-    elif behavior1 == "Diverse (T=0.8, top_p=0.8)":
-        return (0.8, 0.8)
-    elif behavior1 == "Creative (T=1.0, top_p=1.0)":
-        return (1.0, 1.0)
-    else:
-        st.error(f"Model behavior not in the predefined list.")
+    """
+    Returns the temperature and top_p values associated with a given model behavior.
 
+    This function maps a behavior description to its corresponding temperature (T) and top_p values.
+
+    Args:
+        behavior (str): A string representing the behavior description.
+
+    Returns:
+        A tuple containing the temperature (float) and top_p (float) values.
+
+    Raises:
+        ValueError: If the behavior description is not found in the predefined list of behaviors.
+    """
+
+    behavior_to_values = {
+        'Deterministic (T=0.0, top_p=0.2)': (0.0, 0.2),
+        'Conservative (T=0.3, top_p=0.4)': (0.3, 0.4),
+        'Balanced (T=0.6, top_p=0.6)': (0.6, 0.6),
+        'Diverse (T=0.8, top_p=0.8)': (0.8, 0.8),
+        'Creative (T=1.0, top_p=1.0)': (1.0, 1.0)
+    }
+
+    if behavior1 not in behavior_to_values:
+        raise ValueError(f"Model behavior '{behavior1}' is not in the predefined list.")
+
+    return behavior_to_values[behavior1]
 
 def load_previous_chat_session_all_questions_for_summary_only_users(conn: connect, session1: str) -> Optional[str]:
     """
@@ -429,7 +506,20 @@ def delete_all_rows(conn: connect) -> None:
         st.error(f"Failed to finish deleting data: {error}")
         raise
 
-def delete_the_messages_of_a_chat_session(conn: connect, session_id1) -> None:
+def delete_the_messages_of_a_chat_session(conn: connect, session_id1: int) -> None:
+    """
+    Deletes all messages associated with a specific chat session from the database.
+
+    This function executes a DELETE SQL command to remove messages from the 'message' table
+    where the 'session_id' matches the provided session ID.
+
+    Args:
+        conn: A connection object to the MySQL database.
+        session_id (int): The ID of the chat session whose messages are to be deleted.
+
+    Raises:
+        Raises an exception if the database operation fails.
+    """
     try:
         with conn.cursor() as cursor:
             sql = "DELETE FROM message WHERE session_id = %s"
@@ -530,7 +620,8 @@ def get_summary_by_session_id_return_dic(conn: connect, session_id_list: List[in
                         i += 1
                     else:
                         if i == 0:
-                            summary_dict[session_id] = "Summary not yet available for the currently active session."
+                            # summary_dict[session_id] = "Summary not yet available for the currently active session."
+                            summary_dict = {0: "No sessions available"}
                         # else:
                         #     pass
                 return dict(reversed(list(summary_dict.items())))
@@ -541,23 +632,29 @@ def get_summary_by_session_id_return_dic(conn: connect, session_id_list: List[in
 
 def chatgpt(conn: connect, prompt1: str, temp: float, p: float, max_tok: int, current_time: datetime) -> None:
     """
-    Processes a chat prompt using OpenAI's ChatCompletion model, updates the chat interface,
-    and saves the chat to the "message" table.
+    Processes a chat prompt using OpenAI's ChatCompletion and updates the chat session.
 
-    Parameters:
-    - conn: A connection to the database.
-    - prompt1: The user's input prompt as a string.
-    - temp: The temperature parameter for the OpenAI model, controlling the randomness of the output.
-    - current_time: A datetime object representing the current time.
+    This function determines if the current chat session should be terminated and a new one started,
+    appends the user's prompt to the session state, sends the prompt to OpenAI's ChatCompletion,
+    and then appends the assistant's response to the session state. It also handles saving messages
+    to the MySQL database.
 
-    This function does not return anything. It updates the session state with the message history,
-    renders the chat messages on the web interface, and saves the messages to a MySQL database.
+    Args:
+        conn: A connection object to the MySQL database.
+        prompt (str): The user's input prompt to the chatbot.
+        temp (float): The temperature parameter for OpenAI's ChatCompletion.
+        p (float): The top_p parameter for OpenAI's ChatCompletion.
+        max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
+        current_time (datetime): The current time, used to determine session termination.
+
+    Raises:
+        Raises an exception if there is a failure in database operations or OpenAI's API call.
     """
 
     # st.write(f"Inside chatgpt function temprature = {temp}, and top_p = {p}")
     # st.write(f"Model used inside chatgpt function is {st.session_state['openai_model']}")
     # st.write(f"Max_tokens inside chatgpt function is {max_tok}")
-    determine_if_terminate_current_session_and_start_a_new_one(conn, current_time, load_history_level_2)
+    determine_if_terminate_current_session_and_start_a_new_one(conn, current_time)
     # st.write(f"In chatgpt before appending: {st.session_state.messages}")
     st.session_state.messages.append({"role": "user", "content": prompt1})
     # st.write(f"In chatgpt after appending: {st.session_state.messages}")
@@ -657,7 +754,7 @@ def save_session_state_messages(conn: connect) -> None:
     for message in st.session_state.messages:
         save_to_mysql_message(conn, st.session_state.session, message["role"], message["content"])
 
-def determine_if_terminate_current_session_and_start_a_new_one(conn: connect, current_time: str, delete_session_id:int) -> None:
+def determine_if_terminate_current_session_and_start_a_new_one(conn: connect, current_time: str) -> None:
     """
     Determines if the current session should be terminated based on `st.session_state` and starts a new one if necessary.
 
@@ -666,13 +763,24 @@ def determine_if_terminate_current_session_and_start_a_new_one(conn: connect, cu
     current_time: The current time as a string used for deciding session transitions.
     """
 
+    # st.write(f"In determine function, 'new_table' is: {st.session_state.new_table}")
+    # st.write(f"In determine function, 'new_session' is: {st.session_state.new_session}")
+    # st.write(f"In determine function, 'session_not_close' is: {st.session_state.session_not_close}")
+    # st.write(f"In determine function, 'load_history_level_2' is: {st.session_state.load_history_level_2}")
+    # st.write(f"In determine function, 'file_upload' is: {st.session_state.file_upload}")
+
+    # if st.session_state.load_history_level_2 is True:
+    #     delete_session_id = load_history_level_2
+
     state_actions = {
         'new_table': lambda: start_session_save_to_mysql_and_increment_session_id(conn),
         'new_session': lambda: end_session_and_start_new(conn, current_time),
-        'session_not_close': lambda: (end_session_and_start_new(conn, current_time), save_session_state_messages(conn)),
-        # 'load_history_level_2': lambda: (end_session_and_start_new(conn, current_time), save_session_state_messages(conn)),
-        'load_history_level_2': lambda: (end_session_and_start_new(conn, current_time), 
-                                         delete_the_messages_of_a_chat_session(conn, delete_session_id)),
+        # 'session_not_close': lambda: (end_session_and_start_new(conn, current_time), 
+        #                               save_session_state_messages(conn),
+        #                               delete_the_messages_of_a_chat_session(conn, delete_session_id)),
+        'load_history_level_2': lambda: (end_session_and_start_new(conn, current_time),
+                                         save_session_state_messages(conn), 
+                                         delete_the_messages_of_a_chat_session(conn, load_history_level_2)),
         'file_upload': lambda: end_session_and_start_new(conn, current_time)
     }
 
@@ -686,6 +794,23 @@ def set_new_session_to_false():
     st.session_state.new_session = False
 
 def get_summary_and_return_as_file_name(conn: connect, session1: int) -> Optional[str]:
+    """
+    Retrieves the summary of a given session from the database and formats it as a file name.
+
+    This function queries the 'session' table for the 'summary' field using the provided session ID.
+    If a summary is found, it formats the summary string by replacing spaces with underscores and
+    removing periods, then returns it as a potential file name.
+
+    Args:
+        conn: A connection object to the MySQL database.
+        session_id (int): The ID of the session whose summary is to be retrieved.
+
+    Returns:
+        A string representing the formatted summary suitable for use as a file name, or None if no summary is found.
+
+    Raises:
+        Raises an exception if there is a failure in the database operation.
+    """
     try:
         with conn.cursor() as cursor:
             sql = "SELECT summary FROM session WHERE session_id = %s"
@@ -696,6 +821,7 @@ def get_summary_and_return_as_file_name(conn: connect, session1: int) -> Optiona
             if result is not None and result[0] is not None:
                 string = result[0].replace(" ", "_")
                 string = string.replace(".", "")
+                string = string.replace(",", "")
                 return string
             else:
                 return None
@@ -704,59 +830,129 @@ def get_summary_and_return_as_file_name(conn: connect, session1: int) -> Optiona
         st.error(f"Failed to get session summary: {error}")
         return None
 
-def convert_messages_to_markdown(messages, code_block_indent='                 '):
-    # st.write(f"messages in convert function is: {messages}")
+def convert_messages_to_markdown(messages: List[Dict[str, str]], code_block_indent='                 ') -> str:
+    """
+    Converts a list of message dictionaries to a markdown-formatted string.
+
+    Each message is formatted with the sender's role as a header and the message content as a blockquote.
+    Code blocks within the message content are detected and indented accordingly.
+
+    Args:
+        messages (List[Dict[str, str]]): A list of message dictionaries, where each dictionary contains
+                                         'role' and 'content' keys.
+        code_block_indent (str): The string used to indent lines within code blocks.
+
+    Returns:
+        A markdown-formatted string representing the messages.
+    """
+    # st.write(f"messages in convert to markdown function is: {messages}")
     markdown_lines = []
     for message in messages:
         role = message['role']
         content = message['content']
-        lines = content.split('\n')
-        indented_lines = []
-        in_code_block = False  # Flag to track whether we're inside a code block
-
-        for line in lines:
-            if line.strip().startswith('```'):
-                in_code_block = not in_code_block
-                indented_lines.append(line)
-            elif not in_code_block:
-                line = f"> {line}"
-                indented_lines.append(line)
-            else:
-                # Inside a code block
-                indented_line = code_block_indent + line  # Apply indentation
-                indented_lines.append(indented_line)
-
-        indented_content = '\n'.join(indented_lines)
-        # markdown_lines.append(f"**{role.capitalize()}**:\n{indented_content}\n")
-        # markdown_lines.append(f"***{role.capitalize()}***:\n{indented_content}\n")
+        indented_content = _indent_content(content, code_block_indent)
         markdown_lines.append(f"###*{role.capitalize()}*:\n{indented_content}\n")
     return '\n\n'.join(markdown_lines)
 
-def markdown_to_html(md_content):
+def _indent_content(content: str, code_block_indent: str) -> str:
+    """
+    Helper function to indent the content for markdown formatting.
+
+    Args:
+        content (str): The content of the message to be indented.
+        code_block_indent (str): The string used to indent lines within code blocks.
+
+    Returns:
+        The indented content as a string.
+    """
+    lines = content.split('\n')
+    indented_lines = []
+    in_code_block = False  # Flag to track whether we're inside a code block
+
+    for line in lines:
+        if line.strip().startswith('```'):
+            in_code_block = not in_code_block
+            indented_lines.append(line)
+        elif not in_code_block:
+            line = f"> {line}"
+            indented_lines.append(line)
+        else:
+            # Inside a code block
+            indented_line = code_block_indent + line  # Apply indentation
+            indented_lines.append(indented_line)
+
+    return '\n'.join(indented_lines)
+
+def markdown_to_html(md_content: str) -> str:
+    """
+    Converts markdown content to HTML with syntax highlighting and custom styling.
+
+    This function takes a string containing markdown-formatted text and converts it to HTML.
+    It applies syntax highlighting to code blocks and custom styling to certain HTML elements.
+
+    Args:
+        md_content (str): A string containing markdown-formatted text.
+
+    Returns:
+        A string containing the HTML representation of the markdown text, including a style tag
+        with CSS for syntax highlighting and custom styles for the <code> and <em> elements.
+    """
+
+    # Convert markdown to HTML with syntax highlighting
     html_content = markdown.markdown(md_content, extensions=['fenced_code', 'codehilite'])
-    # html_content = re.sub(r'<code>', '<code class="codehilite">', html_content)  # Add class to inline code
+
     html_content = re.sub(
         r'<code>', 
         '<code style="background-color: #f7f7f7; color: green;">', 
         html_content)
+    
     html_content = re.sub(
-        r'<em>', 
-        '<em style="color: blue;">', 
+        r'<h3>', 
+        '<h3 style="color: blue;">', 
         html_content)
+    
+    # Get CSS for syntax highlighting from Pygments
     css = HtmlFormatter(style='tango').get_style_defs('.codehilite')
+
     return f"<style>{css}</style>{html_content}"
-    # return html_content
 
 def is_valid_file_name(file_name: str) -> bool:
-    illegal_chars = r'[\\/:"*?<>|]'
-    reserved_words = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9']
+    """
+    Checks if the provided file name is valid based on certain criteria.
 
-    if re.search(illegal_chars, file_name) or file_name in reserved_words or len(file_name) > 255:
-        return False
-    else:
-        return True
+    This function checks the file name against a set of rules to ensure it does not contain
+    illegal characters, is not one of the reserved words, and does not exceed 255 characters in length.
+
+    Args:
+        file_name (str): The file name to validate.
+
+    Returns:
+        bool: True if the file name is valid, False otherwise.
+    """
+    illegal_chars = r'[\\/:"*?<>|]'
+    reserved_words = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 
+                      'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 
+                      'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9']
+
+    # Check for illegal characters, reserved words, and length constraint
+    return not (re.search(illegal_chars, file_name) or
+                file_name in reserved_words or
+                len(file_name) > 255)
 
 def remove_if_a_session_not_exist_in_date_range(level_2_options: dict) -> dict:
+    """
+    Removes entries from a dictionary if they contain a specific condition within their values.
+
+    This function iterates over a dictionary where each key is associated with a list of values.
+    It removes any key from the dictionary if the value 0 is present in the associated list.
+
+    Args:
+        level_2_options (dict): A dictionary where the keys are date ranges and the values are lists
+                                of session existence indicators.
+
+    Returns:
+        dict: A new dictionary with the specified entries removed.
+    # """
     date_range_to_remove = []
     for key1, content1 in level_2_options.items():
         if key1 is not None:
@@ -770,13 +966,27 @@ def remove_if_a_session_not_exist_in_date_range(level_2_options: dict) -> dict:
     return level_2_options
 
 def get_available_date_range(level_2_new_options: dict) -> list:
+    """
+    Extracts and returns a list of available date ranges from the provided dictionary.
+
+    This function iterates over the keys of the input dictionary, which represent date ranges,
+    and compiles a list of these date ranges. If no date ranges are found, the function returns
+    a list containing None to indicate the absence of saved sessions.
+
+    Args:
+        level_2_new_options (dict): A dictionary with date ranges as keys.
+
+    Returns:
+        list: A list of available date ranges, or [None] if no date ranges are found.
+    """
     date_range_list = []
-    for key, content in level_2_new_options.items():
+    for key in level_2_new_options:
         if key is not None:
             date_range_list.append(key)
     
     if not date_range_list:
-        date_range_list.append("No saved sessions in database")
+        # date_range_list.append("No saved sessions in database")
+        date_range_list.append(None)
 
     return date_range_list
 
@@ -849,7 +1059,6 @@ if "session" not in st.session_state:
             # st.session_state.new_session = False
     else:
         st.session_state.new_table = True
-
 # st.write(f"Session id after if 'session' not in: {st.session_state.session}")
 
 if "openai_model" not in st.session_state:
@@ -889,16 +1098,8 @@ seven_days_dic = get_summary_by_session_id_return_dic(connection, seven_days_ses
 thirty_days_dic = get_summary_by_session_id_return_dic(connection, thirty_days_sessions)
 older_dic = get_summary_by_session_id_return_dic(connection, older_sessions)
 
-# st.write(f"today dic: {today_dic}")
-# st.write(f"yesterday dic: {yesterday_dic}")
-# st.write(f"seven-days dic: {seven_days_dic}")
-# st.write(f"thirty-days dic: {thirty_days_dic}")
-# st.write(f"older dic: {older_dic}")
-
-
-
 level_two_options = {
-    None : {0: "No date selection"},
+    None : {0: "None"},
     "Today" : today_dic,
     "Yesterday" : yesterday_dic,
     "Previous 7 days" : seven_days_dic,
@@ -906,17 +1107,12 @@ level_two_options = {
     "Older" : older_dic
 }
 
-# st.write(level_two_options)
-
+# st.write(f"Level 2 options are: {level_two_options}")
 level_two_options_new = remove_if_a_session_not_exist_in_date_range(level_two_options)
-
-# st.write(level_two_options_new)
-
+# st.write(f"Level 2 new options are: {level_two_options_new}")
 level_one_options = get_available_date_range(level_two_options_new)
 
-# level_one_options_new = get_available_date_range(level_two_options_new)
-
-# st.write(level_one_options_new)
+# st.write(f"Level 1 options are: {level_one_options}")
 
 # load_history_level_1 = st.sidebar.selectbox(
 #     label='Load a previous chat date:',
@@ -944,9 +1140,7 @@ load_history_level_2 = st.sidebar.selectbox(
         )
 
 # st.write(f"The return of level 2 click is: {load_history_level_2}")
-
 # new_chat_button = st.sidebar.button("New chat session", key="new")
-
 # if load_history_level_2:
 #     st.session_state.new_session = False
 
@@ -1016,7 +1210,7 @@ if uploaded_file is not None and to_chatgpt:
     st.session_state.session_not_close = False
     st.session_state.load_history_level_2 = False
 
-    # st.write(f"Session id before upload into chatgpt: {st.session_state.session}")
+    st.write(f"Session id before upload into chatgpt: {st.session_state.session}")
     chatgpt(connection, prompt_f, temperature, top_p, max_token, time)
 
     st.rerun()
@@ -1028,7 +1222,7 @@ if prompt := st.chat_input("What is up?"):
 
 
 if delete_a_session:
-    if load_history_level_2 is not None:
+    if load_history_level_2 is not None and not load_history_level_2 == 0:
         st.session_state.delete_session = True
         st.error("Do you really wanna delete this chat history?", icon="🚨")
     else:
@@ -1082,6 +1276,7 @@ if st.session_state.empty_data:
         st.warning("All data in the database deleted.", icon="🚨")
         st.session_state.empty_data = False
         st.session_state.new_session = True
+        st.session_state.session = None
         st.rerun()
     elif confirmation_2 == 'No':
         st.success("Data not deleted.")
