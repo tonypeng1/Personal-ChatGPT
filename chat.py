@@ -209,7 +209,7 @@ def return_behavior_index(behavior1: str) -> int:
     
     return behavior_dic[behavior1]
 
-def return_temp_and_top_values_from_model_behavior(behavior1: str) -> tuple[float, float]:
+def return_temp_and_top_p_values_from_model_behavior(behavior1: str) -> tuple[float, float]:
     """
     Returns the temperature and top_p values associated with a given model behavior.
 
@@ -359,37 +359,37 @@ def get_and_set_current_session_id(conn: connect) -> None:
 
     # st.write(f"Within the get_and_set_current_session_id function, the session is: {st.session_state.session}")
 
-def determine_if_the_current_session_is_not_closed(conn: connect) -> bool:
-    """
-    Check if the current session is not closed in the database. A chat session is defined as not
-    close (i.e., current) if there is no date in the "end_timestamp" cell. Otherwise, the
-    chat session is closed.
+# def determine_if_the_current_session_is_not_closed(conn: connect) -> bool:
+#     """
+#     Check if the current session is not closed in the database. A chat session is defined as not
+#     close (i.e., current) if there is no date in the "end_timestamp" cell. Otherwise, the
+#     chat session is closed.
 
-    Args:
-        conn: A MySQL connection object.
+#     Args:
+#         conn: A MySQL connection object.
 
-    Returns:
-        True if the session is not closed, False otherwise.
-    """
-    try:
-        with conn.cursor() as cursor:
-            # st.write(f"Current session is {st.session_state.session}")
-            sql = "SELECT end_timestamp FROM session WHERE session_id = %s"
-            val = (st.session_state.session,)
-            cursor.execute(sql, val)
+#     Returns:
+#         True if the session is not closed, False otherwise.
+#     """
+#     try:
+#         with conn.cursor() as cursor:
+#             # st.write(f"Current session is {st.session_state.session}")
+#             sql = "SELECT end_timestamp FROM session WHERE session_id = %s"
+#             val = (st.session_state.session,)
+#             cursor.execute(sql, val)
 
-            end = cursor.fetchone()
-            # st.write(f"end stamp returns: {end}")
-            if end is None:
-                return True
-            elif end[0] is None:
-                return True
-            else:
-                return False
+#             end = cursor.fetchone()
+#             # st.write(f"end stamp returns: {end}")
+#             if end is None:
+#                 return True
+#             elif end[0] is None:
+#                 return True
+#             else:
+#                 return False
 
-    except Error as error:
-        st.error(f"Failed to determine if the current session is closed: {error}")
-        return None
+#     except Error as error:
+#         st.error(f"Failed to determine if the current session is closed: {error}")
+#         return None
 
 def start_session_save_to_mysql_and_increment_session_id(conn: connect):
     """
@@ -1017,6 +1017,14 @@ def get_available_date_range(level_2_new_options: dict) -> list:
 
     return date_range_list
 
+def set_only_current_session_state_to_true(current_state: str) -> None:
+    for state in ["new_session", "new_table", "load_history_level_2",
+                  "session_not_close", "file_upload"]:
+        if state == current_state:
+            st.session_state[state] = True
+        else:
+            st.session_state[state] = False
+
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 connection = init_connection()
@@ -1039,17 +1047,18 @@ model_name = st.sidebar.radio("Choose model:",
 
 st.session_state.openai_model = model_name
 
+# The following code handles modele behavior. The behavior chosen will be reused rather than a default value. 
 if "behavior" not in st.session_state:
     st.session_state.behavior = ""
 
-# If the behavior table is empty
+# If the behavior table is empty:
 insert_initial_default_model_behavior(connection, 'Deterministic (T=0.0, top_p=0.2)')
-
+    
 Load_the_last_saved_model_behavior(connection)  # load from database and save to session_state
-behavior_index = return_behavior_index(st.session_state.behavior)  # from string to int
-(temperature, top_p) = return_temp_and_top_values_from_model_behavior(st.session_state.behavior)
+(temperature, top_p) = return_temp_and_top_p_values_from_model_behavior(st.session_state.behavior)
 # st.write(f"temprature = {temperature}, and top_p = {top_p}")
 
+behavior_index = return_behavior_index(st.session_state.behavior)  # from string to int (0 to 4)
 behavior = st.sidebar.selectbox(
     label="Select the behavior of your model",
     placeholder='Pick a behavior',
@@ -1073,17 +1082,18 @@ max_token = st.sidebar.number_input(
     step=300
     )
 
-
 if "session" not in st.session_state:
     # st.write(f"session not in st.session_state is True")
     get_and_set_current_session_id(connection)
 
     if st.session_state.session is not None:
-        st.session_state.session_not_close = determine_if_the_current_session_is_not_closed(connection)
-        if st.session_state.session_not_close:
-            load_previous_chat_session(connection, st.session_state.session)
-            st.session_state.new_table = False
-            # st.session_state.new_session = False
+        # st.session_state.session_not_close = determine_if_the_current_session_is_not_closed(connection)
+        # if st.session_state.session_not_close:
+        #     load_previous_chat_session(connection, st.session_state.session)
+        #     st.session_state.new_table = False
+        #     # st.session_state.new_session = False
+        load_previous_chat_session(connection, st.session_state.session)
+        st.session_state.new_table = False
     else:
         st.session_state.new_table = True
 # st.write(f"Session id after if 'session' not in: {st.session_state.session}")
@@ -1172,22 +1182,24 @@ load_history_level_2 = st.sidebar.selectbox(
 #     st.session_state.new_session = False
 
 if new_chat_button:
-    st.session_state.new_session = True  # This state is needed to determin if a new session needs to be created
-    # st.write(f"Enter new chat: {new_chat_button}")
     st.session_state.messages = []
-    st.session_state.new_table = False
-    st.session_state.load_history_level_2 = False
-    st.session_state.session_not_close = False
-    st.session_state.file_upload = False
+    set_only_current_session_state_to_true("new_session")
+    # st.session_state.new_session = True  # This state is needed to determin if a new session needs to be created
+    # # st.write(f"Enter new chat: {new_chat_button}")
+    # st.session_state.new_table = False
+    # st.session_state.load_history_level_2 = False
+    # st.session_state.session_not_close = False
+    # st.session_state.file_upload = False
 
 if load_history_level_2 and not st.session_state.new_session:
     # st.write(f"session choice: {load_history_level_2}")
-    st.session_state.load_history_level_2 = True
     load_previous_chat_session(connection, load_history_level_2)
-    st.session_state.new_table = False
-    st.session_state.new_session = False
-    st.session_state.session_not_close = False
-    st.session_state.file_upload = False
+    set_only_current_session_state_to_true("load_history_level_2")
+    # st.session_state.load_history_level_2 = True
+    # st.session_state.new_table = False
+    # st.session_state.new_session = False
+    # st.session_state.session_not_close = False
+    # st.session_state.file_upload = False
     # st.write(f"value of st.session_state.load_history_level_2 when first click is: {st.session_state.load_history_level_2}")
 
     session_md = convert_messages_to_markdown(st.session_state.messages)
@@ -1260,11 +1272,13 @@ if uploaded_file is not None \
     and st.session_state.new_session:
     prompt_f = uploaded_file.read().decode("utf-8")
     prompt_f = st.session_state.question + " " + prompt_f
-    st.session_state.file_upload = True
-    st.session_state.new_table = False
-    st.session_state.new_session = False
-    st.session_state.session_not_close = False
-    st.session_state.load_history_level_2 = False
+
+    set_only_current_session_state_to_true("file_upload")
+    # st.session_state.file_upload = True
+    # st.session_state.new_table = False
+    # st.session_state.new_session = False
+    # st.session_state.session_not_close = False
+    # st.session_state.load_history_level_2 = False
 
     chatgpt(connection, prompt_f, temperature, top_p, max_token, time)
 
@@ -1273,11 +1287,13 @@ if uploaded_file is not None \
     and st.session_state.load_history_level_2:
     prompt_f = uploaded_file.read().decode("utf-8")
     prompt_f = st.session_state.question + " " + prompt_f
-    st.session_state.file_upload = False
-    st.session_state.new_table = False
-    st.session_state.new_session = False
-    st.session_state.session_not_close = False
-    st.session_state.load_history_level_2 = True
+
+    set_only_current_session_state_to_true("load_history_level_2")
+    # st.session_state.file_upload = False
+    # st.session_state.new_table = False
+    # st.session_state.new_session = False
+    # st.session_state.session_not_close = False
+    # st.session_state.load_history_level_2 = True
 
     chatgpt(connection, prompt_f, temperature, top_p, max_token, time)
 
