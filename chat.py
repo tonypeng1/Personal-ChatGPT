@@ -722,7 +722,7 @@ def chatgpt(conn: connect, prompt1: str, temp: float, p: float, max_tok: int, cu
     st.session_state.messages.append({"role": "assistant", "content": full_response})
     # st.write(f"In chatgpt after appending response: {st.session_state.messages}")
 
-    st.write(f"Session id in chatgpt before saving: {st.session_state.session}")
+    # st.write(f"Session id in chatgpt before saving: {st.session_state.session}")
     save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
     save_to_mysql_message(conn, st.session_state.session, "assistant", full_response)
 
@@ -847,6 +847,8 @@ def get_summary_and_return_as_file_name(conn: connect, session1: int) -> Optiona
                 string = string.replace(".", "")
                 string = string.replace(",", "")
                 string = string.replace('"', '')
+                string = string.replace(':', '_')
+
                 return string
             else:
                 return None
