@@ -263,11 +263,32 @@ def load_previous_chat_session_all_questions_for_summary_only_users(conn: connec
                 if role == 'user':
                     # chat_user += (role + ": " + content + " ")
                     chat_user += content + " "
+            chat_user = shorten_prompt_to_tokens(chat_user)
             return chat_user
 
     except Error as error:
         st.error(f"Failed to load previous chat sessions for summary (user only): {error}")
         return None
+
+def shorten_prompt_to_tokens(prompt, max_tokens=4000):
+    """
+    Shortens a prompt to a specified maximum number of tokens.
+    Args:
+
+    - prompt (str): The original long prompt.
+    - max_tokens (int): The maximum number of tokens. Default is 4000.
+    Returns:
+
+    - str: A shortened version of the prompt.
+    """
+    # Split the prompt into tokens (approximation using spaces)
+    tokens = prompt.split()
+
+    # Truncate the tokens list if it's longer than max_tokens
+    if len(tokens) > max_tokens:
+        truncated_tokens = tokens[:max_tokens]
+        return ' '.join(truncated_tokens) + '...'
+    return prompt
 
 def load_previous_chat_session_ids(conn: connect, date_start: str, date_end: str):
     """
@@ -397,6 +418,7 @@ def start_session_save_to_mysql_and_increment_session_id(conn: connect):
 def end_session_save_to_mysql_and_save_summary(conn: connect, current_time) -> None:
     """
     End the current session by updating the end timestamp in the session table in the MySQL database.
+    Get and save session summary.
 
     Args:
         conn: A MySQL connection object to interact with the database.
@@ -700,7 +722,7 @@ def chatgpt(conn: connect, prompt1: str, temp: float, p: float, max_tok: int, cu
     st.session_state.messages.append({"role": "assistant", "content": full_response})
     # st.write(f"In chatgpt after appending response: {st.session_state.messages}")
 
-    # st.write(f"Session id in chatgpt before saving: {st.session_state.session}")
+    st.write(f"Session id in chatgpt before saving: {st.session_state.session}")
     save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
     save_to_mysql_message(conn, st.session_state.session, "assistant", full_response)
 
@@ -719,12 +741,13 @@ def chatgpt_summary_user_only(chat_text_user_only: str) -> str:
     and limits the summary to a maximum of sixteen words.
     """
     response = openai.Completion.create(
-      engine="text-davinci-003",
+    #   engine="text-davinci-003",
+      engine="gpt-3.5-turbo-instruct",
       prompt="Use a sentence to summary the main topics of the user's questions in following chat session. " + 
       "DO NOT start the sentence with 'The user' or 'Questions about'. For example, if the summary is 'Questions about handling errors " + 
       "in OpenAI API.', just return 'Handling errors in OpenAI API'. DO NOT use special characters that can not be used in a file name. " + 
-      "No more than sixteen words in a sentence. A partial sentence is fine.\n\n" + chat_text_user_only,
-      max_tokens=50,  # Adjust the max tokens as per the summarization requirements
+      "No more than ten words in the sentence. A partial sentence is fine.\n\n" + chat_text_user_only,
+      max_tokens=30,  # Adjust the max tokens as per the summarization requirements
       n=1,
       stop=None,
       temperature=0.5
@@ -735,7 +758,8 @@ def chatgpt_summary_user_only(chat_text_user_only: str) -> str:
 
 def end_session_and_start_new(conn: connect, current_time: str) -> None:
     """
-    Ends the current session, saves it to MySQL, and then starts a new session with an incremented session ID.
+    Ends the current session (saves end time and summary to MySQL "session" table), 
+    and then starts a new session with an incremented session ID.
 
     Args:
     conn: The database connection object.
@@ -822,6 +846,7 @@ def get_summary_and_return_as_file_name(conn: connect, session1: int) -> Optiona
                 string = result[0].replace(" ", "_")
                 string = string.replace(".", "")
                 string = string.replace(",", "")
+                string = string.replace('"', '')
                 return string
             else:
                 return None
@@ -1186,35 +1211,73 @@ if load_history_level_2 and not st.session_state.new_session:
 delete_a_session = st.sidebar.button("Delete loaded session from database")
 
 uploaded_file = st.sidebar.file_uploader("Upload a file")
+
+if uploaded_file is not None:
+    # prompt_f = uploaded_file.read().decode("utf-8")
+    # st.sidebar.write(prompt_f)
+    st.session_state.question = st.sidebar.text_area("Any question about the file?", placeholder="None")
+
 to_chatgpt = st.sidebar.button("Send to chatGPT")
-
-if uploaded_file is not None and not to_chatgpt:
-    prompt_f = uploaded_file.read().decode("utf-8")
-    st.sidebar.write(prompt_f)
-
 
 # st.write(f"Before print to screen: {st.session_state.messages}")
 
 # Print each message on page (this code prints pre-existing message before chatgpt(), where the latest messages will be printed.)
+
+
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
 
-if uploaded_file is not None and to_chatgpt:
-    prompt_f = uploaded_file.read().decode("utf-8")
+# st.write(f"new_session state of 1: {st.session_state.new_session}")
+# st.write(f"load_history_level_2 state of 1: {st.session_state.load_history_level_2}")
+# st.write(f"file_upload state of 1: {st.session_state.file_upload}")
 
+
+if uploaded_file is not None \
+        and to_chatgpt \
+        and not st.session_state.new_session \
+        and not st.session_state.load_history_level_2:
+    prompt_f = uploaded_file.read().decode("utf-8")
+    prompt_f = st.session_state.question + " " + prompt_f
+
+    # st.session_state.messages = []
+    # st.session_state.file_upload = True
+    st.session_state.new_table = False
+    st.session_state.new_session = False
+    st.session_state.session_not_close = False
+    st.session_state.load_history_level_2 = False
+
+    # st.write(f"Session id before upload into chatgpt: {st.session_state.session}")
+    chatgpt(connection, prompt_f, temperature, top_p, max_token, time)
+
+    # st.rerun()
+
+if uploaded_file is not None \
+    and to_chatgpt \
+    and st.session_state.new_session:
+    prompt_f = uploaded_file.read().decode("utf-8")
+    prompt_f = st.session_state.question + " " + prompt_f
     st.session_state.file_upload = True
     st.session_state.new_table = False
     st.session_state.new_session = False
     st.session_state.session_not_close = False
     st.session_state.load_history_level_2 = False
 
-    st.write(f"Session id before upload into chatgpt: {st.session_state.session}")
     chatgpt(connection, prompt_f, temperature, top_p, max_token, time)
 
-    st.rerun()
+if uploaded_file is not None \
+    and to_chatgpt \
+    and st.session_state.load_history_level_2:
+    prompt_f = uploaded_file.read().decode("utf-8")
+    prompt_f = st.session_state.question + " " + prompt_f
+    st.session_state.file_upload = False
+    st.session_state.new_table = False
+    st.session_state.new_session = False
+    st.session_state.session_not_close = False
+    st.session_state.load_history_level_2 = True
 
+    chatgpt(connection, prompt_f, temperature, top_p, max_token, time)
 
 if prompt := st.chat_input("What is up?"):
     chatgpt(connection, prompt, temperature, top_p, max_token, time)
