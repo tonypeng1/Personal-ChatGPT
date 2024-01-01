@@ -634,16 +634,16 @@ def get_summary_by_session_id_return_dic(conn: connect, session_id_list: List[in
                                 tuple(session_id_list))
 
                 summary_dict = {}
-                i = 0
+                # i = 0
                 for session_id, summary in cursor.fetchall():
-                    # st.write(f"session_id is: f{session_id} and summary is: {summary}")
+                    # st.write(f"session_id is: {session_id} and summary is: {summary}")
                     if summary is not None:
                         summary_dict[session_id] = summary
-                        i += 1
+                        # i += 1
                     else:
-                        if i == 0:
-                            # summary_dict[session_id] = "Summary not yet available for the currently active session."
-                            summary_dict = {0: "No sessions available"}
+                        # if i == 0:
+                        summary_dict[session_id] = "Current active session"
+                            # summary_dict = {0: "No sessions available"}
                         # else:
                         #     pass
                 return dict(reversed(list(summary_dict.items())))
@@ -851,7 +851,8 @@ def get_summary_and_return_as_file_name(conn: connect, session1: int) -> Optiona
 
                 return string
             else:
-                return None
+                # return None
+                return "Acitive current session"
 
     except Error as error:
         st.error(f"Failed to get session summary: {error}")
@@ -1124,6 +1125,7 @@ if "empty_data" not in st.session_state:
 today_sessions = load_previous_chat_session_ids(connection, *convert_date('Today', date_earlist))
 # st.write(f"today's session ids: {today_sessions}")
 yesterday_sessions = load_previous_chat_session_ids(connection, *convert_date('Yesterday', date_earlist))
+# st.write(f"Yesterday's session ids: {yesterday_sessions}")
 seven_days_sessions = load_previous_chat_session_ids(connection, *convert_date('Previous 7 days', date_earlist))
 thirty_days_sessions = load_previous_chat_session_ids(connection,*convert_date('Previous 30 days', date_earlist))
 older_sessions = load_previous_chat_session_ids(connection, *convert_date('Older', date_earlist))
@@ -1131,6 +1133,7 @@ older_sessions = load_previous_chat_session_ids(connection, *convert_date('Older
 today_dic = get_summary_by_session_id_return_dic(connection, today_sessions)
 # st.write(f"today's returned dic: {today_dic}")
 yesterday_dic = get_summary_by_session_id_return_dic(connection, yesterday_sessions)
+# st.write(f"Yesterday's returned dic: {yesterday_dic}")
 seven_days_dic = get_summary_by_session_id_return_dic(connection, seven_days_sessions)
 thirty_days_dic = get_summary_by_session_id_return_dic(connection, thirty_days_sessions)
 older_dic = get_summary_by_session_id_return_dic(connection, older_sessions)
