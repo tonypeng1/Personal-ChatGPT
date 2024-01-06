@@ -1248,9 +1248,9 @@ if uploaded_file is not None:
     # prompt_f = uploaded_file.read().decode("utf-8")
     # st.sidebar.write(prompt_f)
     if not st.session_state.question:
-        st.write(f"question before is: '{question}'")
+        # st.write(f"question before is: '{question}'")
         question = st.sidebar.text_area("Any question about the file?", placeholder="None")
-        st.write(f"question after is: '{question}'")
+        # st.write(f"question after is: '{question}'")
         if uploaded_file.name.split('.')[1].lower() == 'pdf':
             prompt_f = extract_text_from_pdf(uploaded_file)
         else:
