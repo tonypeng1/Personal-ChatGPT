@@ -14,7 +14,8 @@ import openai
 from openai.error import OpenAIError
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List, Dict
-import textwrap
+from PyPDF2 import PdfReader
+# import textwrap
 # from streamlit_modal import Modal
 
 def init_connection() -> None:
@@ -71,9 +72,9 @@ def init_connection() -> None:
 
     return conn
 
-def load_previous_chat_session(conn: connect, session1: str) -> None:
+def load_previous_chat_session(conn: connect, session1: int) -> None:
     """
-    Load messages from a previous chat session into the Streamlit session state
+    Load messages of a previous chat session from database and append to the Streamlit session state
     "messages".
 
     Args:
@@ -290,9 +291,10 @@ def shorten_prompt_to_tokens(prompt, max_tokens=4000):
         return ' '.join(truncated_tokens) + '...'
     return prompt
 
-def load_previous_chat_session_ids(conn: connect, date_start: str, date_end: str):
+def load_previous_chat_session_ids(conn: connect, date_start: str, date_end: str) -> list:
     """
-    Load distinct session IDs from messages within a specified date range.
+    Load distinct session IDs (as a list) from messages within a specified date range.
+    If there is no session in the date range, return [0].
 
     Parameters:
     - conn: Connection object through which the query will be executed.
@@ -393,7 +395,8 @@ def get_and_set_current_session_id(conn: connect) -> None:
 
 def start_session_save_to_mysql_and_increment_session_id(conn: connect):
     """
-    Start a new session by inserting a null value at the end timestamp column of the session table.
+    Start a new session by inserting a null value at the end timestamp column of the session table. Increment session id by 1.
+    The start_timestamp column of the session will be automatically updated with the current time. See the function init_connection().
 
     Args:
         conn: A MySQL connection object to interact with the database.
@@ -614,6 +617,8 @@ def get_the_earliest_date(conn: connect) -> Optional[str]:
 def get_summary_by_session_id_return_dic(conn: connect, session_id_list: List[int]) -> Optional[Dict[int, str]]:
     """
     Retrieves a summary for each session ID provided in the list.
+    If there is no sesesion (session_id_list = [0]), return {0: "No sessions available"}.
+    If there is a session but no summary, return "Current active session".
 
     Parameters:
     - conn: The MySQLConnection object used to connect to the database.
@@ -1026,6 +1031,10 @@ def set_only_current_session_state_to_true(current_state: str) -> None:
         else:
             st.session_state[state] = False
 
+def extract_text_from_pdf(pdf): 
+    pdf_reader = PdfReader(pdf) 
+    return ''.join(page.extract_text() for page in pdf_reader.pages)
+
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 connection = init_connection()
@@ -1151,7 +1160,6 @@ level_two_options = {
 level_two_options_new = remove_if_a_session_not_exist_in_date_range(level_two_options)
 # st.write(f"Level 2 new options are: {level_two_options_new}")
 level_one_options = get_available_date_range(level_two_options_new)
-
 # st.write(f"Level 1 options are: {level_one_options}")
 
 # load_history_level_1 = st.sidebar.selectbox(
@@ -1227,12 +1235,19 @@ if load_history_level_2 and not st.session_state.new_session:
 
 delete_a_session = st.sidebar.button("Delete loaded session from database")
 
+
 uploaded_file = st.sidebar.file_uploader("Upload a file")
 
 if uploaded_file is not None:
     # prompt_f = uploaded_file.read().decode("utf-8")
     # st.sidebar.write(prompt_f)
     st.session_state.question = st.sidebar.text_area("Any question about the file?", placeholder="None")
+    if uploaded_file.name.split('.')[1].lower() == 'pdf':
+        prompt_f = extract_text_from_pdf(uploaded_file)
+    else:
+        prompt_f = uploaded_file.read().decode("utf-8")
+
+    prompt_f = st.session_state.question + " " + prompt_f
 
 to_chatgpt = st.sidebar.button("Send to chatGPT")
 
@@ -1255,8 +1270,8 @@ if uploaded_file is not None \
         and to_chatgpt \
         and not st.session_state.new_session \
         and not st.session_state.load_history_level_2:
-    prompt_f = uploaded_file.read().decode("utf-8")
-    prompt_f = st.session_state.question + " " + prompt_f
+    # prompt_f = uploaded_file.read().decode("utf-8")
+    # prompt_f = st.session_state.question + " " + prompt_f
 
     # st.session_state.messages = []
     # st.session_state.file_upload = True
@@ -1273,8 +1288,8 @@ if uploaded_file is not None \
 if uploaded_file is not None \
     and to_chatgpt \
     and st.session_state.new_session:
-    prompt_f = uploaded_file.read().decode("utf-8")
-    prompt_f = st.session_state.question + " " + prompt_f
+    # prompt_f = uploaded_file.read().decode("utf-8")
+    # prompt_f = st.session_state.question + " " + prompt_f
 
     set_only_current_session_state_to_true("file_upload")
     # st.session_state.file_upload = True
@@ -1288,8 +1303,8 @@ if uploaded_file is not None \
 if uploaded_file is not None \
     and to_chatgpt \
     and st.session_state.load_history_level_2:
-    prompt_f = uploaded_file.read().decode("utf-8")
-    prompt_f = st.session_state.question + " " + prompt_f
+    # prompt_f = uploaded_file.read().decode("utf-8")
+    # prompt_f = st.session_state.question + " " + prompt_f
 
     set_only_current_session_state_to_true("load_history_level_2")
     # st.session_state.file_upload = False
