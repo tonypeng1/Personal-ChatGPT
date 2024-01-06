@@ -1129,6 +1129,9 @@ if "delete_session" not in st.session_state:
 if "empty_data" not in st.session_state:
     st.session_state.empty_data = False
 
+if "question" not in st.session_state: # If a question has been asked about a file, bypass the text_area()
+    st.session_state.question = False
+
 
 # list of session_ids of a date range
 today_sessions = load_previous_chat_session_ids(connection, *convert_date('Today', date_earlist))
@@ -1235,19 +1238,25 @@ if load_history_level_2 and not st.session_state.new_session:
 
 delete_a_session = st.sidebar.button("Delete loaded session from database")
 
-
 uploaded_file = st.sidebar.file_uploader("Upload a file")
+# st.write(f"uploaded file is: '{uploaded_file}'")
+if uploaded_file is None:  # when a file is removed, reset the question to False
+    st.session_state.question = False
 
+question = ""
 if uploaded_file is not None:
     # prompt_f = uploaded_file.read().decode("utf-8")
     # st.sidebar.write(prompt_f)
-    st.session_state.question = st.sidebar.text_area("Any question about the file?", placeholder="None")
-    if uploaded_file.name.split('.')[1].lower() == 'pdf':
-        prompt_f = extract_text_from_pdf(uploaded_file)
-    else:
-        prompt_f = uploaded_file.read().decode("utf-8")
+    if not st.session_state.question:
+        st.write(f"question before is: '{question}'")
+        question = st.sidebar.text_area("Any question about the file?", placeholder="None")
+        st.write(f"question after is: '{question}'")
+        if uploaded_file.name.split('.')[1].lower() == 'pdf':
+            prompt_f = extract_text_from_pdf(uploaded_file)
+        else:
+            prompt_f = uploaded_file.read().decode("utf-8")
 
-    prompt_f = st.session_state.question + " " + prompt_f
+        prompt_f = question + " " + prompt_f
 
 to_chatgpt = st.sidebar.button("Send to chatGPT")
 
@@ -1267,7 +1276,7 @@ for message in st.session_state.messages:
 
 
 if uploaded_file is not None \
-        and to_chatgpt \
+        and (to_chatgpt or question != "") \
         and not st.session_state.new_session \
         and not st.session_state.load_history_level_2:
     # prompt_f = uploaded_file.read().decode("utf-8")
@@ -1280,13 +1289,15 @@ if uploaded_file is not None \
     st.session_state.session_not_close = False
     st.session_state.load_history_level_2 = False
 
+    st.session_state.question = True
+
     # st.write(f"Session id before upload into chatgpt: {st.session_state.session}")
     chatgpt(connection, prompt_f, temperature, top_p, max_token, time)
 
     # st.rerun()
 
 if uploaded_file is not None \
-    and to_chatgpt \
+    and (to_chatgpt or question != "") \
     and st.session_state.new_session:
     # prompt_f = uploaded_file.read().decode("utf-8")
     # prompt_f = st.session_state.question + " " + prompt_f
@@ -1297,11 +1308,14 @@ if uploaded_file is not None \
     # st.session_state.new_session = False
     # st.session_state.session_not_close = False
     # st.session_state.load_history_level_2 = False
+    # st.session_state["Any question about the file?"] = ""
+
+    st.session_state.question = True
 
     chatgpt(connection, prompt_f, temperature, top_p, max_token, time)
 
 if uploaded_file is not None \
-    and to_chatgpt \
+    and (to_chatgpt or question != "") \
     and st.session_state.load_history_level_2:
     # prompt_f = uploaded_file.read().decode("utf-8")
     # prompt_f = st.session_state.question + " " + prompt_f
@@ -1312,8 +1326,12 @@ if uploaded_file is not None \
     # st.session_state.new_session = False
     # st.session_state.session_not_close = False
     # st.session_state.load_history_level_2 = True
+    # st.session_state["Any question about the file?"] = ""
+
+    st.session_state.question = True
 
     chatgpt(connection, prompt_f, temperature, top_p, max_token, time)
+
 
 if prompt := st.chat_input("What is up?"):
     chatgpt(connection, prompt, temperature, top_p, max_token, time)
