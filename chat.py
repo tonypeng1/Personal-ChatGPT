@@ -154,7 +154,8 @@ def save_model_behavior_to_mysql(conn: connect, behavior1: str) -> None:
 
 def Load_the_last_saved_model_behavior(conn: connect) -> None:
     """
-    Retrieves the last saved model behavior from the 'behavior' table in the MySQL database.
+    Retrieves the last saved model behavior from the 'behavior' table in the MySQL database and
+    save it to session state.
 
     This function selects the most recent 'choice' entry from the 'behavior' table based on the highest ID.
 
@@ -857,7 +858,7 @@ def get_summary_and_return_as_file_name(conn: connect, session1: int) -> Optiona
                 return string
             else:
                 # return None
-                return "Acitive current session"
+                return "Acitive_current_session"
 
     except Error as error:
         st.error(f"Failed to get session summary: {error}")
@@ -1024,16 +1025,42 @@ def get_available_date_range(level_2_new_options: dict) -> list:
     return date_range_list
 
 def set_only_current_session_state_to_true(current_state: str) -> None:
+    """
+    Update the session state by setting the specified current state to True and all other states to False.
+
+    This function iterates over a predefined list of states and updates the session state such that only the
+    state matching `current_state` is set to True, while all others are set to False.
+
+    Parameters:
+    current_state (str): The key in the session state dictionary that should be set to True.
+
+    Returns:
+    None
+    """
     for state in ["new_session", "new_table", "load_history_level_2",
                   "session_not_close", "file_upload"]:
-        if state == current_state:
-            st.session_state[state] = True
-        else:
-            st.session_state[state] = False
+        st.session_state[state] = (state == current_state)
+        # if state == current_state:
+        #     st.session_state[state] = True
+        # else:
+        #     st.session_state[state] = False
 
-def extract_text_from_pdf(pdf): 
+def extract_text_from_pdf(pdf) -> str: 
+    """
+    Extract and concatenate text from all pages of a PDF file.
+
+    This function reads a PDF file from the given path, extracts text from each page, 
+    and concatenates it into a single string.
+
+    Parameters:
+    pdf_path (str): The file path to the PDF from which to extract text.
+
+    Returns:
+    str: A string containing all the extracted text from the PDF.
+    """
     pdf_reader = PdfReader(pdf) 
-    return ''.join(page.extract_text() for page in pdf_reader.pages)
+    # return ''.join(page.extract_text() for page in pdf_reader.pages)
+    return ''.join(page.extract_text() or '' for page in pdf_reader.pages)
 
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -1057,7 +1084,7 @@ model_name = st.sidebar.radio("Choose model:",
 
 st.session_state.openai_model = model_name
 
-# The following code handles modele behavior. The behavior chosen will be reused rather than a default value. 
+# The following code handles model behavior. The behavior chosen will be reused rather than a default value. 
 if "behavior" not in st.session_state:
     st.session_state.behavior = ""
 
@@ -1065,10 +1092,11 @@ if "behavior" not in st.session_state:
 insert_initial_default_model_behavior(connection, 'Deterministic (T=0.0, top_p=0.2)')
     
 Load_the_last_saved_model_behavior(connection)  # load from database and save to session_state
+# st.write(f"The last saved behavior: {st.session_state.behavior}")
 (temperature, top_p) = return_temp_and_top_p_values_from_model_behavior(st.session_state.behavior)
 # st.write(f"temprature = {temperature}, and top_p = {top_p}")
-
 behavior_index = return_behavior_index(st.session_state.behavior)  # from string to int (0 to 4)
+
 behavior = st.sidebar.selectbox(
     label="Select the behavior of your model",
     placeholder='Pick a behavior',
@@ -1078,18 +1106,21 @@ behavior = st.sidebar.selectbox(
     key="behavior1"
     )
 
-if behavior:
-    save_model_behavior_to_mysql(connection, behavior)
+if behavior != st.session_state.behavior:  # only save to database if behavior is newly clicked 
+    save_model_behavior_to_mysql(connection, behavior)  
+    # only save to database and the session-state not yet changes until the next re-run
+
+    # st.write(f"Just after saving a new behavior: {st.session_state.behavior}")
     # Load_the_last_saved_model_behavior(connection)
     # (temperature, top_p) = return_temp_and_top_values_from_model_behavior(behavior)
     # # st.write(f"temprature = {temperature}, and top_p = {top_p}")
 
 max_token = st.sidebar.number_input(
     label="Select the maximum number of tokens",
-    min_value=300,
-    max_value=1800,
-    value=1200,
-    step=300
+    min_value=1000,
+    max_value=4000,
+    value=4000,
+    step=1000
     )
 
 if "session" not in st.session_state:
@@ -1108,8 +1139,8 @@ if "session" not in st.session_state:
         st.session_state.new_table = True
 # st.write(f"Session id after if 'session' not in: {st.session_state.session}")
 
-if "openai_model" not in st.session_state:
-    st.session_state.openai_model = model_name
+# if "openai_model" not in st.session_state:
+#     st.session_state.openai_model = model_name
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -1119,6 +1150,9 @@ if "new_session" not in st.session_state:
 
 if "load_history_level_2" not in st.session_state:
     st.session_state.load_history_level_2 = False
+
+# if "load_history_level_2_value" not in st.session_state:
+#     st.session_state.load_history_level_2_value = 0  # since index starts from 1, 0 is a good initial value
 
 if "file_upload" not in st.session_state:
     st.session_state.file_upload = False
@@ -1133,6 +1167,7 @@ if "question" not in st.session_state: # If a question has been asked about a fi
     st.session_state.question = False
 
 
+# The following code handles the retreival of the messages of a previous chat session
 # list of session_ids of a date range
 today_sessions = load_previous_chat_session_ids(connection, *convert_date('Today', date_earlist))
 # st.write(f"today's session ids: {today_sessions}")
@@ -1190,6 +1225,7 @@ load_history_level_2 = st.sidebar.selectbox(
         on_change=set_new_session_to_false
         )
 
+
 # st.write(f"The return of level 2 click is: {load_history_level_2}")
 # new_chat_button = st.sidebar.button("New chat session", key="new")
 # if load_history_level_2:
@@ -1205,10 +1241,24 @@ if new_chat_button:
     # st.session_state.session_not_close = False
     # st.session_state.file_upload = False
 
-if load_history_level_2 and not st.session_state.new_session:
-    # st.write(f"session choice: {load_history_level_2}")
+# st.write(f"After new_chat_button, 'st.session_state_session' is: {st.session_state.session}")
+# st.write(f"After new_chat_button, 'st.session_state_new_session' is: {st.session_state.new_session}")
+# st.write(f"session choice load_history_level_2 after new chat button: {load_history_level_2}")
+# st.write(f"session value in st.session_state.load_history_level_2_value: \
+#          {st.session_state.load_history_level_2_value} ")
+
+if load_history_level_2 \
+    and not st.session_state.new_session:
+    # and load_history_level_2 != st.session_state.load_history_level_2_value:  
+    # Since load_history_level_2 is persistant between rerun, only load when it is not 
+    # a new session.
     load_previous_chat_session(connection, load_history_level_2)
-    set_only_current_session_state_to_true("load_history_level_2")
+
+    # st.session_state.load_history_level_2_value = load_history_level_2
+    if load_history_level_2 != st.session_state.session:
+        set_only_current_session_state_to_true("load_history_level_2")
+    else:
+        st.session_state.load_history_level_2 = False  # case for current active session
     # st.session_state.load_history_level_2 = True
     # st.session_state.new_table = False
     # st.session_state.new_session = False
@@ -1216,10 +1266,13 @@ if load_history_level_2 and not st.session_state.new_session:
     # st.session_state.file_upload = False
     # st.write(f"value of st.session_state.load_history_level_2 when first click is: {st.session_state.load_history_level_2}")
 
+    # The following code is for saving the messages to a html file.
     session_md = convert_messages_to_markdown(st.session_state.messages)
     session_html = markdown_to_html(session_md)
 
+    # st.write(f"load_history_level_2 value is: {load_history_level_2}")
     file_name = get_summary_and_return_as_file_name(connection, load_history_level_2) + ".html"
+    # st.write(f"file name is: {file_name}")
     
     download_chat_session = st.sidebar.download_button(
         label="Save loaded session",
@@ -1236,7 +1289,54 @@ if load_history_level_2 and not st.session_state.new_session:
         else:
             st.error(f"The file name '{file_name}' is not a valid file name. File not saved!", icon="🚨")
 
-delete_a_session = st.sidebar.button("Delete loaded session from database")
+    delete_a_session = st.sidebar.button("Delete loaded session from database")
+    if delete_a_session:
+        st.session_state.delete_session = True
+    
+
+# st.write(f"session choice load_history_level_2 before printing messages: {load_history_level_2}")
+
+# Print each message on page (this code prints pre-existing message before chatgpt(), 
+# where the latest messages will be printed.)
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+
+# The following code handles previous session deletion after uploading. The code needs to be
+# after messages printing in order to show confirmation at end of messages.
+if st.session_state.delete_session:
+    if load_history_level_2 is not None and not load_history_level_2 == 0:
+        st.session_state.delete_session = True
+        st.error("Do you really wanna delete this chat history?", icon="🚨")
+    else:
+        st.warning("No previously saved session loaded. Please select one from the above drop-down lists.")
+
+    placeholder_confirmation_sesson = st.empty()
+
+    # if st.session_state.delete_session and not st.session_state.get("confirmation_session", False):
+    if st.session_state.delete_session:
+        with placeholder_confirmation_sesson.container():
+            confirmation_1 = st.selectbox(
+                label="Confirm your answer (If you choose 'Yes', this chat history of thie loaded session will be deleted):",
+                placeholder="Pick a choice",
+                options=['No', 'Yes'],
+                index=None
+            )
+        if confirmation_1 == 'Yes':
+            delete_the_messages_of_a_chat_session(connection, load_history_level_2)
+            # st.warning("Data deleted.", icon="🚨")
+            st.session_state.delete_session = False
+            st.session_state.messages = []
+            st.session_state.new_session = True
+            st.rerun()
+        elif confirmation_1 == 'No':
+            # with placeholder_confirmation_session_no.container():
+            st.success("Data not deleted.")
+            st.session_state.delete_session = False
+            # st.rerun()
+
+# st.write(f"Before upload file, 'load_history_level_2' is: {st.session_state.load_history_level_2}")
 
 uploaded_file = st.sidebar.file_uploader("Upload a file")
 # st.write(f"uploaded file is: '{uploaded_file}'")
@@ -1251,7 +1351,7 @@ if uploaded_file is not None:
         # st.write(f"question before is: '{question}'")
         question = st.sidebar.text_area("Any question about the file?", placeholder="None")
         # st.write(f"question after is: '{question}'")
-        if uploaded_file.name.split('.')[1].lower() == 'pdf':
+        if uploaded_file.name.split('.')[-1].lower() == 'pdf':
             prompt_f = extract_text_from_pdf(uploaded_file)
         else:
             prompt_f = uploaded_file.read().decode("utf-8")
@@ -1262,18 +1362,16 @@ to_chatgpt = st.sidebar.button("Send to chatGPT")
 
 # st.write(f"Before print to screen: {st.session_state.messages}")
 
-# Print each message on page (this code prints pre-existing message before chatgpt(), where the latest messages will be printed.)
-
-
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# Print each message on page (this code prints pre-existing message before chatgpt(), 
+# where the latest messages will be printed.)
+# for message in st.session_state.messages:
+#     with st.chat_message(message["role"]):
+#         st.markdown(message["content"])
 
 
 # st.write(f"new_session state of 1: {st.session_state.new_session}")
 # st.write(f"load_history_level_2 state of 1: {st.session_state.load_history_level_2}")
 # st.write(f"file_upload state of 1: {st.session_state.file_upload}")
-
 
 if uploaded_file is not None \
         and (to_chatgpt or question != "") \
@@ -1335,39 +1433,47 @@ if uploaded_file is not None \
 
 if prompt := st.chat_input("What is up?"):
     chatgpt(connection, prompt, temperature, top_p, max_token, time)
+    # st.write(f"After chatgpt function, 'new_table' is: {st.session_state.new_table}")
+    # st.write(f"After chatgpt function, 'new_session' is: {st.session_state.new_session}")
+    # st.write(f"In determine function, 'session_not_close' is: {st.session_state.session_not_close}")
+    # st.write(f"After chatgpt function, 'load_history_level_2' is: {st.session_state.load_history_level_2}")
+    # st.write(f"After chatgpt function, 'file_upload' is: {st.session_state.file_upload}")
 
 
 
-if delete_a_session:
-    if load_history_level_2 is not None and not load_history_level_2 == 0:
-        st.session_state.delete_session = True
-        st.error("Do you really wanna delete this chat history?", icon="🚨")
-    else:
-        st.warning("No previously saved session loaded. Please select one from the above drop-down lists.")
 
-placeholder_confirmation_sesson = st.empty()
+# The following code handles previous session deletion after uploading. The code needs to be
+# after messages printing in order to show confirmation at end of messages.
+# if st.session_state.delete_session:
+#     if load_history_level_2 is not None and not load_history_level_2 == 0:
+#         # st.session_state.delete_session = True
+#         st.error("Do you really wanna delete this chat history?", icon="🚨")
+#     else:
+#         st.warning("No previously saved session loaded. Please select one from the above drop-down lists.")
 
-# if st.session_state.delete_session and not st.session_state.get("confirmation_session", False):
-if st.session_state.delete_session:
-    with placeholder_confirmation_sesson.container():
-        confirmation_1 = st.selectbox(
-            label="Confirm your answer (If you choose 'Yes', this chat history of thie loaded session will be deleted):",
-            placeholder="Pick a choice",
-            options=['No', 'Yes'],
-            index=None
-        )
-    if confirmation_1 == 'Yes':
-        delete_the_messages_of_a_chat_session(connection, load_history_level_2)
-        # st.warning("Data deleted.", icon="🚨")
-        st.session_state.delete_session = False
-        st.session_state.messages = []
-        st.session_state.new_session = True
-        st.rerun()
-    elif confirmation_1 == 'No':
-        # with placeholder_confirmation_session_no.container():
-        st.success("Data not deleted.")
-        st.session_state.delete_session = False
-        # st.rerun()
+#     placeholder_confirmation_sesson = st.empty()
+
+#     # if st.session_state.delete_session and not st.session_state.get("confirmation_session", False):
+#     if st.session_state.delete_session:
+#         with placeholder_confirmation_sesson.container():
+#             confirmation_1 = st.selectbox(
+#                 label="Confirm your answer (If you choose 'Yes', this chat history of thie loaded session will be deleted):",
+#                 placeholder="Pick a choice",
+#                 options=['No', 'Yes'],
+#                 index=None
+#             )
+#         if confirmation_1 == 'Yes':
+#             delete_the_messages_of_a_chat_session(connection, load_history_level_2)
+#             # st.warning("Data deleted.", icon="🚨")
+#             st.session_state.delete_session = False
+#             st.session_state.messages = []
+#             st.session_state.new_session = True
+#             st.rerun()
+#         elif confirmation_1 == 'No':
+#             # with placeholder_confirmation_session_no.container():
+#             st.success("Data not deleted.")
+#             st.session_state.delete_session = False
+#             # st.rerun()
 
 
 
