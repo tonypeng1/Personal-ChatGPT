@@ -85,6 +85,7 @@ def modify_content_column_data_type_if_different(conn: connect):
             """
             cursor.execute(sql)
             result = cursor.fetchone()
+            # st.write(f"Old column session data type: {result[0].upper()}")
 
             if result and result[0].upper() != "MEDIUMTEXT":
                 query = """
@@ -93,9 +94,10 @@ def modify_content_column_data_type_if_different(conn: connect):
                 """
                 cursor.execute(query)
                 conn.commit()
-                st.write("Column session in table message has been changed to MEDIUMTEXT.")
+                # st.write("Column session in table message has been changed to MEDIUMTEXT.")
             else:
-                st.write("Column session in table message is already MEDIUMTEXT")
+                pass
+                # st.write("Column session in table message is already MEDIUMTEXT")
 
     except Error as error:
         st.error(f"Failed to change the column data type to MEDIUMTEXT: {error}")
@@ -321,7 +323,7 @@ def shorten_prompt_to_tokens(prompt: str, encoding_name: str="cl100k_base" , max
     if num_tokens > max_tokens:
         truncated_tokens = encoding_list[:max_tokens]
         truncated_prompt = encoding.decode(truncated_tokens)
-        st.write(f"Truncated promp: {truncated_prompt}")
+        # st.write(f"Truncated promp: {truncated_prompt}")
         return truncated_prompt
     else:
         return prompt
@@ -1161,7 +1163,7 @@ if behavior != st.session_state.behavior:  # only save to database if behavior i
     # # st.write(f"temprature = {temperature}, and top_p = {top_p}")
 
 max_token = st.sidebar.number_input(
-    label="Select the maximum number of tokens",
+    label="Select the max number of tokens the model generate",
     min_value=1000,
     max_value=4000,
     value=4000,
