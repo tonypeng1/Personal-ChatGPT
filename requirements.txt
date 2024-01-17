@@ -4,4 +4,4 @@ mysql-connector-python==8.2.0
 markdown==3.5.1
 PyPDF2==3.0.1
 pycryptodome==3.19.1
-tiktoken-0.5.2==0.5.2
+tiktoken==0.5.2
