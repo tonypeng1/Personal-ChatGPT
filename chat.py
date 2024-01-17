@@ -15,6 +15,7 @@ from openai.error import OpenAIError
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List, Dict
 from PyPDF2 import PdfReader
+import tiktoken
 # import textwrap
 # from streamlit_modal import Modal
 
@@ -49,7 +50,7 @@ def init_connection() -> None:
                     session_id INT NOT NULL,
                     timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     role TEXT,
-                    content TEXT,
+                    content MEDIUMTEXT,
                     FOREIGN KEY (session_id) REFERENCES session(session_id)
                 );
             """
@@ -71,6 +72,34 @@ def init_connection() -> None:
         raise
 
     return conn
+
+def modify_content_column_data_type_if_different(conn: connect):
+    try:
+        with conn.cursor() as cursor:
+            sql = """
+            SELECT DATA_TYPE
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = "chat"
+            and TABLE_NAME = "message"
+            AND COLUMN_NAME = "content";
+            """
+            cursor.execute(sql)
+            result = cursor.fetchone()
+
+            if result and result[0].upper() != "MEDIUMTEXT":
+                query = """
+                ALTER TABLE message
+                MODIFY COLUMN content MEDIUMTEXT;
+                """
+                cursor.execute(query)
+                conn.commit()
+                st.write("Column session in table message has been changed to MEDIUMTEXT.")
+            else:
+                st.write("Column session in table message is already MEDIUMTEXT")
+
+    except Error as error:
+        st.error(f"Failed to change the column data type to MEDIUMTEXT: {error}")
+        raise
 
 def load_previous_chat_session(conn: connect, session1: int) -> None:
     """
@@ -272,25 +301,40 @@ def load_previous_chat_session_all_questions_for_summary_only_users(conn: connec
         st.error(f"Failed to load previous chat sessions for summary (user only): {error}")
         return None
 
-def shorten_prompt_to_tokens(prompt, max_tokens=4000):
+def shorten_prompt_to_tokens(prompt: str, encoding_name: str="cl100k_base" , max_tokens: int=3800) -> str:
     """
-    Shortens a prompt to a specified maximum number of tokens.
-    Args:
+    Shortens the input prompt to a specified maximum number of tokens using the specified encoding.
+    If the number of tokens in the prompt exceeds the max_tokens limit, it truncates the prompt.
 
-    - prompt (str): The original long prompt.
-    - max_tokens (int): The maximum number of tokens. Default is 4000.
+    Parameters:
+    - prompt (str): The input text to be potentially shortened.
+    - encoding_name (str): The name of the encoding to use for tokenization (default: "cl100k_base").
+    - max_tokens (int): The maximum number of tokens that the prompt should contain (default: 3800).
+
     Returns:
-
-    - str: A shortened version of the prompt.
+    - str: The original prompt if it's within the max_tokens limit, otherwise a truncated version of it.
     """
-    # Split the prompt into tokens (approximation using spaces)
-    tokens = prompt.split()
+    encoding = tiktoken.get_encoding(encoding_name)
+    encoding_list = encoding.encode(prompt)
+    num_tokens = len(encoding_list)
 
-    # Truncate the tokens list if it's longer than max_tokens
-    if len(tokens) > max_tokens:
-        truncated_tokens = tokens[:max_tokens]
-        return ' '.join(truncated_tokens) + '...'
-    return prompt
+    if num_tokens > max_tokens:
+        truncated_tokens = encoding_list[:max_tokens]
+        truncated_prompt = encoding.decode(truncated_tokens)
+        st.write(f"Truncated promp: {truncated_prompt}")
+        return truncated_prompt
+    else:
+        return prompt
+
+    # Split the prompt into tokens (approximation using spaces)
+    # tokens = prompt.split()
+    # # Truncate the tokens list if it's longer than max_tokens
+    # if len(tokens) > max_tokens:
+    #     truncated_tokens = tokens[:max_tokens]
+    #     truncated_prompt = ' '.join(truncated_tokens) + '...'
+    #     st.write(f"length of original token: {len(tokens)}")
+    #     st.write(f"prompt sent to get summary {truncated_prompt}")
+    # return prompt
 
 def load_previous_chat_session_ids(conn: connect, date_start: str, date_end: str) -> list:
     """
@@ -1065,6 +1109,7 @@ def extract_text_from_pdf(pdf) -> str:
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 connection = init_connection()
+modify_content_column_data_type_if_different(connection)
 
 today = datetime.now().date()
 time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
