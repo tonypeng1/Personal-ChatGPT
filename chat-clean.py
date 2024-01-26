@@ -1,15 +1,8 @@
-# import sys
-# import subprocess
 import streamlit as st
 import markdown
 from pygments.formatters import HtmlFormatter
 import re
-# st.write("Python version:", sys.version)
-# st.write("Installed packages:", subprocess.check_output([sys.executable, "-m", "pip", "freeze"]).decode("utf-8"))
-
-# st.write('Hello World')
 from mysql.connector import connect, Error
-
 import openai
 from openai.error import OpenAIError
 from datetime import datetime, timedelta, date
@@ -17,8 +10,7 @@ from typing import Optional, Tuple, List, Dict, Union
 from PyPDF2 import PdfReader
 import tiktoken
 from striprtf.striprtf import rtf_to_text
-# import textwrap
-# from streamlit_modal import Modal
+
 
 def init_connection():
     """
@@ -86,7 +78,6 @@ def modify_content_column_data_type_if_different(conn):
             """
             cursor.execute(sql)
             result = cursor.fetchone()
-            # st.write(f"Old column session data type: {result[0].upper()}")
 
             if result and result[0].upper() != "MEDIUMTEXT":
                 query = """
@@ -95,10 +86,8 @@ def modify_content_column_data_type_if_different(conn):
                 """
                 cursor.execute(query)
                 conn.commit()
-                # st.write("Column session in table message has been changed to MEDIUMTEXT.")
             else:
                 pass
-                # st.write("Column session in table message is already MEDIUMTEXT")
 
     except Error as error:
         st.error(f"Failed to change the column data type to MEDIUMTEXT: {error}")
@@ -295,7 +284,6 @@ def load_previous_chat_session_all_questions_for_summary_only_users(conn, sessio
             chat_user = ""
             for (role, content) in cursor:
                 if role == 'user':
-                    # chat_user += (role + ": " + content + " ")
                     chat_user += content + " "
             chat_user = shorten_prompt_to_tokens(chat_user)
             return chat_user
@@ -324,20 +312,9 @@ def shorten_prompt_to_tokens(prompt: str, encoding_name: str="cl100k_base" , max
     if num_tokens > max_tokens:
         truncated_tokens = encoding_list[:max_tokens]
         truncated_prompt = encoding.decode(truncated_tokens)
-        # st.write(f"Truncated promp: {truncated_prompt}")
         return truncated_prompt
     else:
         return prompt
-
-    # Split the prompt into tokens (approximation using spaces)
-    # tokens = prompt.split()
-    # # Truncate the tokens list if it's longer than max_tokens
-    # if len(tokens) > max_tokens:
-    #     truncated_tokens = tokens[:max_tokens]
-    #     truncated_prompt = ' '.join(truncated_tokens) + '...'
-    #     st.write(f"length of original token: {len(tokens)}")
-    #     st.write(f"prompt sent to get summary {truncated_prompt}")
-    # return prompt
 
 def load_previous_chat_session_ids(conn, date_start: date, date_end: date) -> list:
     """
@@ -407,40 +384,6 @@ def get_and_set_current_session_id(conn) -> None:
         st.error(f"Failed to get the current session id: {error}")
         raise
 
-    # st.write(f"Within the get_and_set_current_session_id function, the session is: {st.session_state.session}")
-
-# def determine_if_the_current_session_is_not_closed(conn: connect) -> bool:
-#     """
-#     Check if the current session is not closed in the database. A chat session is defined as not
-#     close (i.e., current) if there is no date in the "end_timestamp" cell. Otherwise, the
-#     chat session is closed.
-
-#     Args:
-#         conn: A MySQL connection object.
-
-#     Returns:
-#         True if the session is not closed, False otherwise.
-#     """
-#     try:
-#         with conn.cursor() as cursor:
-#             # st.write(f"Current session is {st.session_state.session}")
-#             sql = "SELECT end_timestamp FROM session WHERE session_id = %s"
-#             val = (st.session_state.session,)
-#             cursor.execute(sql, val)
-
-#             end = cursor.fetchone()
-#             # st.write(f"end stamp returns: {end}")
-#             if end is None:
-#                 return True
-#             elif end[0] is None:
-#                 return True
-#             else:
-#                 return False
-
-#     except Error as error:
-#         st.error(f"Failed to determine if the current session is closed: {error}")
-#         return None
-
 def start_session_save_to_mysql_and_increment_session_id(conn):
     """
     Start a new session by inserting a null value at the end timestamp column of the session table. Increment session id by 1.
@@ -452,9 +395,6 @@ def start_session_save_to_mysql_and_increment_session_id(conn):
     Returns:
         None. Inserts a new session record and increments the session counter in `st.session_state.session`.
     """
-    st.write(f"I was here in action 2!")
-    st.write(f"Session id is: {st.session_state.session}")
-
     try:
         with conn.cursor() as cursor:
             cursor.execute("INSERT INTO session (end_timestamp) VALUE (null);")
@@ -462,12 +402,9 @@ def start_session_save_to_mysql_and_increment_session_id(conn):
 
             if st.session_state.session is not None:
                 st.session_state.session += 1
-                # get_and_set_current_session_id(connection)
-                st.write(f"Session id is after increment: {st.session_state.session}")
 
             else:
                 st.session_state.session = 1
-                st.write(f"Session id is: {st.session_state.session}")
 
     except Error as error:
         st.error(f"Failed to start a new session: {error}")
@@ -484,10 +421,6 @@ def end_session_save_to_mysql_and_save_summary(conn, current_time: str) -> None:
     Returns:
         None. Updates the database with the end timestamp for the current session.
     """
-    # st.write(f"session id in end_session_save_to_mysql_and_save_summary is: {st.session_state.session}")
-    st.write(f"I was here in action 1!")
-    st.write(f"Session id is: {st.session_state.session}")
-    st.write(f"Session time is: {current_time}")
     try:
         with conn.cursor() as cursor:
             sql = "UPDATE session SET end_timestamp = %s WHERE session_id = %s;"
@@ -557,11 +490,8 @@ def get_session_summary_and_save_to_session_table(conn, session_id1: int) -> Non
     - session_id1 (str): The unique identifier of the chat session.
 
     """
-    st.write(f"Session id in get_session_summary_and_save_to_session_table: {session_id1}")
     chat_session_text_user_only = load_previous_chat_session_all_questions_for_summary_only_users(conn, session_id1)
-    st.write(f"Session text (user only): {chat_session_text_user_only} /n")
     session_summary = chatgpt_summary_user_only(chat_session_text_user_only)
-    st.write(f"Summary of session {session_id1}: {session_summary} /n")
     save_session_summary_to_mysql(conn, session_id1, session_summary)
 
 def delete_all_rows(conn) -> None:
@@ -605,8 +535,6 @@ def delete_the_messages_of_a_chat_session(conn, session_id1: int) -> None:
     Raises:
         Raises an exception if the database operation fails.
     """
-    st.write(f"I was here in action 4!")
-
     try:
         with conn.cursor() as cursor:
             sql = "DELETE FROM message WHERE session_id = %s"
@@ -702,18 +630,11 @@ def get_summary_by_session_id_return_dic(conn, session_id_list: List[int]) -> Op
                                 tuple(session_id_list))
 
                 summary_dict = {}
-                # i = 0
                 for session_id, summary in cursor.fetchall():
-                    # st.write(f"session_id is: {session_id} and summary is: {summary}")
                     if summary is not None:
                         summary_dict[session_id] = summary
-                        # i += 1
                     else:
-                        # if i == 0:
                         summary_dict[session_id] = "Current active session"
-                            # summary_dict = {0: "No sessions available"}
-                        # else:
-                        #     pass
                 return dict(reversed(list(summary_dict.items())))
 
     except Error as error:
@@ -740,14 +661,8 @@ def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int, current_tim
     Raises:
         Raises an exception if there is a failure in database operations or OpenAI's API call.
     """
-
-    # st.write(f"Inside chatgpt function temprature = {temp}, and top_p = {p}")
-    # st.write(f"Model used inside chatgpt function is {st.session_state['openai_model']}")
-    # st.write(f"Max_tokens inside chatgpt function is {max_tok}")
     determine_if_terminate_current_session_and_start_a_new_one(conn, current_time)
-    # st.write(f"In chatgpt before appending: {st.session_state.messages}")
     st.session_state.messages.append({"role": "user", "content": prompt1})
-    # st.write(f"In chatgpt after appending: {st.session_state.messages}")
 
     with st.chat_message("user"):
         st.markdown(prompt1)
@@ -780,17 +695,13 @@ def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int, current_tim
                 message_placeholder.markdown(full_response + "▌")
             message_placeholder.markdown(full_response)
 
-            # st.write(f"The model used for the returned response is: {response['model']}")
-
         except OpenAIError as e:
             st.write(f"An error occurred with OpenAI in getting chat response: {e}")
         except Exception as e:
             st.write(f"An unexpected error occurred: {e}")
 
     st.session_state.messages.append({"role": "assistant", "content": full_response})
-    # st.write(f"In chatgpt after appending response: {st.session_state.messages}")
 
-    # st.write(f"Session id in chatgpt before saving: {st.session_state.session}")
     save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
     save_to_mysql_message(conn, st.session_state.session, "assistant", full_response)
 
@@ -809,7 +720,6 @@ def chatgpt_summary_user_only(chat_text_user_only: str) -> str:
     and limits the summary to a maximum of sixteen words.
     """
     response = openai.Completion.create(
-    #   engine="text-davinci-003",
       engine="gpt-3.5-turbo-instruct",
       prompt="Use a sentence to summary the main topics of the user's questions in following chat session. " + 
       "DO NOT start the sentence with 'The user' or 'Questions about'. For example, if the summary is 'Questions about handling errors " + 
@@ -824,18 +734,6 @@ def chatgpt_summary_user_only(chat_text_user_only: str) -> str:
 
     return summary
 
-# def end_session_and_start_new(conn: connect, current_time: str) -> None:
-#     """
-#     Ends the current session (saves end time and summary to MySQL "session" table), 
-#     and then starts a new session with an incremented session ID.
-
-#     Args:
-#     conn: The database connection object.
-#     current_time: The current time as a string used for timestamping the session end.
-#     """
-#     end_session_save_to_mysql_and_save_summary(conn, current_time)
-#     start_session_save_to_mysql_and_increment_session_id(conn)
-
 def save_session_state_messages(conn) -> None:
     """
     Iterates over messages in the session state and saves each to MySQL.
@@ -843,8 +741,6 @@ def save_session_state_messages(conn) -> None:
     Args:
     conn: The database connection object.
     """
-    st.write(f"I was here in action 3!")
-
     for message in st.session_state.messages:
         save_to_mysql_message(conn, st.session_state.session, message["role"], message["content"])
 
@@ -856,23 +752,10 @@ def determine_if_terminate_current_session_and_start_a_new_one(conn, current_tim
     conn: The database connection object.
     current_time: The current time as a string used for deciding session transitions.
     """
-
-    st.write(f"In determine function, 'new_table' is: {st.session_state.new_table}")
-    st.write(f"In determine function, 'new_session' is: {st.session_state.new_session}")
-    st.write(f"In determine function, 'session_different_date' is: {st.session_state.session_different_date}")
-    st.write(f"In determine function, 'load_history_level_2' is: {st.session_state.load_history_level_2}")
-    # st.write(f"In determine function, 'file_upload' is: {st.session_state.file_upload}")
-
-    # if st.session_state.load_history_level_2 is True:
-    #     delete_session_id = load_history_level_2
-
     state_actions = {
         'new_table': lambda: start_session_save_to_mysql_and_increment_session_id(conn),
         'new_session': lambda: (end_session_save_to_mysql_and_save_summary(conn, current_time),
                                 start_session_save_to_mysql_and_increment_session_id(conn)),
-        # 'session_not_close': lambda: (end_session_and_start_new(conn, current_time), 
-        #                               save_session_state_messages(conn),
-        #                               delete_the_messages_of_a_chat_session(conn, delete_session_id)),
         'load_history_level_2': lambda: (end_session_save_to_mysql_and_save_summary(conn, current_time),
                                          start_session_save_to_mysql_and_increment_session_id(conn),
                                          save_session_state_messages(conn), 
@@ -882,25 +765,11 @@ def determine_if_terminate_current_session_and_start_a_new_one(conn, current_tim
                                            start_session_save_to_mysql_and_increment_session_id(conn), 
                                            save_session_state_messages(conn)
                                          )
-        # 'file_upload': lambda: (end_session_save_to_mysql_and_save_summary(conn, current_time),
-                                # start_session_save_to_mysql_and_increment_session_id(conn))
     }
-
-
-    # state_actions = {}
-    # state_actions['new_session'] = lambda: (end_session_save_to_mysql_and_save_summary(conn, current_time),
-    #                             start_session_save_to_mysql_and_increment_session_id(conn))
-    # for state in ['load_history_level_2', 'session_different_date']:
-    #     state_actions[state] = lambda: (end_session_save_to_mysql_and_save_summary(conn, current_time),
-    #                                      start_session_save_to_mysql_and_increment_session_id(conn),
-    #                                      save_session_state_messages(conn), 
-    #                                      delete_the_messages_of_a_chat_session(conn, load_history_level_2))
 
     for state, action in state_actions.items():
         if st.session_state.get(state):
-            st.write(f"state is: {state}")
             action()  # Executes the corresponding action for the state
-            # st.write(f"actions are: {action()}")
             st.session_state[state] = False  # Resets the state to False
             break  # Breaks after handling a state, assuming only one state can be true at a time
 
@@ -941,7 +810,6 @@ def get_summary_and_return_as_file_name(conn, session1: int) -> str:
 
                 return string
             else:
-                # return None
                 return "Acitive_current_session"
 
     except Error as error:
@@ -963,7 +831,6 @@ def convert_messages_to_markdown(messages: List[Dict[str, str]], code_block_inde
     Returns:
         A markdown-formatted string representing the messages.
     """
-    # st.write(f"messages in convert to markdown function is: {messages}")
     markdown_lines = []
     for message in messages:
         role = message['role']
@@ -1103,7 +970,6 @@ def get_available_date_range(level_2_new_options: dict) -> list:
             date_range_list.append(key)
     
     if not date_range_list:
-        # date_range_list.append("No saved sessions in database")
         date_range_list.append(None)
 
     return date_range_list
@@ -1123,10 +989,6 @@ def set_only_current_session_state_to_true(current_state: str) -> None:
     """
     for state in ["new_table", "new_session", "load_history_level_2", "session_different_date"]:
         st.session_state[state] = (state == current_state)
-        # if state == current_state:
-        #     st.session_state[state] = True
-        # else:
-        #     st.session_state[state] = False
 
 def extract_text_from_pdf(pdf) -> str: 
     """
@@ -1142,7 +1004,6 @@ def extract_text_from_pdf(pdf) -> str:
     str: A string containing all the extracted text from the PDF.
     """
     pdf_reader = PdfReader(pdf) 
-    # return ''.join(page.extract_text() for page in pdf_reader.pages)
     return ''.join(page.extract_text() or '' for page in pdf_reader.pages)
 
 def get_current_session_date_in_message_table(conn, session_id: int) -> Optional[Tuple]:
@@ -1185,18 +1046,12 @@ modify_content_column_data_type_if_different(connection)
 today = datetime.now().date()
 time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 date_earlist = get_the_earliest_date(connection)
-# st.write(f"The earlist date is: {date_earlist}")
-# st.write(f"The earlist date is of the type: {type(date_earlist)}")
 
 new_chat_button = st.sidebar.button("New chat session", key="new")
 st.title("Personal ChatGPT")
 st.sidebar.title("Options")
 model_name = st.sidebar.radio("Choose model:",
                                 ("gpt-3.5-turbo-1106", "gpt-4", "gpt-4-1106-preview"), index=2)
-# temperature = st.sidebar.number_input("Input the temperture value (from 0 to 1.6):",
-#                                       min_value=0.0, max_value=1.0, value=0.7, step=0.1)
-
-# st.write(f"The model chosen is: {model_name}")
 
 st.session_state.openai_model = model_name
 
@@ -1208,9 +1063,7 @@ if "behavior" not in st.session_state:
 insert_initial_default_model_behavior(connection, 'Deterministic (T=0.0, top_p=0.2)')
     
 Load_the_last_saved_model_behavior(connection)  # load from database and save to session_state
-# st.write(f"The last saved behavior: {st.session_state.behavior}")
 (temperature, top_p) = return_temp_and_top_p_values_from_model_behavior(st.session_state.behavior)
-# st.write(f"temprature = {temperature}, and top_p = {top_p}")
 behavior_index = return_behavior_index(st.session_state.behavior)  # from string to int (0 to 4)
 
 behavior = st.sidebar.selectbox(
@@ -1224,12 +1077,6 @@ behavior = st.sidebar.selectbox(
 
 if behavior != st.session_state.behavior:  # only save to database if behavior is newly clicked 
     save_model_behavior_to_mysql(connection, behavior)  
-    # only save to database and the session-state not yet changes until the next re-run
-
-    # st.write(f"Just after saving a new behavior: {st.session_state.behavior}")
-    # Load_the_last_saved_model_behavior(connection)
-    # (temperature, top_p) = return_temp_and_top_values_from_model_behavior(behavior)
-    # # st.write(f"temprature = {temperature}, and top_p = {top_p}")
 
 max_token = st.sidebar.number_input(
     label="Select the max number of tokens the model can generate",
@@ -1243,24 +1090,12 @@ if "new_table" not in st.session_state:
     st.session_state.new_table = False
 
 if "session" not in st.session_state:
-    st.write(f"session not in st.session_state is True")
     get_and_set_current_session_id(connection)
 
     if st.session_state.session is not None:
-        # st.session_state.session_not_close = determine_if_the_current_session_is_not_closed(connection)
-        # if st.session_state.session_not_close:
-        #     load_previous_chat_session(connection, st.session_state.session)
-        #     st.session_state.new_table = False
-        #     # st.session_state.new_session = False
         load_previous_chat_session(connection, st.session_state.session)
-        # st.session_state.new_table = False
     else:
         set_only_current_session_state_to_true("new_table")
-
-st.write(f"Session sate new_table after if 'session' not in: {st.session_state.new_table}")
-
-# if "openai_model" not in st.session_state:
-#     st.session_state.openai_model = model_name
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -1270,12 +1105,6 @@ if "new_session" not in st.session_state:
 
 if "load_history_level_2" not in st.session_state:
     st.session_state.load_history_level_2 = False
-
-# if "load_history_level_2_value" not in st.session_state:
-#     st.session_state.load_history_level_2_value = 0  # since index starts from 1, 0 is a good initial value
-
-# if "file_upload" not in st.session_state:
-#     st.session_state.file_upload = False
 
 if "delete_session" not in st.session_state:
     st.session_state.delete_session = False
@@ -1292,17 +1121,13 @@ if "session_different_date" not in st.session_state:
 # The following code handles the retreival of the messages of a previous chat session
 # list of session_ids of a date range
 today_sessions = load_previous_chat_session_ids(connection, *convert_date('Today', date_earlist))
-# st.write(f"today's session ids: {today_sessions}")
 yesterday_sessions = load_previous_chat_session_ids(connection, *convert_date('Yesterday', date_earlist))
-# st.write(f"Yesterday's session ids: {yesterday_sessions}")
 seven_days_sessions = load_previous_chat_session_ids(connection, *convert_date('Previous 7 days', date_earlist))
 thirty_days_sessions = load_previous_chat_session_ids(connection,*convert_date('Previous 30 days', date_earlist))
 older_sessions = load_previous_chat_session_ids(connection, *convert_date('Older', date_earlist))
 
 today_dic = get_summary_by_session_id_return_dic(connection, today_sessions)
-# st.write(f"today's returned dic: {today_dic}")
 yesterday_dic = get_summary_by_session_id_return_dic(connection, yesterday_sessions)
-# st.write(f"Yesterday's returned dic: {yesterday_dic}")
 seven_days_dic = get_summary_by_session_id_return_dic(connection, seven_days_sessions)
 thirty_days_dic = get_summary_by_session_id_return_dic(connection, thirty_days_sessions)
 older_dic = get_summary_by_session_id_return_dic(connection, older_sessions)
@@ -1316,19 +1141,8 @@ level_two_options = {
     "Older" : older_dic
 }
 
-# st.write(f"Level 2 options are: {level_two_options}")
 level_two_options_new = remove_if_a_session_not_exist_in_date_range(level_two_options)
-# st.write(f"Level 2 new options are: {level_two_options_new}")
 level_one_options = get_available_date_range(level_two_options_new)
-# st.write(f"Level 1 options are: {level_one_options}")
-
-# load_history_level_1 = st.sidebar.selectbox(
-#     label='Load a previous chat date:',
-#     placeholder='Pick a date',
-#     options=['Today', 'Yesterday', 'Previous 7 days', 'Previous 30 days', 'Older'],
-#     index=None,
-#     key="first_level"
-#     )
 
 # Only shows the data ranges with saved chat sessions.
 load_history_level_1 = st.sidebar.selectbox(
@@ -1349,63 +1163,31 @@ load_history_level_2 = st.sidebar.selectbox(
         on_change=set_new_session_to_false
         )
 
-
-# st.write(f"The return of level 2 click is: {load_history_level_2}")
-# new_chat_button = st.sidebar.button("New chat session", key="new")
-# if load_history_level_2:
-#     st.session_state.new_session = False
-
 if new_chat_button:
     st.session_state.messages = []
     set_only_current_session_state_to_true("new_session")
-    # st.session_state.new_session = True  # This state is needed to determin if a new session needs to be created
-    # # st.write(f"Enter new chat: {new_chat_button}")
-    # st.session_state.new_table = False
-    # st.session_state.load_history_level_2 = False
-    # st.session_state.session_not_close = False
-    # st.session_state.file_upload = False
-
-st.write(f"After new_chat_button, 'st.session_state_session' is: {st.session_state.session}")
-st.write(f"After new_chat_button, 'st.session_state_new_session' is: {st.session_state.new_session}")
-# st.write(f"session choice load_history_level_2 after new chat button: {load_history_level_2}")
-# st.write(f"session value in st.session_state.load_history_level_2_value: \
-#          {st.session_state.load_history_level_2_value} ")
 
 if load_history_level_2 \
     and not st.session_state.new_session:
-    # and load_history_level_2 != st.session_state.load_history_level_2_value:  
-    # Since load_history_level_2 is persistant between rerun, only load when it is not 
-    # a new session.
+
     load_previous_chat_session(connection, load_history_level_2)
 
-    # st.session_state.load_history_level_2_value = load_history_level_2
     if load_history_level_2 != st.session_state.session:
         set_only_current_session_state_to_true("load_history_level_2")
     else:
         st.session_state.load_history_level_2 = False  # case for current active session
-    # st.session_state.load_history_level_2 = True
-    # st.session_state.new_table = False
-    # st.session_state.new_session = False
-    # st.session_state.session_not_close = False
-    # st.session_state.file_upload = False
-    # st.write(f"value of st.session_state.load_history_level_2 when first click is: {st.session_state.load_history_level_2}")
 
     # The following code is for saving the messages to a html file.
     session_md = convert_messages_to_markdown(st.session_state.messages)
     session_html = markdown_to_html(session_md)
 
-    # st.write(f"load_history_level_2 value is: {load_history_level_2}")
     file_name = get_summary_and_return_as_file_name(connection, load_history_level_2) + ".html"
-    # st.write(f"file name is: {file_name}")
     
     download_chat_session = st.sidebar.download_button(
         label="Save loaded session",
-        # data=session_md,
-        # file_name=get_summary_and_return_as_file_name(connection, load_history_level_2) + ".md",
         data=session_html,
         file_name=file_name,
         mime="text/markdown",
-        # on_click=is_valid_file_name(file_name)
     )
     if download_chat_session:
         if is_valid_file_name(file_name):
@@ -1417,26 +1199,15 @@ if load_history_level_2 \
     if delete_a_session:
         st.session_state.delete_session = True
 
-st.write(f"Today is: {today}")
-st.write(f"Current session id is: {st.session_state.session}")
-
-
+# The code below is used to handle a Current active session across different dates
 current_session_datetime = \
 get_current_session_date_in_message_table(connection, st.session_state.session)
 if current_session_datetime is not None:
     current_session_date = current_session_datetime[0].date()
 
-    # current_session_date = current_session_date
-    st.write(f"Current session date in the message table is: {current_session_date}")
-
     if today != current_session_date:
         set_only_current_session_state_to_true("session_different_date")
 
-    st.write(f"Session state session_different_date is: {st.session_state.session_different_date}")
-
-
-
-# st.write(f"session choice load_history_level_2 before printing messages: {load_history_level_2}")
 
 # Print each message on page (this code prints pre-existing message before calling chatgpt(), 
 # where the latest messages will be printed.)
@@ -1456,7 +1227,6 @@ if st.session_state.delete_session:
 
     placeholder_confirmation_sesson = st.empty()
 
-    # if st.session_state.delete_session and not st.session_state.get("confirmation_session", False):
     if st.session_state.delete_session:
         with placeholder_confirmation_sesson.container():
             confirmation_1 = st.selectbox(
@@ -1467,22 +1237,16 @@ if st.session_state.delete_session:
             )
         if confirmation_1 == 'Yes':
             delete_the_messages_of_a_chat_session(connection, load_history_level_2)
-            # st.warning("Data deleted.", icon="🚨")
             st.session_state.delete_session = False
             st.session_state.messages = []
             st.session_state.new_session = True
             st.rerun()
         elif confirmation_1 == 'No':
-            # with placeholder_confirmation_session_no.container():
             st.success("Data not deleted.")
             st.session_state.delete_session = False
-            # st.rerun()
-
-# st.write(f"Before upload file, 'load_history_level_2' is: {st.session_state.load_history_level_2}")
 
 # The following code handles dropping a file from the local computer
 uploaded_file = st.sidebar.file_uploader("Drop a file (.txt, .rtf, .pdf)")
-# st.write(f"uploaded file is: '{uploaded_file}'")
 if uploaded_file is None:  # when a file is removed, reset the question to False
     st.session_state.question = False
 
@@ -1490,12 +1254,8 @@ question = ""
 prompt_f = ""
 if uploaded_file is not None \
     and not st.session_state.question:
-    # prompt_f = uploaded_file.read().decode("utf-8")
-    # st.sidebar.write(prompt_f)
-        # st.write(f"question before is: '{question}'")
         question = st.sidebar.text_area(
             "Any question about the file? (to be inserted at start of the file)", placeholder="None")
-        # st.write(f"question after is: '{question}'")
         file_type = uploaded_file.name.split('.')[-1].lower()
         if file_type == 'pdf':
             prompt_f = extract_text_from_pdf(uploaded_file)
@@ -1511,105 +1271,18 @@ if uploaded_file is not None \
 
         to_chatgpt = st.sidebar.button("Send to chatGPT")
 
-        # st.write(f"Before print to screen: {st.session_state.messages}")
-
-        # Print each message on page (this code prints pre-existing message before chatgpt(), 
-        # where the latest messages will be printed.)
-        # for message in st.session_state.messages:
-        #     with st.chat_message(message["role"]):
-        #         st.markdown(message["content"])
-
-
-        # st.write(f"new_session state of 1: {st.session_state.new_session}")
-        # # st.write(f"load_history_level_2 state of 1: {st.session_state.load_history_level_2}")
-        # # st.write(f"file_upload state of 1: {st.session_state.file_upload}")
-
-        # # For these upload file conditions, continues the chat and do not start a new chat session
-        # if uploaded_file is not None \
-        #         and (to_chatgpt or question != "") \
-        #         and not st.session_state.new_session \
-        #         and not st.session_state.load_history_level_2:
-        #     # prompt_f = uploaded_file.read().decode("utf-8")
-        #     # prompt_f = st.session_state.question + " " + prompt_f
-
-        #     # st.session_state.messages = []
-        #     # st.session_state.file_upload = True
-        #     # st.session_state.new_table = False
-        #     # st.session_state.new_session = False
-        #     # st.session_state.session_not_close = False
-        #     # st.session_state.load_history_level_2 = False
-
-        #     st.session_state.question = True
-
-        #     # st.write(f"Session id before upload into chatgpt: {st.session_state.session}")
-        #     chatgpt(connection, prompt_f, temperature, top_p, max_token, time)
-
-        #     # st.rerun()
-
-        # # For these upload conditions, treat as a new session.
-        # if uploaded_file is not None \
-        #     and (to_chatgpt or question != "") \
-        #     and st.session_state.new_session:
-        #     # prompt_f = uploaded_file.read().decode("utf-8")
-        #     # prompt_f = st.session_state.question + " " + prompt_f
-
-        #     set_only_current_session_state_to_true("new_session")
-        #     # st.session_state.file_upload = True
-        #     # st.session_state.new_table = False
-        #     # st.session_state.new_session = False
-        #     # st.session_state.session_not_close = False
-        #     # st.session_state.load_history_level_2 = False
-        #     # st.session_state["Any question about the file?"] = ""
-
-        #     st.session_state.question = True
-
-        #     chatgpt(connection, prompt_f, temperature, top_p, max_token, time)
-
-        # # For these upload file conditions, treat as adding new chat to a loaded previous chat session.
-        # if uploaded_file is not None \
-        #     and (to_chatgpt or question != "") \
-        #     and st.session_state.load_history_level_2:
-        #     # prompt_f = uploaded_file.read().decode("utf-8")
-        #     # prompt_f = st.session_state.question + " " + prompt_f
-
-        #     set_only_current_session_state_to_true("load_history_level_2")
-        #     # st.session_state.file_upload = False
-        #     # st.session_state.new_table = False
-        #     # st.session_state.new_session = False
-        #     # st.session_state.session_not_close = False
-        #     # st.session_state.load_history_level_2 = True
-        #     # st.session_state["Any question about the file?"] = ""
-
-        #     st.session_state.question = True
-
-        #     chatgpt(connection, prompt_f, temperature, top_p, max_token, time)
-
-        st.write(f"Before uploading st.session_state.new_session: {st.session_state.new_session}")
-        st.write(f"Before uploading st.session_state.new_table: {st.session_state.new_table}")
-        st.write(f"Before uploading st.session_state.load_history_level_2: {st.session_state.load_history_level_2}")
-        st.write(f"Before uploading st.session_state.session_different_date: {st.session_state.session_different_date}")
-
         if uploaded_file is not None \
             and (to_chatgpt or question != ""):
             st.session_state.question = True
             chatgpt(connection, prompt_f, temperature, top_p, int(max_token), time)
 
-        st.write(f"Before chatgpt function, 'new_session' is: {st.session_state.new_session}")
 
 if prompt := st.chat_input("What is up?"):
     chatgpt(connection, prompt, temperature, top_p, int(max_token), time)
-    # st.write(f"After chatgpt function, 'new_table' is: {st.session_state.new_table}")
-    st.write(f"After chatgpt function, 'new_session' is: {st.session_state.new_session}")
-    # st.write(f"In determine function, 'session_not_close' is: {st.session_state.session_not_close}")
-    # st.write(f"After chatgpt function, 'load_history_level_2' is: {st.session_state.load_history_level_2}")
-    # st.write(f"After chatgpt function, 'file_upload' is: {st.session_state.file_upload}")
-
-
 
 
 # The following code handles the deletion of all chat history. The code needs to be
 # after messages printing in order to show confirmation at end of messages.
-
 empty_database = st.sidebar.button("Delete the entire chat history")
 
 if empty_database:
