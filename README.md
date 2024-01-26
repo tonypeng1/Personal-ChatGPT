@@ -1,2 +1,6 @@
 ## Personal ChatGPT
-Personal ChatGPT is an open-source app powered by OpenAI LLM API developed using Streamlit.
+Personal ChatGPT is an open-source app developed using Streamlit. It is powered by OpenAI LLM API with extra features to customize the user experience.
+The short video below demonstrates some of the features.
+https://www.youtube.com/watch?v=IE0l585_Vrs
+
+
