@@ -1287,6 +1287,8 @@ if st.session_state.load_session:
             on_change=set_new_session_to_false
             )
 
+    st.session_state.messages = []
+
     if load_history_level_2:
         load_previous_chat_session(connection, load_history_level_2)
 
@@ -1370,6 +1372,8 @@ if st.session_state.search_session:
     
         all_dates_sessions = load_previous_chat_session_ids(connection, 'message_search', *convert_date('All dates', date_earlist))
         all_dates_dic = get_summary_by_session_id_return_dic(connection, all_dates_sessions)
+
+        st.session_state.messages = []
 
         level_two_options_new = {
             None : {0: "None"},
