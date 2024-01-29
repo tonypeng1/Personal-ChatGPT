@@ -1152,7 +1152,7 @@ today = datetime.now().date()
 time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 date_earlist = get_the_earliest_date(connection)
 
-new_chat_button = st.sidebar.button("New chat session", type="primary", key="new")
+new_chat_button = st.sidebar.button(r"$\textsf{\normalsize New chat session}$", type="primary", key="new")
 st.title("Personal ChatGPT")
 st.sidebar.title("Options")
 model_name = st.sidebar.radio("Choose model:",
@@ -1238,7 +1238,8 @@ if new_chat_button:
 # The following code handles the retreival of the messages of a previous chat session
 # (list of session_ids of different date ranges)
 load_session = st.sidebar.button \
-("LOAD a previous session", on_click=set_search_session_to_False, type="primary", key="load")
+(r"$\textsf{\normalsize LOAD a previous session}$", on_click=set_search_session_to_False, type="primary", key="load")
+
 
 if load_session:
     st.session_state.load_session = True
@@ -1359,7 +1360,7 @@ if st.session_state.load_session:
 # The following code handles the search and retreival of the messages of a previous chat session
 # (list of all matched sessions together)
 search_session = st.sidebar.button \
-("SEARCH a previous session", on_click=set_load_session_to_False, type="primary", key="search")
+(r"$\textsf{\normalsize SEARCH a previous session}$", on_click=set_load_session_to_False, type="primary", key="search")
 
 if search_session:
     st.session_state.search_session = True
@@ -1514,7 +1515,8 @@ if prompt := st.chat_input("What is up?"):
 
 # The following code handles the deletion of all chat history. The code needs to be
 # after messages printing in order to show confirmation at end of messages.
-empty_database = st.sidebar.button("Delete the entire chat history", type="primary")
+empty_database = st.sidebar.button(
+    r"$\textsf{\normalsize Delete the entire chat history}$", type="primary")
 
 if empty_database:
     st.session_state.empty_data = True
