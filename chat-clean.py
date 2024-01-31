@@ -1229,6 +1229,10 @@ if "load_session" not in st.session_state:
 if "search_session" not in st.session_state:
     st.session_state.search_session = False
 
+if "send_drop_file" not in st.session_state:
+    st.session_state.send_drop_file = False
+
+
 if new_chat_button:
     st.session_state.messages = []
     set_only_current_session_state_to_true("new_session")
@@ -1239,7 +1243,6 @@ if new_chat_button:
 # (list of session_ids of different date ranges)
 load_session = st.sidebar.button \
 (r"$\textsf{\normalsize LOAD a previous session}$", on_click=set_search_session_to_False, type="primary", key="load")
-
 
 if load_session:
     st.session_state.load_session = True
@@ -1288,7 +1291,7 @@ if st.session_state.load_session:
             on_change=set_new_session_to_false
             )
 
-    st.session_state.messages = []
+    # st.session_state.messages = []
 
     if load_history_level_2:
         load_previous_chat_session(connection, load_history_level_2)
@@ -1322,40 +1325,41 @@ if st.session_state.load_session:
         if delete_a_session:
             st.session_state.delete_session = True
 
-    # Print each message on page (this code prints pre-existing message before calling chatgpt(), 
-    # where the latest messages will be printed.)
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    # st.write("In load code block.")
+    # # Print each message on page (this code prints pre-existing message before calling chatgpt(), 
+    # # where the latest messages will be printed.)
+    # for message in st.session_state.messages:
+    #     with st.chat_message(message["role"]):
+    #         st.markdown(message["content"])
 
-    # The following code handles previous session deletion after uploading. The code needs to be
-    # after messages printing in order to show confirmation at end of messages.  
-    if st.session_state.delete_session:
-        if load_history_level_2 != 0:
-            st.error("Do you really wanna delete this chat history?", icon="🚨")
-        else:
-            st.warning("No previously saved session loaded. Please select one from the above drop-down lists.")
-            st.session_state.delete_session = False
+        # # The following code handles previous session deletion after uploading. The code needs to be
+        # # after messages printing in order to show confirmation at end of messages.  
+        # if st.session_state.delete_session:
+        #     if load_history_level_2 != 0:
+        #         st.error("Do you really wanna delete this chat history?", icon="🚨")
+        #     else:
+        #         st.warning("No previously saved session loaded. Please select one from the above drop-down lists.")
+        #         st.session_state.delete_session = False
 
-        placeholder_confirmation_sesson = st.empty()
+        #     placeholder_confirmation_sesson = st.empty()
 
-        if st.session_state.delete_session:
-            with placeholder_confirmation_sesson.container():
-                confirmation_1 = st.selectbox(
-                    label="Confirm your answer (If you choose 'Yes', this chat history of thie loaded session will be deleted):",
-                    placeholder="Pick a choice",
-                    options=['No', 'Yes'],
-                    index=None
-                )
-            if confirmation_1 == 'Yes':
-                delete_the_messages_of_a_chat_session(connection, load_history_level_2)
-                st.session_state.delete_session = False
-                st.session_state.messages = []
-                st.session_state.new_session = True
-                st.rerun()
-            elif confirmation_1 == 'No':
-                st.success("Data not deleted.")
-                st.session_state.delete_session = False
+        #     if st.session_state.delete_session:
+        #         with placeholder_confirmation_sesson.container():
+        #             confirmation_1 = st.selectbox(
+        #                 label="Confirm your answer (If you choose 'Yes', this chat history of thie loaded session will be deleted):",
+        #                 placeholder="Pick a choice",
+        #                 options=['No', 'Yes'],
+        #                 index=None
+        #             )
+        #         if confirmation_1 == 'Yes':
+        #             delete_the_messages_of_a_chat_session(connection, load_history_level_2)
+        #             st.session_state.delete_session = False
+        #             st.session_state.messages = []
+        #             st.session_state.new_session = True
+        #             st.rerun()
+        #         elif confirmation_1 == 'No':
+        #             st.success("Data not deleted.")
+        #             st.session_state.delete_session = False
 
 # The following code handles the search and retreival of the messages of a previous chat session
 # (list of all matched sessions together)
@@ -1367,14 +1371,16 @@ if search_session:
 
 if st.session_state.search_session:
     keywords = st.sidebar.text_input("Search keywords (separated by a space if more than one, default AND logic)")
-    if keywords:
+    # st.write(f"keywords 1 are: {keywords}")
+    if keywords is not "":
         delete_all_rows_in_message_serach(connection)
+        # st.write(f"keywords 2 are: {keywords}")
         search_keyword_and_save_to_message_search_table(connection, keywords)
     
         all_dates_sessions = load_previous_chat_session_ids(connection, 'message_search', *convert_date('All dates', date_earlist))
         all_dates_dic = get_summary_by_session_id_return_dic(connection, all_dates_sessions)
 
-        st.session_state.messages = []
+        # st.session_state.messages = []
 
         level_two_options_new = {
             None : {0: "None"},
@@ -1422,41 +1428,14 @@ if st.session_state.search_session:
             if delete_a_session:
                 st.session_state.delete_session = True
 
-        # Print each message on page (this code prints pre-existing message before calling chatgpt(), 
-        # where the latest messages will be printed.)
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+    # st.write("In search code block.")
+    # # Print each message on page (this code prints pre-existing message before calling chatgpt(), 
+    # # where the latest messages will be printed.)
+    # for message in st.session_state.messages:
+    #     with st.chat_message(message["role"]):
+    #         st.markdown(message["content"])
 
-        # The following code handles previous session deletion after uploading. The code needs to be
-        # after messages printing in order to show confirmation at end of messages.
-        if st.session_state.delete_session:
-            if load_history_level_2 != 0:
-                st.session_state.delete_session = True
-                st.error("Do you really wanna delete this chat history?", icon="🚨")
-            else:
-                st.warning("No previously saved session loaded. Please select one from the above drop-down lists.")
-                st.session_state.delete_session = False
 
-            placeholder_confirmation_sesson = st.empty()
-
-            if st.session_state.delete_session:
-                with placeholder_confirmation_sesson.container():
-                    confirmation_1 = st.selectbox(
-                        label="Confirm your answer (If you choose 'Yes', this chat history of thie loaded session will be deleted):",
-                        placeholder="Pick a choice",
-                        options=['No', 'Yes'],
-                        index=None
-                    )
-                if confirmation_1 == 'Yes':
-                    delete_the_messages_of_a_chat_session(connection, load_history_level_2)
-                    st.session_state.delete_session = False
-                    st.session_state.messages = []
-                    st.session_state.new_session = True
-                    st.rerun()
-                elif confirmation_1 == 'No':
-                    st.success("Data not deleted.")
-                    st.session_state.delete_session = False
 
 
 # The code below is used to handle a Current active session across different dates
@@ -1471,10 +1450,19 @@ if current_session_datetime is not None:
 
 # Print each message on page (this code prints pre-existing message before calling chatgpt(), 
 # where the latest messages will be printed.) if not loading or searching a previous session.
-if not st.session_state.load_session and not st.session_state.search_session:
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+# st.write("In main code block.")
+# st.write(f"st.session_state.load_session is: {st.session_state.load_session}")
+# st.write(f"st.session_state.search_session is: {st.session_state.search_session}")
+# st.write(f"st.session_state.messages are: {st.session_state.messages}")
+
+# if not st.session_state.load_session and not st.session_state.search_session:
+#     for message in st.session_state.messages:
+#         with st.chat_message(message["role"]):
+#             st.markdown(message["content"])
+
+# for message in st.session_state.messages:
+#     with st.chat_message(message["role"]):
+#         st.markdown(message["content"])
 
 
 # The following code handles dropping a file from the local computer
@@ -1487,7 +1475,8 @@ prompt_f = ""
 if uploaded_file is not None \
     and not st.session_state.question:
         question = st.sidebar.text_area(
-            "Any question about the file? (to be inserted at start of the file)", placeholder="None")
+            "Any question about the file? (to be inserted at start of the file)", 
+            placeholder="None")
         file_type = uploaded_file.name.split('.')[-1].lower()
         if file_type == 'pdf':
             prompt_f = extract_text_from_pdf(uploaded_file)
@@ -1506,11 +1495,48 @@ if uploaded_file is not None \
         if uploaded_file is not None \
             and (to_chatgpt or question != ""):
             st.session_state.question = True
-            chatgpt(connection, prompt_f, temperature, top_p, int(max_token), time)
+            st.session_state.send_drop_file = True
+            # chatgpt(connection, prompt_f, temperature, top_p, int(max_token), time)
 
 
-if prompt := st.chat_input("What is up?"):
-    chatgpt(connection, prompt, temperature, top_p, int(max_token), time)
+# Print each message on page (this code prints pre-existing message before calling chatgpt(), 
+# where the latest messages will be printed.) if not loading or searching a previous session.
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+
+# The following code handles previous session deletion after uploading. The code needs to be
+# after messages printing in order to show confirmation at end of messages.
+if st.session_state.delete_session:
+    if load_history_level_2 != 0:
+        st.session_state.delete_session = True
+        st.error("Do you really wanna delete this chat history?", icon="🚨")
+    else:
+        st.warning("No previously saved session loaded. Please select one from the above drop-down lists.")
+        st.session_state.delete_session = False
+
+    placeholder_confirmation_sesson = st.empty()
+
+    if st.session_state.delete_session:
+        with placeholder_confirmation_sesson.container():
+            confirmation_1 = st.selectbox(
+                label="Confirm your answer (If you choose 'Yes', this chat history of thie loaded session will be deleted):",
+                placeholder="Pick a choice",
+                options=['No', 'Yes'],
+                index=None
+            )
+        if confirmation_1 == 'Yes':
+            delete_the_messages_of_a_chat_session(connection, load_history_level_2)
+            st.session_state.delete_session = False
+            st.session_state.messages = []
+            st.session_state.new_session = True
+            st.rerun()
+        elif confirmation_1 == 'No':
+            st.success("Data not deleted.")
+            st.session_state.delete_session = False
+
+
 
 
 # The following code handles the deletion of all chat history. The code needs to be
@@ -1543,5 +1569,18 @@ if st.session_state.empty_data:
     elif confirmation_2 == 'No':
         st.success("Data not deleted.")
         st.session_state.empty_data = False
+
+
+if prompt := st.chat_input("What is up?"):
+    chatgpt(connection, prompt, temperature, top_p, int(max_token), time)
+
+if st.session_state.send_drop_file:
+    chatgpt(connection, prompt_f, temperature, top_p, int(max_token), time)
+    st.session_state.send_drop_file = False
+
+# if uploaded_file is not None \
+#     and (to_chatgpt or question != ""):
+#     st.session_state.question = True
+#     chatgpt(connection, prompt_f, temperature, top_p, int(max_token), time)
 
 connection.close()
