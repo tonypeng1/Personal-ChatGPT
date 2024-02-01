@@ -265,7 +265,7 @@ def get_and_set_current_session_id(conn) -> None:
         st.error(f"Failed to get the current session id: {error}")
         raise
 
-def load_previous_chat_session_ids(conn, date_start: date, date_end: date) -> list:
+def load_previous_chat_session_ids(conn, table, date_start: date, date_end: date) -> list:
     """
     Load distinct session IDs (as a list) from messages within a specified date range.
     If there is no session in the date range, return [0].
@@ -284,9 +284,9 @@ def load_previous_chat_session_ids(conn, date_start: date, date_end: date) -> li
     """
     try:
         with conn.cursor() as cursor:
-            sql = """
+            sql = f"""
             SELECT DISTINCT(session_id) AS d 
-            FROM message 
+            FROM `{table}` 
             WHERE DATE(timestamp) BETWEEN %s AND %s 
             ORDER BY d DESC
             """
@@ -823,6 +823,11 @@ def get_current_session_date_in_message_table(conn, session_id: int) -> Optional
         st.error(f"Failed to get current session date from message table: {error}")
         raise
 
+def set_search_session_to_False():
+    st.session_state.search_session = False
+
+
+
 def extract_text_from_pdf(pdf) -> str: 
     """
     Extract and concatenate text from all pages of a PDF file.
@@ -844,7 +849,7 @@ connection = init_connection()
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 # openai.api_key = "your_open_ai-key"
 
-new_chat_button = st.sidebar.button("New chat session", key="new")
+new_chat_button = st.sidebar.button(r"$\textsf{\normalsize New chat session}$", type="primary", key="new")
 st.title("Personal ChatGPT")
 st.sidebar.title("Options")
 model_name = st.sidebar.radio("Choose model:",
@@ -897,74 +902,97 @@ if "session" not in st.session_state:
     else:
         set_only_current_session_state_to_true("new_table")
 
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
 if "new_session" not in st.session_state:
     st.session_state.new_session = False
 
 if "load_history_level_2" not in st.session_state:
-    st.session_state.load_history_level_2 = False
-
-if "question" not in st.session_state: # If a question has been asked about a file, bypass the text_area()
-    st.session_state.question = False
+    st.session_state.load_history_level_2 = None
 
 if "session_different_date" not in st.session_state:
     st.session_state.session_different_date = False
 
-# The following code handles the retreival of the messages of a previous chat session
-# list of session_ids of a date range
-today_sessions = load_previous_chat_session_ids(connection, *convert_date('Today', date_earlist))
-yesterday_sessions = load_previous_chat_session_ids(connection, *convert_date('Yesterday', date_earlist))
-seven_days_sessions = load_previous_chat_session_ids(connection, *convert_date('Previous 7 days', date_earlist))
-thirty_days_sessions = load_previous_chat_session_ids(connection,*convert_date('Previous 30 days', date_earlist))
-older_sessions = load_previous_chat_session_ids(connection, *convert_date('Older', date_earlist))
+if "load_session" not in st.session_state:
+    st.session_state.load_session = False
 
-today_dic = get_summary_by_session_id_return_dic(connection, today_sessions)
-yesterday_dic = get_summary_by_session_id_return_dic(connection, yesterday_sessions)
-seven_days_dic = get_summary_by_session_id_return_dic(connection, seven_days_sessions)
-thirty_days_dic = get_summary_by_session_id_return_dic(connection, thirty_days_sessions)
-older_dic = get_summary_by_session_id_return_dic(connection, older_sessions)
+if "search_session" not in st.session_state:
+    st.session_state.search_session = False
 
-level_two_options = {
-    None : {0: "None"},
-    "Today" : today_dic,
-    "Yesterday" : yesterday_dic,
-    "Previous 7 days" : seven_days_dic,
-    "Previous 30 days" : thirty_days_dic,
-    "Older" : older_dic
-}
+if "send_drop_file" not in st.session_state:
+    st.session_state.send_drop_file = False
 
-level_two_options_new = remove_if_a_session_not_exist_in_date_range(level_two_options)
-level_one_options = get_available_date_range(level_two_options_new)
-
-# Only shows the data ranges with saved chat sessions.
-load_history_level_1 = st.sidebar.selectbox(
-    label='Select a previous chat date:',
-    placeholder='Pick a date',
-    options=level_one_options,
-    index=None,
-    key="first_level"
-    )
-
-# Show options as summary. The returned value is the session id of the picked session.
-load_history_level_2 = st.sidebar.selectbox(
-        label="Select a previous chat session:",
-        placeholder='Pick a session',
-        options=list((level_two_options_new[load_history_level_1]).keys()),
-        index=None,
-        format_func=lambda x:level_two_options_new[load_history_level_1][x],
-        on_change=set_new_session_to_false
-        )
 
 if new_chat_button:
     st.session_state.messages = []
     set_only_current_session_state_to_true("new_session")
+    st.session_state.load_session = False
+    st.session_state.search_session = False
 
-if load_history_level_2:
-    load_previous_chat_session(connection, load_history_level_2)
 
-    if load_history_level_2 != st.session_state.session:
-        set_only_current_session_state_to_true("load_history_level_2")
-    else:
-        st.session_state.load_history_level_2 = False  # case for current active session
+# The following code handles the retreival of the messages of a previous chat session
+# (list of session_ids of different date ranges)
+load_session = st.sidebar.button \
+(r"$\textsf{\normalsize LOAD a previous session}$", on_click=set_search_session_to_False, type="primary", key="load")
+
+if load_session:
+    st.session_state.load_session = True
+    
+if st.session_state.load_session:
+    today_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Today', date_earlist))
+    yesterday_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Yesterday', date_earlist))
+    seven_days_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Previous 7 days', date_earlist))
+    thirty_days_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Previous 30 days', date_earlist))
+    older_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Older', date_earlist))
+
+    today_dic = get_summary_by_session_id_return_dic(connection, today_sessions)
+    yesterday_dic = get_summary_by_session_id_return_dic(connection, yesterday_sessions)
+    seven_days_dic = get_summary_by_session_id_return_dic(connection, seven_days_sessions)
+    thirty_days_dic = get_summary_by_session_id_return_dic(connection, thirty_days_sessions)
+    older_dic = get_summary_by_session_id_return_dic(connection, older_sessions)
+
+    level_two_options = {
+        None : {0: "None"},
+        "Today" : today_dic,
+        "Yesterday" : yesterday_dic,
+        "Previous 7 days" : seven_days_dic,
+        "Previous 30 days" : thirty_days_dic,
+        "Older" : older_dic
+    }
+
+    level_two_options_new = remove_if_a_session_not_exist_in_date_range(level_two_options)
+    level_one_options = get_available_date_range(level_two_options_new)
+
+    # Only shows the data ranges with saved chat sessions.
+    load_history_level_1 = st.sidebar.selectbox(
+        label='Select a previous chat date:',
+        placeholder='Pick a date',
+        options=level_one_options,
+        index=None,
+        key="first_level"
+        )
+
+    # Show options as summary. The returned value is the session id of the picked session.
+    load_history_level_2 = st.sidebar.selectbox(
+            label="Select a previous chat session:",
+            placeholder='Pick a session',
+            options=list((level_two_options_new[load_history_level_1]).keys()),
+            index=None,
+            format_func=lambda x:level_two_options_new[load_history_level_1][x],
+            on_change=set_new_session_to_false
+            )
+
+    # st.session_state.messages = []
+
+    if load_history_level_2:
+        load_previous_chat_session(connection, load_history_level_2)
+
+        if load_history_level_2 != st.session_state.session:
+            set_only_current_session_state_to_true("load_history_level_2")
+        else:
+            st.session_state.load_history_level_2 = False  # case for current active session
+
 
 # The code below is used to handle a Current active session across different dates
 current_session_datetime = \
@@ -974,13 +1002,6 @@ if current_session_datetime is not None:
 
     if today != current_session_date:
         set_only_current_session_state_to_true("session_different_date")
-
-
-# Print each message on page (this code prints pre-existing message before calling chatgpt(), 
-# where the latest messages will be printed.)
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
 
 
 # The following code handles dropping a file from the local computer
@@ -993,7 +1014,8 @@ prompt_f = ""
 if uploaded_file is not None \
     and not st.session_state.question:
         question = st.sidebar.text_area(
-            "Any question about the file? (to be inserted at start of the file)", placeholder="None")
+            "Any question about the file? (to be inserted at start of the file)", 
+            placeholder="None")
         file_type = uploaded_file.name.split('.')[-1].lower()
         if file_type == 'pdf':
             prompt_f = extract_text_from_pdf(uploaded_file)
@@ -1012,10 +1034,19 @@ if uploaded_file is not None \
         if uploaded_file is not None \
             and (to_chatgpt or question != ""):
             st.session_state.question = True
-            chatgpt(connection, prompt_f, temperature, top_p, int(max_token), time)
+            st.session_state.send_drop_file = True
 
+# Print each message on page (this code prints pre-existing message before calling chatgpt(), 
+# where the latest messages will be printed.) if not loading or searching a previous session.
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
 if prompt := st.chat_input("What is up?"):
     chatgpt(connection, prompt, temperature, top_p, int(max_token), time)
+
+if st.session_state.send_drop_file:
+    chatgpt(connection, prompt_f, temperature, top_p, int(max_token), time)
+    st.session_state.send_drop_file = False
 
 connection.close()
