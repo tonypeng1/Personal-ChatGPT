@@ -4,3 +4,5 @@ counter.py
 .streamlit/
 test.py
 langchat.py
+chat.py
+secrets_backup.toml
