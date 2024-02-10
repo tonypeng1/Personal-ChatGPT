@@ -709,9 +709,13 @@ def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int, current_tim
             message_placeholder.markdown(full_response)
 
         except OpenAIError as e:
-            st.write(f"An error occurred with OpenAI in getting chat response: {e}")
+            error_response = f"An error occurred with OpenAI in getting chat response: {e}"
+            st.write(error_response)
+            full_response = error_response
         except Exception as e:
-            st.write(f"An unexpected error occurred: {e}")
+            error_response = f"An unexpected error occurred: {e}"
+            st.write(error_response)
+            full_response = error_response
 
     st.session_state.messages.append({"role": "assistant", "content": full_response})
 
@@ -1143,6 +1147,27 @@ def get_current_session_date_in_message_table(conn, session_id: int) -> Optional
         st.error(f"Failed to get current session date from message table: {error}")
         raise
 
+def extract_text_from_different_file_types(file):
+    """
+    Extract text from a file of various types including PDF, TXT, and RTF.
+    A file with another extension is treated as a .txt file.
+    Args:
+        file (file-like object): The file from which to extract text.
+
+    Returns:
+        str: The extracted text.
+    """
+    type = file.name.split('.')[-1].lower()
+    if type == 'pdf':
+        text = extract_text_from_pdf(file)
+    elif type in ['txt', 'rtf']:
+        raw_text = file.read().decode("utf-8")
+        text = rtf_to_text(raw_text) if type == 'rtf' else raw_text
+    else:  # Treat other file type as .txt file
+        text = file.read().decode("utf-8")  # Treat all other types as text files
+
+    return text
+
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 connection = init_connection()
@@ -1400,33 +1425,30 @@ if current_session_datetime is not None:
         set_only_current_session_state_to_true("session_different_date")
 
 # The following code handles dropping a file from the local computer
-uploaded_file = st.sidebar.file_uploader("Drop a file (.txt, .rtf, .pdf)")
-if uploaded_file is None:  # when a file is removed, reset the question to False
+dropped_files = st.sidebar.file_uploader("Drop a file or multiple files (.txt, .rtf, .pdf, etc.)", 
+                                         accept_multiple_files=True)
+
+if dropped_files == []:  # when a file is removed, reset the question to False
     st.session_state.question = False
 
 question = ""
 prompt_f = ""
-if uploaded_file is not None \
+if dropped_files != [] \
     and not st.session_state.question:
         question = st.sidebar.text_area(
-            "Any question about the file? (to be inserted at start of the file)", 
+            "Any question about the files? (to be inserted at start of the files)", 
             placeholder="None")
-        file_type = uploaded_file.name.split('.')[-1].lower()
-        if file_type == 'pdf':
-            prompt_f = extract_text_from_pdf(uploaded_file)
-        elif file_type == 'txt':
-            prompt_f = uploaded_file.read().decode("utf-8")
-        elif file_type == 'rtf':
-            prompt_f = uploaded_file.read().decode("utf-8")
-            prompt_f = rtf_to_text(prompt_f)
-        else:
-            st.error("File type not available for dropping")
-
+        
+        for dropped_file in dropped_files:   
+            file_prompt = extract_text_from_different_file_types(dropped_file)
+            prompt_f += file_prompt
+        
         prompt_f = question + " " + prompt_f
 
         to_chatgpt = st.sidebar.button("Send to chatGPT")
+        st.sidebar.markdown("""----------""")
 
-        if uploaded_file is not None \
+        if dropped_files != [] \
             and (to_chatgpt or question != ""):
             st.session_state.question = True
             st.session_state.send_drop_file = True

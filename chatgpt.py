@@ -750,9 +750,13 @@ def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int, current_tim
             message_placeholder.markdown(full_response)
 
         except OpenAIError as e:
-            st.write(f"An error occurred with OpenAI in getting chat response: {e}")
+            error_response = f"An error occurred with OpenAI in getting chat response: {e}"
+            st.write(error_response)
+            full_response = error_response
         except Exception as e:
-            st.write(f"An unexpected error occurred: {e}")
+            error_response = f"An unexpected error occurred: {e}"
+            st.write(error_response)
+            full_response = error_response
 
     st.session_state.messages.append({"role": "assistant", "content": full_response})
 
