@@ -1168,6 +1168,9 @@ def extract_text_from_different_file_types(file):
 
     return text
 
+def increment_file_uploader_key():
+    st.session_state["file_uploader_key"] += 1
+
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 connection = init_connection()
@@ -1177,7 +1180,10 @@ today = datetime.now().date()
 time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 date_earlist = get_the_earliest_date(connection)
 
-new_chat_button = st.sidebar.button(r"$\textsf{\normalsize New chat session}$", type="primary", key="new")
+new_chat_button = st.sidebar.button(r"$\textsf{\normalsize New chat session}$", 
+                                    type="primary", 
+                                    key="new",
+                                    on_click=increment_file_uploader_key)
 st.title("Personal ChatGPT")
 st.sidebar.title("Options")
 model_name = st.sidebar.radio("Choose model:",
@@ -1256,6 +1262,9 @@ if "search_session" not in st.session_state:
 
 if "send_drop_file" not in st.session_state:
     st.session_state.send_drop_file = False
+
+if "file_uploader_key" not in st.session_state:
+    st.session_state["file_uploader_key"] = 0
 
 
 if new_chat_button:
@@ -1426,7 +1435,8 @@ if current_session_datetime is not None:
 
 # The following code handles dropping a file from the local computer
 dropped_files = st.sidebar.file_uploader("Drop a file or multiple files (.txt, .rtf, .pdf, etc.)", 
-                                         accept_multiple_files=True)
+                                         accept_multiple_files=True,
+                                         key=st.session_state.file_uploader_key)
 
 if dropped_files == []:  # when a file is removed, reset the question to False
     st.session_state.question = False
@@ -1445,7 +1455,7 @@ if dropped_files != [] \
         
         prompt_f = question + " " + prompt_f
 
-        to_chatgpt = st.sidebar.button("Send to chatGPT")
+        to_chatgpt = st.sidebar.button("Send to OpenAI API without a question")
         st.sidebar.markdown("""----------""")
 
         if dropped_files != [] \
@@ -1530,5 +1540,7 @@ if prompt := st.chat_input("What is up?"):
 if st.session_state.send_drop_file:
     chatgpt(connection, prompt_f, temperature, top_p, int(max_token), time)
     st.session_state.send_drop_file = False
+    increment_file_uploader_key()  # so that a new file_uploader shows up whithour the files
+    st.rerun()
 
 connection.close()
