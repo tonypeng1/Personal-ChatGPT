@@ -1,7 +1,7 @@
 services:
   app:
     container_name: chat_gpt
-    image: streamlit-mysql
+    image: streamlit-mysql:b1f1ae8199dcaf0a871c3d4e857ec139b3f1dd
     ports:
       - 8501:8501
 
@@ -10,6 +10,7 @@ services:
     image: mysql:8.2.0
     volumes:
       - mysql-data:/var/lib/mysql
+      - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
     environment:
       - MYSQL_ROOT_PASSWORD=my_password
       - MYSQL_DATABASE=chat
