@@ -28,11 +28,10 @@ def init_mysql_timezone():
         conn = connect(**st.secrets["mysql"])
 
         with conn.cursor() as cursor:
-            # cursor.execute("SET GLOBAL time_zone = 'America/Chicago';")
-            cursor.execute("SET GLOBAL time_zone = 'UTC';")
+            cursor.execute("SET GLOBAL time_zone = 'America/Chicago';")
 
         conn.commit()
-        st.success("Database time zone set to US Central successfully.")
+        # st.success("Database time zone set to US Central successfully.")
 
     except Error as error:
         st.error(f"Failed to set global time zone: {error}")
