@@ -12,6 +12,32 @@ import tiktoken
 from striprtf.striprtf import rtf_to_text
 
 
+def init_mysql_timezone():
+    """
+    Initializes the MySQL server's global time zone to 'America/Chicago'.
+
+    This function connects to the MySQL server using credentials stored in
+    Streamlit's secrets and sets the global time zone to 'America/Chicago'.
+    It commits the changes and handles any potential errors that may occur
+    during the process.
+
+    Raises:
+        mysql.connector.Error: If an error occurs during the connection or execution.
+    """
+    try:
+        conn = connect(**st.secrets["mysql"])
+
+        with conn.cursor() as cursor:
+            # cursor.execute("SET GLOBAL time_zone = 'America/Chicago';")
+            cursor.execute("SET GLOBAL time_zone = 'UTC';")
+
+        conn.commit()
+        st.success("Database time zone set to US Central successfully.")
+
+    except Error as error:
+        st.error(f"Failed to set global time zone: {error}")
+        raise
+
 def init_connection():
     """
     Initializes the database connection and creates tables 'session',
@@ -30,8 +56,8 @@ def init_connection():
             CREATE TABLE IF NOT EXISTS session
                 (
                     session_id INT AUTO_INCREMENT PRIMARY KEY,
-                    start_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    end_timestamp DATETIME,
+                    start_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    end_timestamp TIMESTAMP,
                     summary TEXT
                 );
             """
@@ -41,7 +67,7 @@ def init_connection():
                 (
                     message_id INT AUTO_INCREMENT PRIMARY KEY,
                     session_id INT NOT NULL,
-                    timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     role TEXT,
                     content MEDIUMTEXT,
                     FOREIGN KEY (session_id) REFERENCES session(session_id)
@@ -53,7 +79,7 @@ def init_connection():
             CREATE TABLE IF NOT EXISTS behavior
                 (
                     id INT AUTO_INCREMENT PRIMARY KEY,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     choice TEXT
                 );
             """
@@ -63,7 +89,7 @@ def init_connection():
                 (
                     message_id INT PRIMARY KEY,
                     session_id INT NOT NULL,
-                    timestamp DATETIME NOT NULL,
+                    timestamp TIMESTAMP NOT NULL,
                     role TEXT,
                     content MEDIUMTEXT,
                     FOREIGN KEY (session_id) REFERENCES session(session_id)
@@ -1173,6 +1199,7 @@ def increment_file_uploader_key():
 
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
+init_mysql_timezone()  # Set database time zone to America/Chicago
 connection = init_connection()
 modify_content_column_data_type_if_different(connection)
 
