@@ -103,6 +103,21 @@ def init_connection():
 
     return conn
 
+def load_current_date_from_database(conn) -> Optional[date]:
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT CAST(CURRENT_TIMESTAMP as DATE);")
+
+            result = cursor.fetchone()
+            if result is not None and result[0] is not None:
+                return result[0]
+            else:
+                return None
+
+    except Error as error:
+        st.error(f"Failed to read the date from database: {error}")
+        raise
+
 def modify_content_column_data_type_if_different(conn):
     try:
         with conn.cursor() as cursor:
@@ -447,7 +462,7 @@ def start_session_save_to_mysql_and_increment_session_id(conn):
         st.error(f"Failed to start a new session: {error}")
         raise
 
-def end_session_save_to_mysql_and_save_summary(conn, current_time: str) -> None:
+def end_session_save_to_mysql_and_save_summary(conn) -> None:
     """
     End the current session by updating the end timestamp in the session table in the MySQL database.
     Get and save session summary. If the session state "session" is None, this function does nothing.
@@ -460,8 +475,8 @@ def end_session_save_to_mysql_and_save_summary(conn, current_time: str) -> None:
     """
     try:
         with conn.cursor() as cursor:
-            sql = "UPDATE session SET end_timestamp = %s WHERE session_id = %s;"
-            val = (current_time, st.session_state.session)
+            sql = "UPDATE session SET end_timestamp = CURRENT_TIMESTAMP() WHERE session_id = %s;"
+            val = (st.session_state.session,)
             cursor.execute(sql, val)
             conn.commit()
 
@@ -679,7 +694,7 @@ def get_summary_by_session_id_return_dic(conn, session_id_list: List[int]) -> Op
         st.error(f"Failed to load summary: {error}")
         return None
 
-def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int, current_time: str) -> None:
+def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
     """
     Processes a chat prompt using OpenAI's ChatCompletion and updates the chat session.
 
@@ -694,12 +709,11 @@ def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int, current_tim
         temp (float): The temperature parameter for OpenAI's ChatCompletion.
         p (float): The top_p parameter for OpenAI's ChatCompletion.
         max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
-        current_time (datetime): The current time, used to determine session termination.
 
     Raises:
         Raises an exception if there is a failure in database operations or OpenAI's API call.
     """
-    determine_if_terminate_current_session_and_start_a_new_one(conn, current_time)
+    determine_if_terminate_current_session_and_start_a_new_one(conn)
     st.session_state.messages.append({"role": "user", "content": prompt1})
 
     with st.chat_message("user"):
@@ -786,23 +800,22 @@ def save_session_state_messages(conn) -> None:
     for message in st.session_state.messages:
         save_to_mysql_message(conn, st.session_state.session, message["role"], message["content"])
 
-def determine_if_terminate_current_session_and_start_a_new_one(conn, current_time: str) -> None:
+def determine_if_terminate_current_session_and_start_a_new_one(conn) -> None:
     """
     Determines if the current session should be terminated based on `st.session_state` and starts a new one if necessary.
 
     Args:
     conn: The database connection object.
-    current_time: The current time as a string used for deciding session transitions.
     """
     state_actions = {
         'new_table': lambda: start_session_save_to_mysql_and_increment_session_id(conn),
-        'new_session': lambda: (end_session_save_to_mysql_and_save_summary(conn, current_time),
+        'new_session': lambda: (end_session_save_to_mysql_and_save_summary(conn),
                                 start_session_save_to_mysql_and_increment_session_id(conn)),
-        'load_history_level_2': lambda: (end_session_save_to_mysql_and_save_summary(conn, current_time),
+        'load_history_level_2': lambda: (end_session_save_to_mysql_and_save_summary(conn),
                                          start_session_save_to_mysql_and_increment_session_id(conn),
                                          save_session_state_messages(conn), 
                                          delete_the_messages_of_a_chat_session(conn, load_history_level_2)),
-        'session_different_date': lambda: (end_session_save_to_mysql_and_save_summary(conn, current_time), 
+        'session_different_date': lambda: (end_session_save_to_mysql_and_save_summary(conn), 
                                            delete_the_messages_of_a_chat_session(conn, st.session_state.session), 
                                            start_session_save_to_mysql_and_increment_session_id(conn), 
                                            save_session_state_messages(conn)
@@ -1198,12 +1211,11 @@ def increment_file_uploader_key():
 
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
-init_mysql_timezone()  # Set database time zone to America/Chicago
-connection = init_connection()
+init_mysql_timezone()  # Set database global time zone to America/Chicago
+connection = init_connection() # Create tables if not existing
 modify_content_column_data_type_if_different(connection)
 
-today = datetime.now().date()
-time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+today = load_current_date_from_database(connection)
 date_earlist = get_the_earliest_date(connection)
 
 new_chat_button = st.sidebar.button(r"$\textsf{\normalsize New chat session}$", 
@@ -1561,10 +1573,10 @@ if st.session_state.empty_data:
 
 
 if prompt := st.chat_input("What is up?"):
-    chatgpt(connection, prompt, temperature, top_p, int(max_token), time)
+    chatgpt(connection, prompt, temperature, top_p, int(max_token))
 
 if st.session_state.send_drop_file:
-    chatgpt(connection, prompt_f, temperature, top_p, int(max_token), time)
+    chatgpt(connection, prompt_f, temperature, top_p, int(max_token))
     st.session_state.send_drop_file = False
     increment_file_uploader_key()  # so that a new file_uploader shows up whithour the files
     st.rerun()
