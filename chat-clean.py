@@ -10,6 +10,8 @@ from typing import Optional, Tuple, List, Dict, Union
 from PyPDF2 import PdfReader
 import tiktoken
 from striprtf.striprtf import rtf_to_text
+import google.generativeai as genai
+
 
 
 def init_mysql_timezone():
@@ -724,7 +726,7 @@ def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
         full_response = ""
         try:
             for response in openai.ChatCompletion.create(
-                model=st.session_state['openai_model'],
+                model="gpt-4-1106-preview",
                 messages=[{"role": "system", "content": "You are based out of Austin, Texas. You are a software engineer " +
                         "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
                         "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
@@ -742,7 +744,7 @@ def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
                 top_p=p,
                 max_tokens=max_tok,
                 stream=True,
-            ):
+                ):
                 full_response += response.choices[0].delta.get("content", "")
                 message_placeholder.markdown(full_response + "▌")
             message_placeholder.markdown(full_response)
@@ -752,7 +754,69 @@ def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
             st.write(error_response)
             full_response = error_response
         except Exception as e:
-            error_response = f"An unexpected error occurred: {e}"
+            error_response = f"An unexpected error occurred in OpenAI API call: {e}"
+            st.write(error_response)
+            full_response = error_response
+
+    st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+    save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
+    save_to_mysql_message(conn, st.session_state.session, "assistant", full_response)
+
+def gemini(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
+    """Generates a response using the Gemini API.
+
+    Args:
+        conn: A MySQL connection object.
+        prompt1: The user's input.
+        temp: The temperature parameter for the Gemini API.
+        p: The top-p parameter for the Gemini API.
+        max_tok: The maximum number of tokens for the Gemini API.
+    """
+    determine_if_terminate_current_session_and_start_a_new_one(conn)
+    st.session_state.messages.append({"role": "user", "content": prompt1})
+
+    with st.chat_message("user"):
+        st.markdown(prompt1)
+        
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        full_response = ""
+        try:
+            for response in  gemini_model.generate_content(
+                [{"role": "user", 
+                  "parts": [{
+                            "text": "You are based out of Austin, Texas. You are a software engineer " +
+                            "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
+                            "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
+                            "You always prefer quick explanations unless specifically asked for. When rendering code samples " +
+                            "always include the import statements. When giving required code solutions include complete code " +
+                            "with no omission. When giving long responses add the source of the information as URLs. " +
+                            "Assume the role of experienced Software Engineer and You are fine with strong opinion as long as " +
+                            "the source of the information can be pointed out and always question my understanding. " +
+                            "When rephrasing paragraphs, use lightly casual, straight-to-the-point language." +
+                            "If you understand your role, please response 'I understand.'"
+                            }]
+                },
+                {"role": "model", "parts": [{"text": "I understand."}]}] +
+                [
+                {"role": m["role"] if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]}
+                for m in st.session_state.messages
+                ],
+                generation_config = genai.types.GenerationConfig(
+                                    candidate_count = 1,
+                                    temperature=temp,
+                                    top_p=p,
+                                    max_output_tokens=max_tok
+                                    ),
+                stream=True
+                ):
+                full_response += response.text
+                message_placeholder.markdown(full_response + "▌")
+            message_placeholder.markdown(full_response)
+
+        except Exception as e:
+            error_response = f"An unexpected error occurred in gemini API call: {e}"
             st.write(error_response)
             full_response = error_response
 
@@ -1211,6 +1275,11 @@ def increment_file_uploader_key():
 
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+genai.configure(api_key=GOOGLE_API_KEY)
+gemini_model = genai.GenerativeModel('gemini-pro')
+
 init_mysql_timezone()  # Set database global time zone to America/Chicago
 connection = init_connection() # Create tables if not existing
 modify_content_column_data_type_if_different(connection)
@@ -1225,9 +1294,7 @@ new_chat_button = st.sidebar.button(r"$\textsf{\normalsize New chat session}$",
 st.title("Personal ChatGPT")
 st.sidebar.title("Options")
 model_name = st.sidebar.radio("Choose model:",
-                                ("gpt-3.5-turbo-1106", "gpt-4", "gpt-4-1106-preview"), index=2)
-
-st.session_state.openai_model = model_name
+                                ("gpt-4-1106-preview", "gemini-pro"), index=0)
 
 # The following code handles model behavior. The behavior chosen will be reused rather than a default value. 
 if "behavior" not in st.session_state:
@@ -1573,10 +1640,16 @@ if st.session_state.empty_data:
 
 
 if prompt := st.chat_input("What is up?"):
-    chatgpt(connection, prompt, temperature, top_p, int(max_token))
+    if model_name == "gpt-4-1106-preview":
+        chatgpt(connection, prompt, temperature, top_p, int(max_token))
+    else:
+        gemini(connection, prompt, temperature, top_p, int(max_token))
 
 if st.session_state.send_drop_file:
-    chatgpt(connection, prompt_f, temperature, top_p, int(max_token))
+    if model_name == "gpt-4-1106-preview":
+        chatgpt(connection, prompt_f, temperature, top_p, int(max_token))
+    else:
+        gemini(connection, prompt, temperature, top_p, int(max_token))
     st.session_state.send_drop_file = False
     increment_file_uploader_key()  # so that a new file_uploader shows up whithour the files
     st.rerun()
