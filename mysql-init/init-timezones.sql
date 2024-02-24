@@ -1,3 +1,11 @@
+/* 
+The goal of this file is to load general time zone information to the Mysql databse in docker.
+This file is the output of the command "mysql_tzinfo_to_sql /usr/share/zoneinfo > init-timezones.sql"
+that turns the time zone information in a Macbook into sql commands.
+The folder that contains the file is mounted to docker database initialization in compose.yml.
+This approach is needed when the docker is run at a Windows computer. 
+*/
+
 TRUNCATE TABLE time_zone;
 TRUNCATE TABLE time_zone_name;
 TRUNCATE TABLE time_zone_transition;

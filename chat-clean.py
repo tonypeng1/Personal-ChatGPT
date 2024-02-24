@@ -13,7 +13,6 @@ from striprtf.striprtf import rtf_to_text
 import google.generativeai as genai
 
 
-
 def init_mysql_timezone():
     """
     Initializes the MySQL server's global time zone to 'America/Chicago'.

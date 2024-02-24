@@ -1,6 +1,7 @@
 import streamlit as st
 from mysql.connector import connect, Error
 
+
 def init_connection():
     """
     Initializes the database connection and creates tables 'session',
@@ -15,8 +16,8 @@ def init_connection():
         conn = connect(
             host = "localhost",
             user = "root",
-            password = "database_password",  # To run replace with your database password
-            database = "database_name"  # To run replace with your database name
+            password = "Tonysql12!",  # To run replace with your database password
+            database = "chat"  # To run replace with your database name
         )
 
         with conn.cursor() as cursor:
@@ -204,30 +205,31 @@ def save_model_behavior_to_mysql(conn, behavior1: str) -> None:
         raise
 
 
-connection = init_connection()
+if __name__ == "__main__":
+    connection = init_connection()
 
-# The following code handles model behavior. 
-# The behavior chosen last time will be reused rather than using a default value. 
-if "behavior" not in st.session_state:
-    st.session_state.behavior = ""
+    # The following code handles model behavior. 
+    # The behavior chosen last time will be reused rather than using a default value. 
+    if "behavior" not in st.session_state:
+        st.session_state.behavior = ""
 
-# If the behavior table is empty:
-insert_initial_default_model_behavior(connection, 'Deterministic (T=0.0, top_p=0.2)')
-    
-Load_the_last_saved_model_behavior(connection)  # load from database and save to session_state
-(temperature, top_p) = return_temp_and_top_p_values_from_model_behavior(st.session_state.behavior)
-behavior_index = return_behavior_index(st.session_state.behavior)  # from string to int (0 to 4)
+    # If the behavior table is empty:
+    insert_initial_default_model_behavior(connection, 'Deterministic (T=0.0, top_p=0.2)')
+        
+    Load_the_last_saved_model_behavior(connection)  # load from database and save to session_state
+    (temperature, top_p) = return_temp_and_top_p_values_from_model_behavior(st.session_state.behavior)
+    behavior_index = return_behavior_index(st.session_state.behavior)  # from string to int (0 to 4)
 
-behavior = st.sidebar.selectbox(
-    label="Select the behavior of your model",
-    placeholder='Pick a behavior',
-    options=['Deterministic (T=0.0, top_p=0.2)', 'Conservative (T=0.3, top_p=0.4)', 
-             'Balanced (T=0.6, top_p=0.6)', 'Diverse (T=0.8, top_p=0.8)', 'Creative (T=1.0, top_p=1.0)'],
-    index=behavior_index,
-    key="behavior1"
-    )
+    behavior = st.sidebar.selectbox(
+        label="Select the behavior of your model",
+        placeholder='Pick a behavior',
+        options=['Deterministic (T=0.0, top_p=0.2)', 'Conservative (T=0.3, top_p=0.4)', 
+                'Balanced (T=0.6, top_p=0.6)', 'Diverse (T=0.8, top_p=0.8)', 'Creative (T=1.0, top_p=1.0)'],
+        index=behavior_index,
+        key="behavior1"
+        )
 
-if behavior != st.session_state.behavior:  # only save to database if behavior is newly clicked 
-    save_model_behavior_to_mysql(connection, behavior)
+    if behavior != st.session_state.behavior:  # only save to database if behavior is newly clicked 
+        save_model_behavior_to_mysql(connection, behavior)
 
-connection.close()
+    connection.close()
