@@ -1,110 +1,34 @@
-import streamlit as st
-import markdown
-from pygments.formatters import HtmlFormatter
+from datetime import datetime, timedelta, date
 import re
+from typing import Optional, Tuple, List, Dict, Union
+
+import google.generativeai as genai
+import markdown
 from mysql.connector import connect, Error
+from PyPDF2 import PdfReader
+from pygments.formatters import HtmlFormatter
 import openai
 from openai.error import OpenAIError
-from datetime import datetime, timedelta, date
-from typing import Optional, Tuple, List, Dict, Union
-from PyPDF2 import PdfReader
-import tiktoken
+import streamlit as st
 from striprtf.striprtf import rtf_to_text
-import google.generativeai as genai
+import tiktoken
 
+from init_database import init_mysql_timezone, init_database_tables, modify_content_column_data_type_if_different
+from behavior import insert_initial_default_model_behavior, Load_the_last_saved_model_behavior, \
+                    return_temp_and_top_p_values_from_model_behavior, return_behavior_index, \
+                    save_model_behavior_to_mysql
 
-def init_mysql_timezone():
-    """
-    Initializes the MySQL server's global time zone to 'America/Chicago'.
-
-    This function connects to the MySQL server using credentials stored in
-    Streamlit's secrets and sets the global time zone to 'America/Chicago'.
-    It commits the changes and handles any potential errors that may occur
-    during the process.
-
-    Raises:
-        mysql.connector.Error: If an error occurs during the connection or execution.
-    """
-    try:
-        conn = connect(**st.secrets["mysql"])
-
-        with conn.cursor() as cursor:
-            cursor.execute("SET GLOBAL time_zone = 'America/Chicago';")
-
-        conn.commit()
-        # st.success("Database time zone set to US Central successfully.")
-
-    except Error as error:
-        st.error(f"Failed to set global time zone: {error}")
-        raise
-
-def init_connection():
-    """
-    Initializes the database connection and creates tables 'session',
-    'message' and 'behavior' if they do not already exist.
-
-    Uses Streamlit secrets for the connection parameters.
-    Throws an error through the Streamlit interface if the connection or 
-    table creation fails.
-    """
-    try:
-        conn = connect(**st.secrets["mysql"])
-
-        with conn.cursor() as cursor:
-            cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS session
-                (
-                    session_id INT AUTO_INCREMENT PRIMARY KEY,
-                    start_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    end_timestamp TIMESTAMP,
-                    summary TEXT
-                );
-            """
-            )
-            cursor.execute(
-            """CREATE TABLE IF NOT EXISTS message
-                (
-                    message_id INT AUTO_INCREMENT PRIMARY KEY,
-                    session_id INT NOT NULL,
-                    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    role TEXT,
-                    content MEDIUMTEXT,
-                    FOREIGN KEY (session_id) REFERENCES session(session_id)
-                );
-            """
-            )
-            cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS behavior
-                (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    choice TEXT
-                );
-            """
-            )
-            cursor.execute(
-            """CREATE TABLE IF NOT EXISTS message_search
-                (
-                    message_id INT PRIMARY KEY,
-                    session_id INT NOT NULL,
-                    timestamp TIMESTAMP NOT NULL,
-                    role TEXT,
-                    content MEDIUMTEXT,
-                    FOREIGN KEY (session_id) REFERENCES session(session_id)
-                );
-            """
-            )
-        conn.commit()
-
-    except Error as error:
-        st.error(f"Failed to create tables: {error}")
-        raise
-
-    return conn
 
 def load_current_date_from_database(conn) -> Optional[date]:
+    """
+    Loads the current date from the database.
+
+    Args:
+        conn: The database connection.
+
+    Returns:
+        The current date, or None if it could not be loaded.
+    """
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT CAST(CURRENT_TIMESTAMP as DATE);")
@@ -119,32 +43,6 @@ def load_current_date_from_database(conn) -> Optional[date]:
         st.error(f"Failed to read the date from database: {error}")
         raise
 
-def modify_content_column_data_type_if_different(conn):
-    try:
-        with conn.cursor() as cursor:
-            sql = """
-            SELECT DATA_TYPE
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_SCHEMA = "chat"
-            and TABLE_NAME = "message"
-            AND COLUMN_NAME = "content";
-            """
-            cursor.execute(sql)
-            result = cursor.fetchone()
-
-            if result and result[0].upper() != "MEDIUMTEXT":
-                query = """
-                ALTER TABLE message
-                MODIFY COLUMN content MEDIUMTEXT;
-                """
-                cursor.execute(query)
-                conn.commit()
-            else:
-                pass
-
-    except Error as error:
-        st.error(f"Failed to change the column data type to MEDIUMTEXT: {error}")
-        raise
 
 def load_previous_chat_session(conn, session1: int) -> None:
     """
@@ -172,147 +70,6 @@ def load_previous_chat_session(conn, session1: int) -> None:
         st.error(f"Failed to load previous chat sessions: {error}")
         raise
 
-def insert_initial_default_model_behavior(conn, behavior1: str) -> None:
-    """
-    Inserts the initial default model behavior into the 'behavior' table if it does not already exist.
-
-    This function attempts to insert a new row into the 'behavior' table with the provided choice.
-    The insertion will only occur if the table is currently empty, ensuring that the default
-    behavior is set only once.
-
-    Args:
-        conn: A connection object to the database.
-        behavior1: A string representing the default behavior to be inserted.
-
-    Raises:
-        Raises an exception if the database operation fails.
-    """
-    try:
-        with conn.cursor() as cursor:
-            sql = """
-            INSERT INTO behavior (choice) 
-            SELECT %s FROM DUAL 
-            WHERE NOT EXISTS (SELECT * FROM behavior);
-            """
-            val = (behavior1, )
-            cursor.execute(sql, val)
-            conn.commit()
-
-    except Error as error:
-        st.error(f"Failed to save the initial default model behavior: {error}")
-        raise
-
-def save_model_behavior_to_mysql(conn, behavior1: Union[str, None]) -> None:
-    """
-    Saves a model behavior to the 'behavior' table in the MySQL database.
-
-    This function inserts a new row into the 'behavior' table with the provided choice.
-
-    Args:
-        conn: A connection object to the MySQL database.
-        behavior1: A string representing the behavior to be saved.
-
-    Raises:
-        Raises an exception if the database operation fails.
-    """
-    try:
-        with conn.cursor() as cursor:
-            sql = "INSERT INTO behavior (choice) VALUE (%s)"
-            val = (behavior1, )
-            cursor.execute(sql, val)
-            conn.commit()
-
-    except Error as error:
-        st.error(f"Failed to save model behavior: {error}")
-        raise
-
-def Load_the_last_saved_model_behavior(conn) -> None:
-    """
-    Retrieves the last saved model behavior from the 'behavior' table in the MySQL database and
-    save it to session state.
-
-    This function selects the most recent 'choice' entry from the 'behavior' table based on the highest ID.
-
-    Args:
-        conn: A connection object to the MySQL database.
-
-    Returns:
-        The last saved model behavior as a string, or None if no behavior is found.
-
-    Raises:
-        Raises an exception if the database operation fails.
-    """
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT choice FROM behavior ORDER BY id DESC LIMIT 1;")
-
-            result = cursor.fetchone()
-            if result is not None and result[0] is not None:
-                st.session_state.behavior = result[0]
-            else:
-                st.session_state.behavior = None
-
-    except Error as error:
-        st.error(f"Failed to read the last saved behavior: {error}")
-        raise
-
-def return_behavior_index(behavior1: str) -> int:
-    """
-    Returns the index of a given behavior from a predefined dictionary of behaviors.
-
-    This function maps a behavior description to its corresponding index based on a predefined
-    dictionary of behavior descriptions and their associated indices.
-
-    Args:
-        behavior (str): A string representing the behavior description.
-
-    Returns:
-        An integer representing the index of the behavior.
-
-    Raises:
-        KeyError: If the behavior description is not found in the predefined dictionary.
-    """
-    behavior_dic = {
-        'Deterministic (T=0.0, top_p=0.2)': 0,
-        'Conservative (T=0.3, top_p=0.4)': 1,
-        'Balanced (T=0.6, top_p=0.6)': 2,
-        'Diverse (T=0.8, top_p=0.8)': 3, 
-        'Creative (T=1.0, top_p=1.0)': 4
-    }
-
-    if behavior1 not in behavior_dic:
-        raise KeyError(f"Behavior '{behavior}' not found in the behavior dictionary.")
-    
-    return behavior_dic[behavior1]
-
-def return_temp_and_top_p_values_from_model_behavior(behavior1: str) -> tuple[float, float]:
-    """
-    Returns the temperature and top_p values associated with a given model behavior.
-
-    This function maps a behavior description to its corresponding temperature (T) and top_p values.
-
-    Args:
-        behavior (str): A string representing the behavior description.
-
-    Returns:
-        A tuple containing the temperature (float) and top_p (float) values.
-
-    Raises:
-        ValueError: If the behavior description is not found in the predefined list of behaviors.
-    """
-
-    behavior_to_values = {
-        'Deterministic (T=0.0, top_p=0.2)': (0.0, 0.2),
-        'Conservative (T=0.3, top_p=0.4)': (0.3, 0.4),
-        'Balanced (T=0.6, top_p=0.6)': (0.6, 0.6),
-        'Diverse (T=0.8, top_p=0.8)': (0.8, 0.8),
-        'Creative (T=1.0, top_p=1.0)': (1.0, 1.0)
-    }
-
-    if behavior1 not in behavior_to_values:
-        raise ValueError(f"Model behavior '{behavior1}' is not in the predefined list.")
-
-    return behavior_to_values[behavior1]
 
 def load_previous_chat_session_all_questions_for_summary_only_users(conn, session1: str) -> str:
     """
@@ -345,6 +102,7 @@ def load_previous_chat_session_all_questions_for_summary_only_users(conn, sessio
         st.error(f"Failed to load previous chat sessions for summary (user only): {error}")
         raise
 
+
 def shorten_prompt_to_tokens(prompt: str, encoding_name: str="cl100k_base" , max_tokens: int=3800) -> str:
     """
     Shortens the input prompt to a specified maximum number of tokens using the specified encoding.
@@ -368,6 +126,7 @@ def shorten_prompt_to_tokens(prompt: str, encoding_name: str="cl100k_base" , max
         return truncated_prompt
     else:
         return prompt
+
 
 def load_previous_chat_session_ids(conn, table, date_start: date, date_end: date) -> list:
     """
@@ -408,6 +167,7 @@ def load_previous_chat_session_ids(conn, table, date_start: date, date_end: date
         st.error(f"Failed to load chat session id: {error}")
         raise
 
+
 def get_and_set_current_session_id(conn) -> None:
     """
     Retrieves the highest session ID from the 'session' table and sets it
@@ -437,6 +197,7 @@ def get_and_set_current_session_id(conn) -> None:
         st.error(f"Failed to get the current session id: {error}")
         raise
 
+
 def start_session_save_to_mysql_and_increment_session_id(conn):
     """
     Start a new session by inserting a null value at the end timestamp column of the session table. Increment session id by 1.
@@ -463,6 +224,7 @@ def start_session_save_to_mysql_and_increment_session_id(conn):
         st.error(f"Failed to start a new session: {error}")
         raise
 
+
 def end_session_save_to_mysql_and_save_summary(conn) -> None:
     """
     End the current session by updating the end timestamp in the session table in the MySQL database.
@@ -487,6 +249,7 @@ def end_session_save_to_mysql_and_save_summary(conn) -> None:
 
     get_session_summary_and_save_to_session_table(conn, st.session_state.session)  # Save session summary after ending session
 
+
 def save_session_summary_to_mysql(conn, id: int, summary_text: str) -> None:
     """
     Updates the session summary text in the "session" table in a MySQL database.
@@ -509,6 +272,7 @@ def save_session_summary_to_mysql(conn, id: int, summary_text: str) -> None:
     except Error as error:
         st.error(f"Failed to save the summary of a session: {error}")
         raise
+
 
 def save_to_mysql_message(conn, session_id1: int, role1: str, content1: str) -> None:
     """
@@ -534,6 +298,7 @@ def save_to_mysql_message(conn, session_id1: int, role1: str, content1: str) -> 
         st.error(f"Failed to save new message: {error}")
         raise
 
+
 def get_session_summary_and_save_to_session_table(conn, session_id1: int) -> None:
     """
     Retrieves the chat session's text, generates a summary for user messages only,
@@ -546,6 +311,7 @@ def get_session_summary_and_save_to_session_table(conn, session_id1: int) -> Non
     chat_session_text_user_only = load_previous_chat_session_all_questions_for_summary_only_users(conn, session_id1)
     session_summary = chatgpt_summary_user_only(chat_session_text_user_only)
     save_session_summary_to_mysql(conn, session_id1, session_summary)
+
 
 def delete_all_rows(conn) -> None:
     """Delete all rows from 'message' and 'session' tables.
@@ -574,6 +340,7 @@ def delete_all_rows(conn) -> None:
         st.error(f"Failed to finish deleting data: {error}")
         raise
 
+
 def delete_the_messages_of_a_chat_session(conn, session_id1: int) -> None:
     """
     Deletes all messages associated with a specific chat session from the database.
@@ -598,6 +365,7 @@ def delete_the_messages_of_a_chat_session(conn, session_id1: int) -> None:
     except Error as error:
         st.error(f"Failed to delete the messages of a chat session: {error}")
         raise
+
 
 def convert_date(date1: str, date_early: datetime) -> Tuple[date, date]:
     """
@@ -634,6 +402,7 @@ def convert_date(date1: str, date_early: datetime) -> Tuple[date, date]:
 
     return (today, today)  # if there is an error, return the default date range
 
+
 def get_the_earliest_date(conn) -> Optional[datetime]:
     """
     Retrieves the earliest date from the 'message' table's 'timestamp' column.
@@ -658,6 +427,7 @@ def get_the_earliest_date(conn) -> Optional[datetime]:
     except Error as error:
         st.error(f"Failed to get the earliest date: {error}")
         raise
+
 
 def get_summary_by_session_id_return_dic(conn, session_id_list: List[int]) -> Optional[Dict[int, str]]:
     """
@@ -694,6 +464,7 @@ def get_summary_by_session_id_return_dic(conn, session_id_list: List[int]) -> Op
     except Error as error:
         st.error(f"Failed to load summary: {error}")
         return None
+
 
 def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
     """
@@ -762,6 +533,7 @@ def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
     save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
     save_to_mysql_message(conn, st.session_state.session, "assistant", full_response)
 
+
 def gemini(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
     """Generates a response using the Gemini API.
 
@@ -824,6 +596,7 @@ def gemini(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
     save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
     save_to_mysql_message(conn, st.session_state.session, "assistant", full_response)
 
+
 def chatgpt_summary_user_only(chat_text_user_only: str) -> str:
     """
     Generates a summary sentence for the main topics of a user's chat input using OpenAI's Completion API.
@@ -853,6 +626,7 @@ def chatgpt_summary_user_only(chat_text_user_only: str) -> str:
 
     return summary
 
+
 def save_session_state_messages(conn) -> None:
     """
     Iterates over messages in the session state and saves each to MySQL.
@@ -862,6 +636,7 @@ def save_session_state_messages(conn) -> None:
     """
     for message in st.session_state.messages:
         save_to_mysql_message(conn, st.session_state.session, message["role"], message["content"])
+
 
 def determine_if_terminate_current_session_and_start_a_new_one(conn) -> None:
     """
@@ -891,14 +666,18 @@ def determine_if_terminate_current_session_and_start_a_new_one(conn) -> None:
             st.session_state[state] = False  # Resets the state to False
             break  # Breaks after handling a state, assuming only one state can be true at a time
 
+
 def set_new_session_to_false(): 
     st.session_state.new_session = False
+
 
 def set_load_session_to_False():
     st.session_state.load_session = False
 
+
 def set_search_session_to_False():
     st.session_state.search_session = False
+
 
 def save_to_mysql_message_search(conn, message_id1: int, session_id1: int, 
                                  timestamp1: datetime, role1: str, content1: str) -> None:
@@ -931,6 +710,7 @@ def save_to_mysql_message_search(conn, message_id1: int, session_id1: int,
         st.error(f"Failed to save new message to message_search table: {error}")
         raise
 
+
 def filter_word_list_and_get_sql_conditions(word_list: List[str]) -> Tuple[str, List[str]]:
     """
     Filters out 'or' and 'and' from the word list and creates a SQL condition string.
@@ -948,6 +728,7 @@ def filter_word_list_and_get_sql_conditions(word_list: List[str]) -> Tuple[str, 
     condition_operator = " OR " if contains_or else " AND "
     conditions = condition_operator.join(["content LIKE %s" for _ in filtered_word_list])
     return (conditions, filtered_word_list)
+
 
 def search_keyword_and_save_to_message_search_table(conn, words: str):
     """
@@ -976,6 +757,7 @@ def search_keyword_and_save_to_message_search_table(conn, words: str):
         st.error(f"Failed to search keyword: {error}")
         raise
 
+
 def delete_all_rows_in_message_serach(conn) -> None:
     try:
         with conn.cursor() as cursor:
@@ -985,6 +767,7 @@ def delete_all_rows_in_message_serach(conn) -> None:
     except Error as error:
         st.error(f"Failed to finish deleting data in message_search table: {error}")
         raise
+
 
 def get_summary_and_return_as_file_name(conn, session1: int) -> str:
     """
@@ -1026,6 +809,7 @@ def get_summary_and_return_as_file_name(conn, session1: int) -> str:
         st.error(f"Failed to get session summary: {error}")
         return ""
 
+
 def convert_messages_to_markdown(messages: List[Dict[str, str]], code_block_indent='                 ') -> str:
     """
     Converts a list of message dictionaries to a markdown-formatted string.
@@ -1048,6 +832,7 @@ def convert_messages_to_markdown(messages: List[Dict[str, str]], code_block_inde
         indented_content = _indent_content(content, code_block_indent)
         markdown_lines.append(f"###*{role.capitalize()}*:\n{indented_content}\n")
     return '\n\n'.join(markdown_lines)
+
 
 def _indent_content(content: str, code_block_indent: str) -> str:
     """
@@ -1077,6 +862,7 @@ def _indent_content(content: str, code_block_indent: str) -> str:
             indented_lines.append(indented_line)
 
     return '\n'.join(indented_lines)
+
 
 def markdown_to_html(md_content: str) -> str:
     """
@@ -1111,6 +897,7 @@ def markdown_to_html(md_content: str) -> str:
 
     return f"<style>{css}</style>{html_content}"
 
+
 def is_valid_file_name(file_name: str) -> bool:
     """
     Checks if the provided file name is valid based on certain criteria.
@@ -1133,6 +920,7 @@ def is_valid_file_name(file_name: str) -> bool:
     return not (re.search(illegal_chars, file_name) or
                 file_name in reserved_words or
                 len(file_name) > 255)
+
 
 def remove_if_a_session_not_exist_in_date_range(level_2_options: dict) -> dict:
     """
@@ -1160,6 +948,7 @@ def remove_if_a_session_not_exist_in_date_range(level_2_options: dict) -> dict:
 
     return level_2_options
 
+
 def get_available_date_range(level_2_new_options: dict) -> list:
     """
     Extracts and returns a list of available date ranges from the provided dictionary.
@@ -1184,6 +973,7 @@ def get_available_date_range(level_2_new_options: dict) -> list:
 
     return date_range_list
 
+
 def set_only_current_session_state_to_true(current_state: str) -> None:
     """
     Update the session state by setting the specified current state to True and all other states to False.
@@ -1200,6 +990,7 @@ def set_only_current_session_state_to_true(current_state: str) -> None:
     for state in ["new_table", "new_session", "load_history_level_2", "session_different_date"]:
         st.session_state[state] = (state == current_state)
 
+
 def extract_text_from_pdf(pdf) -> str: 
     """
     Extract and concatenate text from all pages of a PDF file.
@@ -1215,6 +1006,7 @@ def extract_text_from_pdf(pdf) -> str:
     """
     pdf_reader = PdfReader(pdf) 
     return ''.join(page.extract_text() or '' for page in pdf_reader.pages)
+
 
 def get_current_session_date_in_message_table(conn, session_id: int) -> Optional[Tuple]:
     """
@@ -1248,6 +1040,7 @@ def get_current_session_date_in_message_table(conn, session_id: int) -> Optional
         st.error(f"Failed to get current session date from message table: {error}")
         raise
 
+
 def extract_text_from_different_file_types(file):
     """
     Extract text from a file of various types including PDF, TXT, and RTF.
@@ -1269,21 +1062,33 @@ def extract_text_from_different_file_types(file):
 
     return text
 
+
 def increment_file_uploader_key():
+    """
+    Add 1 to the current streamlit session state "file_uploader_key".
+
+    The purpose of this function is to show a fresh and new streamlit "file_uploader" widget
+    without the previously drop file, if there is one.
+    """
     st.session_state["file_uploader_key"] += 1
 
 
+# Get chatgpt and gemini app keys
 openai.api_key = st.secrets["OPENAI_API_KEY"]
-
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+
+# Set gemini app configuration
 genai.configure(api_key=GOOGLE_API_KEY)
 gemini_model = genai.GenerativeModel('gemini-pro')
 
-init_mysql_timezone()  # Set database global time zone to America/Chicago
-connection = init_connection() # Create tables if not existing
+# Database initial operation
+connection = connect(**st.secrets["mysql"])  # get database credentials from .streamlit/secrets.toml
+init_database_tables(connection) # Create tables if not existing
+init_mysql_timezone(connection)  # Set database global time zone to America/Chicago
 modify_content_column_data_type_if_different(connection)
 
-today = load_current_date_from_database(connection)
+## Get the current date (US central time) and the earliest date from database
+today = load_current_date_from_database(connection)  
 date_earlist = get_the_earliest_date(connection)
 
 new_chat_button = st.sidebar.button(r"$\textsf{\normalsize New chat session}$", 
@@ -1295,11 +1100,11 @@ st.sidebar.title("Options")
 model_name = st.sidebar.radio("Choose model:",
                                 ("gpt-4-1106-preview", "gemini-pro"), index=0)
 
-# The following code handles model behavior. The behavior chosen will be reused rather than a default value. 
+# Handle model behavior. The behavior chosen will be reused rather than using a default value. 
 if "behavior" not in st.session_state:
     st.session_state.behavior = ""
 
-# If the behavior table is empty:
+# If the behavior table is empty, set the initial behavior to "Deterministic".
 insert_initial_default_model_behavior(connection, 'Deterministic (T=0.0, top_p=0.2)')
     
 Load_the_last_saved_model_behavior(connection)  # load from database and save to session_state
@@ -1335,7 +1140,7 @@ if "session" not in st.session_state:
     if st.session_state.session is not None:
         load_previous_chat_session(connection, st.session_state.session)
     else:
-        set_only_current_session_state_to_true("new_table")
+        set_only_current_session_state_to_true("new_table")  # The case where the session table is empty
 
 if "messages" not in st.session_state:
     st.session_state.messages = []

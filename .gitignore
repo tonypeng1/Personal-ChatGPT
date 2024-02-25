@@ -6,3 +6,4 @@ test.py
 langchat.py
 chat.py
 secrets_backup.toml
+personal-chatgpt/__pycache__/

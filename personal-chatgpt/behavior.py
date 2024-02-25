@@ -2,66 +2,6 @@ import streamlit as st
 from mysql.connector import connect, Error
 
 
-def init_connection():
-    """
-    Initializes the database connection and creates tables 'session',
-    'message' and 'behavior' if they do not already exist.
-
-    Uses Streamlit secrets for the connection parameters.
-    Throws an error through the Streamlit interface if the connection or 
-    table creation fails.
-    """
-    try:
-        # conn = connect(**st.secrets["mysql"])  # A file in .streamlit folder named secrets.toml
-        conn = connect(
-            host = "localhost",
-            user = "root",
-            password = "Tonysql12!",  # To run replace with your database password
-            database = "chat"  # To run replace with your database name
-        )
-
-        with conn.cursor() as cursor:
-            cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS session
-                (
-                    session_id INT AUTO_INCREMENT PRIMARY KEY,
-                    start_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    end_timestamp DATETIME,
-                    summary TEXT
-                );
-            """
-            )
-            cursor.execute(
-            """CREATE TABLE IF NOT EXISTS message
-                (
-                    message_id INT AUTO_INCREMENT PRIMARY KEY,
-                    session_id INT NOT NULL,
-                    timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    role TEXT,
-                    content MEDIUMTEXT,
-                    FOREIGN KEY (session_id) REFERENCES session(session_id)
-                );
-            """
-            )
-            cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS behavior
-                (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    choice TEXT
-                );
-            """
-            )
-        conn.commit()
-
-    except Error as error:
-        st.error(f"Failed to create tables: {error}")
-        raise
-
-    return conn
-
 def insert_initial_default_model_behavior(conn, behavior1: str) -> None:
     """
     Inserts the initial default model behavior into the 'behavior' table if it does not already exist.
@@ -91,6 +31,7 @@ def insert_initial_default_model_behavior(conn, behavior1: str) -> None:
     except Error as error:
         st.error(f"Failed to save the initial default model behavior: {error}")
         raise
+
 
 def Load_the_last_saved_model_behavior(conn) -> None:
     """
@@ -122,6 +63,7 @@ def Load_the_last_saved_model_behavior(conn) -> None:
         st.error(f"Failed to read the last saved behavior: {error}")
         raise
 
+
 def return_behavior_index(behavior1: str) -> int:
     """
     Returns the index of a given behavior from a predefined dictionary of behaviors.
@@ -150,6 +92,7 @@ def return_behavior_index(behavior1: str) -> int:
         raise KeyError(f"Behavior '{behavior}' not found in the behavior dictionary.")
     
     return behavior_dic[behavior1]
+
 
 def return_temp_and_top_p_values_from_model_behavior(behavior1: str) -> tuple[float, float]:
     """
@@ -180,6 +123,7 @@ def return_temp_and_top_p_values_from_model_behavior(behavior1: str) -> tuple[fl
 
     return behavior_to_values[behavior1]
 
+
 def save_model_behavior_to_mysql(conn, behavior1: str) -> None:
     """
     Saves a model behavior to the 'behavior' table in the MySQL database.
@@ -206,7 +150,7 @@ def save_model_behavior_to_mysql(conn, behavior1: str) -> None:
 
 
 if __name__ == "__main__":
-    connection = init_connection()
+    connection = connect(**st.secrets["mysql"])  # Get LOCAL database credentials from .streamlit/secrets.toml for development.
 
     # The following code handles model behavior. 
     # The behavior chosen last time will be reused rather than using a default value. 
