@@ -2,25 +2,23 @@ from typing import Optional, Tuple
 
 import google.generativeai as genai
 from mysql.connector import connect, Error
-from PyPDF2 import PdfReader
 import openai
 from openai.error import OpenAIError
 import streamlit as st
-from striprtf.striprtf import rtf_to_text
 import tiktoken
 
+from delete_message import delete_the_messages_of_a_chat_session, \
+                        delete_all_rows
+from drop_file import increment_file_uploader_key, \
+                        extract_text_from_different_file_types, \
+                        save_to_mysql_message
 from init_database import init_mysql_timezone, \
                         init_database_tables, \
                         modify_content_column_data_type_if_different
-from model_behavior import insert_initial_default_model_behavior, \
-                        Load_the_last_saved_model_behavior, \
-                        return_temp_and_top_p_values_from_model_behavior, \
-                        return_behavior_index, \
-                        save_model_behavior_to_mysql
-from init_st_session_state import init_session_states
 from init_session import get_and_set_current_session_id, \
                         load_previous_chat_session, \
                         set_only_current_session_state_to_true
+from init_st_session_state import init_session_states
 from load_session import load_current_date_from_database, \
                         get_the_earliest_date, \
                         load_previous_chat_session_ids, \
@@ -28,16 +26,17 @@ from load_session import load_current_date_from_database, \
                         get_summary_by_session_id_return_dic, \
                         remove_if_a_session_not_exist_in_date_range, \
                         get_available_date_range
+from model_behavior import insert_initial_default_model_behavior, \
+                        Load_the_last_saved_model_behavior, \
+                        return_temp_and_top_p_values_from_model_behavior, \
+                        return_behavior_index, \
+                        save_model_behavior_to_mysql
 from save_to_html import convert_messages_to_markdown, \
                         markdown_to_html, \
                         get_summary_and_return_as_file_name, \
                         is_valid_file_name
-from delete_message import delete_the_messages_of_a_chat_session, \
-                        delete_all_rows
 from search_message import delete_all_rows_in_message_serach, \
                         search_keyword_and_save_to_message_search_table
-from drop_file import increment_file_uploader_key, \
-                        extract_text_from_different_file_types
 
 
 def load_previous_chat_session_all_questions_for_summary_only_users(conn, session1: str) -> str:
@@ -172,31 +171,6 @@ def save_session_summary_to_mysql(conn, id: int, summary_text: str) -> None:
 
     except Error as error:
         st.error(f"Failed to save the summary of a session: {error}")
-        raise
-
-
-def save_to_mysql_message(conn, session_id1: int, role1: str, content1: str) -> None:
-    """
-    Inserts a new message into the "message" table in a MySQL database table.
-
-    Parameters:
-    - conn (MySQLConnection): A connection object to the MySQL database.
-    - session_id1 (int): The session ID associated with the message.
-    - role1 (str): The role of the user sending the message.
-    - content1 (str): The content of the message.
-
-    Raises:
-    - Error: If the message could not be saved.
-    """
-    try:
-        with conn.cursor() as cursor:
-            sql = "INSERT INTO message (session_id, role, content) VALUES (%s, %s, %s)"
-            val = (session_id1, role1, content1)
-            cursor.execute(sql, val)
-            conn.commit()
-
-    except Error as error:
-        st.error(f"Failed to save new message: {error}")
         raise
 
 
