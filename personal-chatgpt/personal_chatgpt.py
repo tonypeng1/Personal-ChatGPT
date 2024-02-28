@@ -665,13 +665,13 @@ if st.session_state.search_session:
                 st.session_state.delete_session = True
 
 
-# The code below is used to handle a Current active session across different dates
+# The code below is used to handle a current active session across different dates and a new prompt is added.
 current_session_datetime = \
 get_current_session_date_in_message_table(connection, st.session_state.session)
 if current_session_datetime is not None:
     current_session_date = current_session_datetime[0].date()
 
-    if today != current_session_date:
+    if today != current_session_date and st.session_state.new_session is False:  # If a new session ignore the line below.
         set_only_current_session_state_to_true("session_different_date")
 
 # The following code handles dropping a file from the local computer
