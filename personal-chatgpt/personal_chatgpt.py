@@ -1,6 +1,7 @@
 from typing import Optional, Tuple
 
 import google.generativeai as genai
+from mistralai.client import MistralClient
 from mysql.connector import connect, Error
 import openai
 from openai.error import OpenAIError
@@ -219,15 +220,16 @@ def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
         try:
             for response in openai.ChatCompletion.create(
                 model="gpt-4-1106-preview",
-                messages=[{"role": "system", "content": "You are based out of Austin, Texas. You are a software engineer " +
-                        "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
-                        "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
-                        "You always prefer quick explanations unless specifically asked for. When rendering code samples " +
-                        "always include the import statements. When giving required code solutions include complete code " +
-                        "with no omission. When giving long responses add the source of the information as URLs. " +
-                        "Assume the role of experienced Software Engineer and You are fine with strong opinion as long as " +
-                        "the source of the information can be pointed out and always question my understanding. " +
-                        "When rephrasing paragraphs, use lightly casual, straight-to-the-point language."}] +
+                messages=
+                    [{"role": "system", "content": "You are an experienced software engineer based in Austin, Texas, " +
+                    "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
+                    "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
+                    "When rendering code samples " +
+                    "always include the import statements. When giving required code solutions include complete code " +
+                    "with no omission. When giving long responses add the source of the information as URLs. " +
+                    "You are fine with strong opinion as long as " +
+                    "the source of the information can be pointed out and always question my understanding. " +
+                    "When rephrasing paragraphs, use lightly casual, straight-to-the-point language."}] +
                     [
                     {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages
@@ -279,17 +281,18 @@ def gemini(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
             for response in  gemini_model.generate_content(
                 [{"role": "user", 
                   "parts": [{
-                            "text": "You are based out of Austin, Texas. You are a software engineer " +
-                            "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
-                            "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
-                            "You always prefer quick explanations unless specifically asked for. When rendering code samples " +
-                            "always include the import statements. When giving required code solutions include complete code " +
-                            "with no omission. When giving long responses add the source of the information as URLs. " +
-                            "Assume the role of experienced Software Engineer and You are fine with strong opinion as long as " +
-                            "the source of the information can be pointed out and always question my understanding. " +
-                            "When rephrasing paragraphs, use lightly casual, straight-to-the-point language." +
-                            "If you understand your role, please response 'I understand.'"
-                            }]
+                    "text": 
+                    "You are an experienced software engineer based in Austin, Texas, " +
+                    "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
+                    "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
+                    "When rendering code samples " +
+                    "always include the import statements. When giving required code solutions include complete code " +
+                    "with no omission. When giving long responses add the source of the information as URLs. " +
+                    "You are fine with strong opinion as long as " +
+                    "the source of the information can be pointed out and always question my understanding. " +
+                    "When rephrasing paragraphs, use lightly casual, straight-to-the-point language." +
+                    "If you understand your role, please response 'I understand.'"
+                    }]
                 },
                 {"role": "model", "parts": [{"text": "I understand."}]}] +
                 [
@@ -310,6 +313,65 @@ def gemini(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
 
         except Exception as e:
             error_response = f"An unexpected error occurred in gemini API call: {e}"
+            st.write(error_response)
+            full_response = error_response
+
+    st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+    save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
+    save_to_mysql_message(conn, st.session_state.session, "assistant", full_response)
+
+
+def mistral(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
+    """Generates a response using the mistral API.
+
+    Args:
+        conn: A MySQL connection object.
+        prompt1: The user's input.
+        temp: The temperature parameter for the mistral API.
+        p: The top-p parameter for the mistral API. 
+            (ignore, error occurs if used simultaneously with temperature)
+        max_tok: The maximum number of tokens for the mistral API.
+    """
+    determine_if_terminate_current_session_and_start_a_new_one(conn)
+    st.session_state.messages.append({"role": "user", "content": prompt1})
+
+    with st.chat_message("user"):
+        st.markdown(prompt1)
+
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        full_response = ""
+
+        messages = [{
+        "role": "user", "content": "You are an experienced software engineer based in Austin, Texas, " +
+        "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
+        "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
+        "When rendering code samples " +
+        "always include the import statements. When giving required code solutions include complete code " +
+        "with no omission. When giving long responses add the source of the information as URLs. " +
+        "You are fine with strong opinion as long as " +
+        "the source of the information can be pointed out and always question my understanding. " +
+        "When rephrasing paragraphs, use lightly casual, straight-to-the-point language."
+            }]
+        for m in st.session_state.messages:
+            messages.append({"role": m["role"], "content": m["content"]})
+
+        try:
+            for response in mistral_client.chat_stream(
+                model=mistral_model,
+                messages=messages,
+                temperature=temp,
+                # top_p=p,
+                max_tokens=max_tok
+                ):
+                if response.choices[0].delta.content is not None:
+                    full_response += response.choices[0].delta.content
+                    message_placeholder.markdown(full_response + "▌")
+            message_placeholder.markdown(full_response)
+
+        except Exception as e:
+            error_response = f"An unexpected error occurred in Mistral API call: {e}"
             st.write(error_response)
             full_response = error_response
 
@@ -434,13 +496,18 @@ def get_current_session_date_in_message_table(conn, session_id: int) -> Optional
         raise
 
 
-# Get chatgpt and gemini app keys
+# Get app keys
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+MISTRAL_API_KEY = st.secrets["MISTRAL_API_KEY"]
 
 # Set gemini app configuration
 genai.configure(api_key=GOOGLE_API_KEY)
-gemini_model = genai.GenerativeModel('gemini-pro')
+gemini_model = genai.GenerativeModel('gemini-1.0-pro-latest')
+
+# Set mastral app configuration
+mistral_model = "mistral-large-latest"
+mistral_client = MistralClient(api_key=MISTRAL_API_KEY)
 
 # Database initial operation
 connection = connect(**st.secrets["mysql"])  # get database credentials from .streamlit/secrets.toml
@@ -459,7 +526,10 @@ new_chat_button = st.sidebar.button(r"$\textsf{\normalsize New chat session}$",
 st.title("Personal ChatGPT")
 st.sidebar.title("Options")
 model_name = st.sidebar.radio("Choose model:",
-                                ("gpt-4-1106-preview", "gemini-pro"), index=0)
+                                ("gpt-4-1106-preview", 
+                                 "mistral-large-latest",
+                                 "gemini-1.0-pro-latest"
+                                 ), index=0)
 
 init_session_states()  # Initialize all streamlit session states
 
@@ -778,14 +848,19 @@ if st.session_state.empty_data:
 if prompt := st.chat_input("What is up?"):
     if model_name == "gpt-4-1106-preview":
         chatgpt(connection, prompt, temperature, top_p, int(max_token))
-    else:
+    elif model_name == "gemini-1.0-pro-latest":
         gemini(connection, prompt, temperature, top_p, int(max_token))
+    else:  # case for mistral api
+        mistral(connection, prompt, temperature, top_p, int(max_token))
 
 if st.session_state.send_drop_file:
     if model_name == "gpt-4-1106-preview":
         chatgpt(connection, prompt_f, temperature, top_p, int(max_token))
-    else:
-        gemini(connection, prompt_f, temperature, top_p, int(max_token))
+    elif model_name == "gemini-1.0-pro-latest":
+        gemini(connection, prompt, temperature, top_p, int(max_token))
+    else:  # case for mistral api
+        mistral(connection, prompt, temperature, top_p, int(max_token))
+
     st.session_state.send_drop_file = False
     increment_file_uploader_key()  # so that a new file_uploader shows up whithour the files
     st.rerun()

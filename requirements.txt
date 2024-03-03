@@ -8,3 +8,4 @@ tiktoken==0.5.2
 Pygments==2.17.2
 striprtf==0.0.26
 google-generativeai==0.3.2
+mistralai==0.1.3
