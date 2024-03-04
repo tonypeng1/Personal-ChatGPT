@@ -512,6 +512,8 @@ init_database_tables(connection) # Create tables if not existing
 init_mysql_timezone(connection)  # Set database global time zone to America/Chicago
 modify_content_column_data_type_if_different(connection)
 
+init_session_states()  # Initialize all streamlit session states if there is no value
+
 ## Get the current date (US central time) and the earliest date from database
 today = load_current_date_from_database(connection)  
 date_earlist = get_the_earliest_date(connection)
@@ -520,6 +522,82 @@ new_chat_button = st.sidebar.button(r"$\textsf{\normalsize New chat session}$",
                                     type="primary", 
                                     key="new",
                                     on_click=increment_file_uploader_key)
+
+# If the user clicks "New chat session" widget:
+if new_chat_button:
+    st.session_state.messages = []
+    set_only_current_session_state_to_true("new_session")
+    st.session_state.load_session = False
+    st.session_state.search_session = False
+
+
+# The following code handles the search and retreival of the messages of a previous chat session
+# (list of all matched sessions together)
+search_session = st.sidebar.button\
+                (r"$\textsf{\normalsize SEARCH a previous session}$", 
+                 on_click=set_load_session_to_False, 
+                 type="primary", 
+                 key="search")
+
+if search_session:
+    st.session_state.search_session = True
+
+if st.session_state.search_session:
+    keywords = st.sidebar.text_input("Search keywords (separated by a space if more than one, default AND logic)")
+    if keywords != "":
+        delete_all_rows_in_message_serach(connection)
+        search_keyword_and_save_to_message_search_table(connection, keywords)
+    
+        all_dates_sessions = load_previous_chat_session_ids(connection, 'message_search', *convert_date('All dates', date_earlist, today))
+        all_dates_dic = get_summary_by_session_id_return_dic(connection, all_dates_sessions)
+
+        level_two_options_new = {
+            None : {0: "None"},
+            "All dates": all_dates_dic}
+
+        # Show options as summary. The returned value is the session id of the picked session.
+        load_history_level_2 = st.sidebar.selectbox(
+                label="Select a previous chat session:",
+                placeholder='Pick a session',
+                options=list((level_two_options_new["All dates"]).keys()),
+                index=None,
+                format_func=lambda x:level_two_options_new["All dates"][x],
+                on_change=set_new_session_to_false
+                )
+
+        if load_history_level_2:
+            load_previous_chat_session(connection, load_history_level_2)
+
+            if load_history_level_2 != st.session_state.session:
+                set_only_current_session_state_to_true("load_history_level_2")
+            else:
+                st.session_state.load_history_level_2 = False  # case for current active session
+
+            # The following code is for saving the messages to a html file.
+            session_md = convert_messages_to_markdown(st.session_state.messages)
+            session_html = markdown_to_html(session_md)
+
+            file_name = get_summary_and_return_as_file_name(connection, load_history_level_2) + ".html"
+            
+            download_chat_session = st.sidebar.download_button(
+                label="Save loaded session",
+                data=session_html,
+                file_name=file_name,
+                mime="text/markdown",
+            )
+            if download_chat_session:
+                if is_valid_file_name(file_name):
+                    st.success("Data saved.")
+                else:
+                    st.error(f"The file name '{file_name}' is not a valid file name. File not saved!", icon="🚨")
+
+            delete_a_session = st.sidebar.button("Delete loaded session from database")
+            st.sidebar.markdown("""----------""")
+
+            if delete_a_session:
+                st.session_state.delete_session = True
+
+
 st.title("Personal ChatGPT")
 st.sidebar.title("Options")
 model_name = st.sidebar.radio("Choose model:",
@@ -528,8 +606,6 @@ model_name = st.sidebar.radio("Choose model:",
                                  "gemini-1.0-pro-latest"
                                  ),
                                 index=0)
-
-init_session_states()  # Initialize all streamlit session states if there is no value
 
 # Handle model behavior. The behavior chosen will be reused rather than using a default value. 
 # If the behavior table is empty, set the initial behavior to "Deterministic".
@@ -579,12 +655,6 @@ if "session" not in st.session_state:
     else:
         set_only_current_session_state_to_true("new_table")  # The case where the session table is empty
 
-# If the user clicks "New chat session" widget:
-if new_chat_button:
-    st.session_state.messages = []
-    set_only_current_session_state_to_true("new_session")
-    st.session_state.load_session = False
-    st.session_state.search_session = False
 
 # The following code handles the retreival of the messages of a previous chat session
 # (list of session_ids of different date ranges)
@@ -674,71 +744,6 @@ if st.session_state.load_session:
             st.session_state.delete_session = True
 
 
-# The following code handles the search and retreival of the messages of a previous chat session
-# (list of all matched sessions together)
-search_session = st.sidebar.button\
-                (r"$\textsf{\normalsize SEARCH a previous session}$", 
-                 on_click=set_load_session_to_False, 
-                 type="primary", 
-                 key="search")
-
-if search_session:
-    st.session_state.search_session = True
-
-if st.session_state.search_session:
-    keywords = st.sidebar.text_input("Search keywords (separated by a space if more than one, default AND logic)")
-    if keywords != "":
-        delete_all_rows_in_message_serach(connection)
-        search_keyword_and_save_to_message_search_table(connection, keywords)
-    
-        all_dates_sessions = load_previous_chat_session_ids(connection, 'message_search', *convert_date('All dates', date_earlist, today))
-        all_dates_dic = get_summary_by_session_id_return_dic(connection, all_dates_sessions)
-
-        level_two_options_new = {
-            None : {0: "None"},
-            "All dates": all_dates_dic}
-
-        # Show options as summary. The returned value is the session id of the picked session.
-        load_history_level_2 = st.sidebar.selectbox(
-                label="Select a previous chat session:",
-                placeholder='Pick a session',
-                options=list((level_two_options_new["All dates"]).keys()),
-                index=None,
-                format_func=lambda x:level_two_options_new["All dates"][x],
-                on_change=set_new_session_to_false
-                )
-
-        if load_history_level_2:
-            load_previous_chat_session(connection, load_history_level_2)
-
-            if load_history_level_2 != st.session_state.session:
-                set_only_current_session_state_to_true("load_history_level_2")
-            else:
-                st.session_state.load_history_level_2 = False  # case for current active session
-
-            # The following code is for saving the messages to a html file.
-            session_md = convert_messages_to_markdown(st.session_state.messages)
-            session_html = markdown_to_html(session_md)
-
-            file_name = get_summary_and_return_as_file_name(connection, load_history_level_2) + ".html"
-            
-            download_chat_session = st.sidebar.download_button(
-                label="Save loaded session",
-                data=session_html,
-                file_name=file_name,
-                mime="text/markdown",
-            )
-            if download_chat_session:
-                if is_valid_file_name(file_name):
-                    st.success("Data saved.")
-                else:
-                    st.error(f"The file name '{file_name}' is not a valid file name. File not saved!", icon="🚨")
-
-            delete_a_session = st.sidebar.button("Delete loaded session from database")
-            st.sidebar.markdown("""----------""")
-
-            if delete_a_session:
-                st.session_state.delete_session = True
 
 # The following code handles dropping a file from the local computer
 dropped_files = st.sidebar.file_uploader("Drop a file or multiple files (.txt, .rtf, .pdf, etc.)", 
@@ -840,6 +845,7 @@ if st.session_state.empty_data:
     elif confirmation_2 == 'No':
         st.success("Data not deleted.")
         st.session_state.empty_data = False
+
 
 # The following code handles model API call and new chat session creation (if necessary) before sending
 # the API call. 
