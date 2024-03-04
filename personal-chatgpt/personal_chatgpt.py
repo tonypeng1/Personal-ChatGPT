@@ -189,7 +189,7 @@ def get_session_summary_and_save_to_session_table(conn, session_id1: int) -> Non
     save_session_summary_to_mysql(conn, session_id1, session_summary)
 
 
-def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
+def chatgpt(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
     """
     Processes a chat prompt using OpenAI's ChatCompletion and updates the chat session.
 
@@ -208,9 +208,6 @@ def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
     Raises:
         Raises an exception if there is a failure in database operations or OpenAI's API call.
     """
-    determine_if_terminate_current_session_and_start_a_new_one(conn)
-    st.session_state.messages.append({"role": "user", "content": prompt1})
-
     with st.chat_message("user"):
         st.markdown(prompt1)
 
@@ -221,15 +218,7 @@ def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
             for response in openai.ChatCompletion.create(
                 model="gpt-4-1106-preview",
                 messages=
-                    [{"role": "system", "content": "You are an experienced software engineer based in Austin, Texas, " +
-                    "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
-                    "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
-                    "When rendering code samples " +
-                    "always include the import statements. When giving required code solutions include complete code " +
-                    "with no omission. When giving long responses add the source of the information as URLs. " +
-                    "You are fine with strong opinion as long as " +
-                    "the source of the information can be pointed out and always question my understanding. " +
-                    "When rephrasing paragraphs, use lightly casual, straight-to-the-point language."}] +
+                    [{"role": "system", "content": model_role}] +
                     [
                     {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages
@@ -245,20 +234,15 @@ def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
 
         except OpenAIError as e:
             error_response = f"An error occurred with OpenAI in getting chat response: {e}"
-            st.write(error_response)
             full_response = error_response
         except Exception as e:
             error_response = f"An unexpected error occurred in OpenAI API call: {e}"
-            st.write(error_response)
             full_response = error_response
-
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
-
-    save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
-    save_to_mysql_message(conn, st.session_state.session, "assistant", full_response)
+    
+    return full_response
 
 
-def gemini(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
+def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
     """Generates a response using the Gemini API.
 
     Args:
@@ -268,9 +252,6 @@ def gemini(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
         p: The top-p parameter for the Gemini API.
         max_tok: The maximum number of tokens for the Gemini API.
     """
-    determine_if_terminate_current_session_and_start_a_new_one(conn)
-    st.session_state.messages.append({"role": "user", "content": prompt1})
-
     with st.chat_message("user"):
         st.markdown(prompt1)
         
@@ -281,20 +262,13 @@ def gemini(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
             for response in  gemini_model.generate_content(
                 [{"role": "user", 
                   "parts": [{
-                    "text": 
-                    "You are an experienced software engineer based in Austin, Texas, " +
-                    "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
-                    "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
-                    "When rendering code samples " +
-                    "always include the import statements. When giving required code solutions include complete code " +
-                    "with no omission. When giving long responses add the source of the information as URLs. " +
-                    "You are fine with strong opinion as long as " +
-                    "the source of the information can be pointed out and always question my understanding. " +
-                    "When rephrasing paragraphs, use lightly casual, straight-to-the-point language." +
-                    "If you understand your role, please response 'I understand.'"
-                    }]
-                },
-                {"role": "model", "parts": [{"text": "I understand."}]}] +
+                      "text": model_role + "If you understand your role, please response 'I understand.'"
+                      }]
+                      },
+                {"role": "model", 
+                 "parts": [{"text": "I understand."}]
+                 }
+                ] +
                 [
                 {"role": m["role"] if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]}
                 for m in st.session_state.messages
@@ -313,16 +287,12 @@ def gemini(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
 
         except Exception as e:
             error_response = f"An unexpected error occurred in gemini API call: {e}"
-            st.write(error_response)
             full_response = error_response
 
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
-
-    save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
-    save_to_mysql_message(conn, st.session_state.session, "assistant", full_response)
+    return full_response
 
 
-def mistral(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
+def mistral(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
     """Generates a response using the mistral API.
 
     Args:
@@ -333,9 +303,6 @@ def mistral(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
             (ignore, error occurs if used simultaneously with temperature)
         max_tok: The maximum number of tokens for the mistral API.
     """
-    determine_if_terminate_current_session_and_start_a_new_one(conn)
-    st.session_state.messages.append({"role": "user", "content": prompt1})
-
     with st.chat_message("user"):
         st.markdown(prompt1)
 
@@ -344,16 +311,8 @@ def mistral(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
         full_response = ""
 
         messages = [{
-        "role": "user", "content": "You are an experienced software engineer based in Austin, Texas, " +
-        "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
-        "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
-        "When rendering code samples " +
-        "always include the import statements. When giving required code solutions include complete code " +
-        "with no omission. When giving long responses add the source of the information as URLs. " +
-        "You are fine with strong opinion as long as " +
-        "the source of the information can be pointed out and always question my understanding. " +
-        "When rephrasing paragraphs, use lightly casual, straight-to-the-point language."
-            }]
+        "role": "user", "content": model_role
+        }]
         for m in st.session_state.messages:
             messages.append({"role": m["role"], "content": m["content"]})
 
@@ -372,13 +331,9 @@ def mistral(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
 
         except Exception as e:
             error_response = f"An unexpected error occurred in Mistral API call: {e}"
-            st.write(error_response)
             full_response = error_response
 
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
-
-    save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
-    save_to_mysql_message(conn, st.session_state.session, "assistant", full_response)
+    return full_response
 
 
 def chatgpt_summary_user_only(chat_text_user_only: str) -> str:
@@ -451,6 +406,43 @@ def determine_if_terminate_current_session_and_start_a_new_one(conn) -> None:
             break  # Breaks after handling a state, assuming only one state can be true at a time
 
 
+def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, max_token):
+    """
+    This function processes a given prompt by performing the following steps:
+    1. Determines if the current session should be terminated and a new one started.
+    2. Appends the prompt to the session state messages with the role 'user'.
+    3. Calls the appropriate model (chatgpt, gemini, or mistral) based on the model_name and passes 
+        the prompt, temperature, top_p, and max_token parameters.
+    4. Appends the model's response to the session state messages with the role 'assistant'.
+    5. Saves the prompt and response to the MySQL database.
+
+    Parameters:
+    conn (object): The connection object to the database.
+    prompt1 (str): The prompt to be processed.
+    model_name (str): The name of the model to be used for processing the prompt.
+    temperature (float): The temperature parameter for the model.
+    top_p (float): The top_p parameter for the model.
+    max_token (int): The maximum number of tokens for the model's response.
+
+    Returns:
+    None
+    """
+    determine_if_terminate_current_session_and_start_a_new_one(conn)
+    st.session_state.messages.append({"role": "user", "content": prompt1})
+    
+    if model_name == "gpt-4-1106-preview":
+        responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token))
+    elif model_name == "gemini-1.0-pro-latest":
+        responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
+    else:  # case for mistral api
+        responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))
+
+    st.session_state.messages.append({"role": "assistant", "content": responses})
+
+    save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
+    save_to_mysql_message(conn, st.session_state.session, "assistant", responses)
+
+
 def set_new_session_to_false(): 
     st.session_state.new_session = False
 
@@ -460,6 +452,11 @@ def set_load_session_to_False():
 
 
 def set_search_session_to_False():
+    st.session_state.search_session = False
+
+
+def set_both_load_and_search_sessions_to_False():
+    st.session_state.load_session = False
     st.session_state.search_session = False
 
 
@@ -529,9 +526,10 @@ model_name = st.sidebar.radio("Choose model:",
                                 ("gpt-4-1106-preview", 
                                  "mistral-large-latest",
                                  "gemini-1.0-pro-latest"
-                                 ), index=0)
+                                 ),
+                                index=0)
 
-init_session_states()  # Initialize all streamlit session states
+init_session_states()  # Initialize all streamlit session states if there is no value
 
 # Handle model behavior. The behavior chosen will be reused rather than using a default value. 
 # If the behavior table is empty, set the initial behavior to "Deterministic".
@@ -643,8 +641,6 @@ if st.session_state.load_session:
             on_change=set_new_session_to_false
             )
 
-    # st.session_state.messages = []
-
     if load_history_level_2:
         load_previous_chat_session(connection, load_history_level_2)
 
@@ -747,6 +743,7 @@ if st.session_state.search_session:
 # The following code handles dropping a file from the local computer
 dropped_files = st.sidebar.file_uploader("Drop a file or multiple files (.txt, .rtf, .pdf, etc.)", 
                                          accept_multiple_files=True,
+                                         on_change=set_both_load_and_search_sessions_to_False,
                                          key=st.session_state.file_uploader_key)
 
 if dropped_files == []:  # when a file is removed, reset the question to False
@@ -766,11 +763,11 @@ if dropped_files != [] \
         
         prompt_f = question + " " + prompt_f
 
-        to_chatgpt = st.sidebar.button("Send to LLM API without a question")
+        to_chatgpt = st.sidebar.button("Send to LLM API")
         st.sidebar.markdown("""----------""")
 
         if dropped_files != [] \
-            and (to_chatgpt or question != ""):
+            and (to_chatgpt and question != ""):
             st.session_state.question = True
             st.session_state.send_drop_file = True
 
@@ -844,22 +841,23 @@ if st.session_state.empty_data:
         st.success("Data not deleted.")
         st.session_state.empty_data = False
 
+# The following code handles model API call and new chat session creation (if necessary) before sending
+# the API call. 
+model_role = "You are an experienced software engineer based in Austin, Texas, \
+            predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. \
+            You also work on machine learning projects using python, interested in generative AI and LLMs. \
+            When rendering code samples always include the import statements. \
+            When giving required code solutions include complete code with no omission. \
+            When giving long responses add the source of the information as URLs. \
+            You are fine with strong opinion as long as the source of the information can be pointed out \
+            and always question my understanding. \
+            When rephrasing paragraphs, use lightly casual, straight-to-the-point language."
 
 if prompt := st.chat_input("What is up?"):
-    if model_name == "gpt-4-1106-preview":
-        chatgpt(connection, prompt, temperature, top_p, int(max_token))
-    elif model_name == "gemini-1.0-pro-latest":
-        gemini(connection, prompt, temperature, top_p, int(max_token))
-    else:  # case for mistral api
-        mistral(connection, prompt, temperature, top_p, int(max_token))
+    process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
 
 if st.session_state.send_drop_file:
-    if model_name == "gpt-4-1106-preview":
-        chatgpt(connection, prompt_f, temperature, top_p, int(max_token))
-    elif model_name == "gemini-1.0-pro-latest":
-        gemini(connection, prompt, temperature, top_p, int(max_token))
-    else:  # case for mistral api
-        mistral(connection, prompt, temperature, top_p, int(max_token))
+    process_prompt(connection, prompt_f, model_name, model_role, temperature, top_p, max_token)
 
     st.session_state.send_drop_file = False
     increment_file_uploader_key()  # so that a new file_uploader shows up whithour the files
