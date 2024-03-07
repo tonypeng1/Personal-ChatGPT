@@ -1,5 +1,6 @@
 from typing import Optional, Tuple
 
+import anthropic
 import google.generativeai as genai
 from mistralai.client import MistralClient
 from mysql.connector import connect, Error
@@ -238,6 +239,7 @@ def chatgpt(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
         except Exception as e:
             error_response = f"An unexpected error occurred in OpenAI API call: {e}"
             full_response = error_response
+            message_placeholder.markdown(full_response)
     
     return full_response
 
@@ -288,6 +290,7 @@ def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
         except Exception as e:
             error_response = f"An unexpected error occurred in gemini API call: {e}"
             full_response = error_response
+            message_placeholder.markdown(full_response)
 
     return full_response
 
@@ -332,7 +335,59 @@ def mistral(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
         except Exception as e:
             error_response = f"An unexpected error occurred in Mistral API call: {e}"
             full_response = error_response
+            message_placeholder.markdown(full_response)
 
+    return full_response
+
+
+def claude(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
+    """
+    Processes a chat prompt using Anthropic's Claude 3 model and updates the chat session.
+
+    This function determines if the current chat session should be terminated and a new one started,
+    appends the user's prompt to the session state, sends the prompt to Anthropic's messages.create(),
+    and then appends the assistant's response to the session state. It also handles saving messages
+    to the MySQL database.
+
+    Args:
+        conn: A connection object to the MySQL database.
+        prompt (str): The user's input prompt to the chatbot.
+        temp (float): The temperature parameter for OpenAI's ChatCompletion.
+        p (float): The top_p parameter for OpenAI's ChatCompletion.
+        max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
+
+    Raises:
+        Raises an exception if there is a failure in database operations or OpenAI's API call.
+    """
+    with st.chat_message("user"):
+        st.markdown(prompt1)
+
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        full_response = ""
+        try:
+            with claude_client.messages.stream(
+                model=claude_model,
+                system=model_role,
+                messages=
+                    [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.messages
+                    ],
+                temperature=temp,
+                top_p=p,
+                max_tokens=max_tok,
+                ) as stream:
+                for response in stream.text_stream:
+                    full_response += response
+                    message_placeholder.markdown(full_response + "▌")
+            message_placeholder.markdown(full_response)
+
+        except Exception as e:
+            error_response = f"An unexpected error occurred in Claude 3 API call: {e}"
+            full_response = error_response
+            message_placeholder.markdown(full_response)
+    
     return full_response
 
 
@@ -432,6 +487,8 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
     
     if model_name == "gpt-4-1106-preview":
         responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token))
+    elif model_name == "claude-3-opus-20240229":
+        responses = claude(prompt1, model_role, temperature, top_p, int(max_token))
     elif model_name == "gemini-1.0-pro-latest":
         responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
     else:  # case for mistral api
@@ -497,6 +554,7 @@ def get_current_session_date_in_message_table(conn, session_id: int) -> Optional
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 MISTRAL_API_KEY = st.secrets["MISTRAL_API_KEY"]
+CLAUDE_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
 
 # Set gemini app configuration
 genai.configure(api_key=GOOGLE_API_KEY)
@@ -505,6 +563,10 @@ gemini_model = genai.GenerativeModel('gemini-1.0-pro-latest')
 # Set mastral app configuration
 mistral_model = "mistral-large-latest"
 mistral_client = MistralClient(api_key=MISTRAL_API_KEY)
+
+# Set Claude app configuration
+claude_model = "claude-3-opus-20240229"
+claude_client = anthropic.Anthropic(api_key=CLAUDE_API_KEY,)
 
 # Database initial operation
 connection = connect(**st.secrets["mysql"])  # get database credentials from .streamlit/secrets.toml
@@ -601,7 +663,8 @@ if st.session_state.search_session:
 st.title("Personal ChatGPT")
 st.sidebar.title("Options")
 model_name = st.sidebar.radio("Choose model:",
-                                ("gpt-4-1106-preview", 
+                                ("gpt-4-1106-preview",
+                                 "claude-3-opus-20240229", 
                                  "mistral-large-latest",
                                  "gemini-1.0-pro-latest"
                                  ),
