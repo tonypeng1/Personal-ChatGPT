@@ -834,8 +834,8 @@ if dropped_files != [] \
         to_chatgpt = st.sidebar.button("Send to LLM API")
         st.sidebar.markdown("""----------""")
 
-        if dropped_files != [] \
-            and (to_chatgpt and question != ""):
+        if dropped_files != [] and to_chatgpt:
+            # and (to_chatgpt and question != ""):
             st.session_state.question = True
             st.session_state.send_drop_file = True
 
