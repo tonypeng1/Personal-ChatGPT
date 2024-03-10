@@ -1,3 +1,5 @@
+from typing import Optional, Tuple
+
 import google.generativeai as genai
 from mysql.connector import connect, Error
 import openai
@@ -12,7 +14,8 @@ from init_session import get_and_set_current_session_id, \
                         load_previous_chat_session, \
                         set_only_current_session_state_to_true
 from init_st_session_state import init_session_states
-from load_session import load_current_date_from_database
+from load_session import load_current_date_from_database, \
+                        get_current_session_date_in_message_table
 from model_behavior import insert_initial_default_model_behavior, \
                         Load_the_last_saved_model_behavior, \
                         return_temp_and_top_p_values_from_model_behavior, \
@@ -161,7 +164,13 @@ def gemini(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
                                     ),
                 stream=True
                 ):
-                full_response += response.text
+                # Check if the response is a multipart response
+                if response.is_multipart():
+                    parts = response.parts
+                    text = parts[0].text
+                else:
+                    text = response.text
+                full_response += text
                 message_placeholder.markdown(full_response + "▌")
             message_placeholder.markdown(full_response)
 
@@ -225,6 +234,11 @@ def increment_file_uploader_key():
     st.session_state["file_uploader_key"] += 1
 
 
+def set_both_load_and_search_sessions_to_False():
+    st.session_state.load_session = False
+    st.session_state.search_session = False
+
+
 if __name__ == "__main__":
     # This code illustrates the dropping of a file (or files), after converting to the text format,
     # to a LLM model.
@@ -278,17 +292,30 @@ if __name__ == "__main__":
 
     today = load_current_date_from_database(connection)  
 
+    # Initiate a session (either display the current active session in the database or 
+    # start a new session)
     if "session" not in st.session_state:
         get_and_set_current_session_id(connection)
 
         if st.session_state.session is not None:
             load_previous_chat_session(connection, st.session_state.session)
+
+            # The code below is used to handle a current active session across different dates and a new prompt is added.
+            current_session_datetime = \
+            get_current_session_date_in_message_table(connection, st.session_state.session)
+            if current_session_datetime is not None:
+                current_session_date = current_session_datetime[0].date()
+
+                if today != current_session_date:  # If a new session ignore the line below.
+                    set_only_current_session_state_to_true("session_different_date")
+
         else:
-            set_only_current_session_state_to_true("new_table")
+            set_only_current_session_state_to_true("new_table")  # The case where the session table is empty
 
     # The following code handles dropping a file from the local computer
     dropped_files = st.sidebar.file_uploader("Drop a file or multiple files (.txt, .rtf, .pdf, etc.)", 
                                             accept_multiple_files=True,
+                                            on_change=set_both_load_and_search_sessions_to_False,
                                             key=st.session_state.file_uploader_key)
 
     if dropped_files == []:  # when a file is removed, reset the question to False
@@ -308,11 +335,11 @@ if __name__ == "__main__":
             
             prompt_f = question + " " + prompt_f
 
-            to_chatgpt = st.sidebar.button("Send to LLM API without a question")
+            to_chatgpt = st.sidebar.button("Send to LLM API")
             st.sidebar.markdown("""----------""")
 
-            if dropped_files != [] \
-                and (to_chatgpt or question != ""):
+            if dropped_files != [] and to_chatgpt:
+                # and (to_chatgpt and question != ""):
                 st.session_state.question = True
                 st.session_state.send_drop_file = True
 

@@ -1,5 +1,3 @@
-from typing import Optional, Tuple
-
 import anthropic
 import google.generativeai as genai
 from mistralai.client import MistralClient
@@ -13,7 +11,9 @@ from delete_message import delete_the_messages_of_a_chat_session, \
                         delete_all_rows
 from drop_file import increment_file_uploader_key, \
                         extract_text_from_different_file_types, \
-                        save_to_mysql_message
+                        get_current_session_date_in_message_table, \
+                        save_to_mysql_message, \
+                        set_both_load_and_search_sessions_to_False
 from init_database import init_mysql_timezone, \
                         init_database_tables, \
                         modify_content_column_data_type_if_different
@@ -27,7 +27,8 @@ from load_session import load_current_date_from_database, \
                         convert_date, \
                         get_summary_by_session_id_return_dic, \
                         remove_if_a_session_not_exist_in_date_range, \
-                        get_available_date_range
+                        get_available_date_range, \
+                        get_current_session_date_in_message_table
 from model_behavior import insert_initial_default_model_behavior, \
                         Load_the_last_saved_model_behavior, \
                         return_temp_and_top_p_values_from_model_behavior, \
@@ -510,44 +511,6 @@ def set_load_session_to_False():
 
 def set_search_session_to_False():
     st.session_state.search_session = False
-
-
-def set_both_load_and_search_sessions_to_False():
-    st.session_state.load_session = False
-    st.session_state.search_session = False
-
-
-def get_current_session_date_in_message_table(conn, session_id: int) -> Optional[Tuple]:
-    """
-    Retrieve the timestamp of the first message for a given session ID from the message table.
-
-    Parameters:
-    conn: The database connection object.
-    session_id (int): The ID of the session for which to retrieve the timestamp.
-
-    Returns:
-    Optional[Tuple]: A tuple containing the timestamp of the first message, or None if no message is found.
-
-    Raises:
-    Raises an exception if there is a database operation error.
-
-    """
-    try:
-        with conn.cursor() as cursor:
-            sql = """
-            SELECT timestamp 
-            FROM message 
-            WHERE session_id = %s
-            LIMIT 1
-            """
-            val = (session_id, )
-            cursor.execute(sql, val)
-            result = cursor.fetchone()
-            return result
-
-    except Error as error:
-        st.error(f"Failed to get current session date from message table: {error}")
-        raise
 
 
 # Get app keys

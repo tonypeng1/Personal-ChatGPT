@@ -235,6 +235,39 @@ def load_previous_chat_session_ids(conn, table, date_start: date, date_end: date
         raise
 
 
+def get_current_session_date_in_message_table(conn, session_id: int) -> Optional[Tuple]:
+    """
+    Retrieve the timestamp of the first message for a given session ID from the message table.
+
+    Parameters:
+    conn: The database connection object.
+    session_id (int): The ID of the session for which to retrieve the timestamp.
+
+    Returns:
+    Optional[Tuple]: A tuple containing the timestamp of the first message, or None if no message is found.
+
+    Raises:
+    Raises an exception if there is a database operation error.
+
+    """
+    try:
+        with conn.cursor() as cursor:
+            sql = """
+            SELECT timestamp 
+            FROM message 
+            WHERE session_id = %s
+            LIMIT 1
+            """
+            val = (session_id, )
+            cursor.execute(sql, val)
+            result = cursor.fetchone()
+            return result
+
+    except Error as error:
+        st.error(f"Failed to get current session date from message table: {error}")
+        raise
+
+
 def set_new_session_to_false(): 
     st.session_state.new_session = False
 
@@ -248,10 +281,10 @@ def set_search_session_to_False():
 
 
 if __name__ == "__main__":
-    """
-    This code illustrate retrieval or searching for a previous session, as well as the
-    deletion of one session or of ALL data in ALL tables in the database.
-    """
+    
+    # This code illustrate retrieval or searching for a previous session, as well as the
+    # deletion of one session or of ALL data in ALL tables in the database.
+    
     # Database initial operation
     connection = connect(**st.secrets["mysql"])  # get database credentials from .streamlit/secrets.toml
     init_database_tables(connection) # Create tables if not existing
@@ -267,8 +300,18 @@ if __name__ == "__main__":
 
         if st.session_state.session is not None:
             load_previous_chat_session(connection, st.session_state.session)
+
+            # The code below is used to handle a current active session across different dates and a new prompt is added.
+            current_session_datetime = \
+            get_current_session_date_in_message_table(connection, st.session_state.session)
+            if current_session_datetime is not None:
+                current_session_date = current_session_datetime[0].date()
+
+                if today != current_session_date:  # If a new session ignore the line below.
+                    set_only_current_session_state_to_true("session_different_date")
+
         else:
-            set_only_current_session_state_to_true("new_table")
+            set_only_current_session_state_to_true("new_table")  # The case where the session table is empty
 
     # The following code handles the retreival of the messages of a previous chat session
     # (list of session_ids of different date ranges)
@@ -283,7 +326,7 @@ if __name__ == "__main__":
         yesterday_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Yesterday', date_earlist, today))
         seven_days_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Previous 7 days', date_earlist, today))
         thirty_days_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Previous 30 days', date_earlist, today))
-        older_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Older', date_earlist))
+        older_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Older', date_earlist, today))
 
         today_dic = get_summary_by_session_id_return_dic(connection, today_sessions)
         yesterday_dic = get_summary_by_session_id_return_dic(connection, yesterday_sessions)
@@ -370,7 +413,7 @@ if __name__ == "__main__":
             delete_all_rows_in_message_serach(connection)
             search_keyword_and_save_to_message_search_table(connection, keywords)
         
-            all_dates_sessions = load_previous_chat_session_ids(connection, 'message_search', *convert_date('All dates', date_earlist))
+            all_dates_sessions = load_previous_chat_session_ids(connection, 'message_search', *convert_date('All dates', date_earlist, today))
             all_dates_dic = get_summary_by_session_id_return_dic(connection, all_dates_sessions)
 
             level_two_options_new = {
