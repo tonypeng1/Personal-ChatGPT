@@ -11,7 +11,6 @@ from delete_message import delete_the_messages_of_a_chat_session, \
                         delete_all_rows
 from drop_file import increment_file_uploader_key, \
                         extract_text_from_different_file_types, \
-                        get_current_session_date_in_message_table, \
                         save_to_mysql_message, \
                         set_both_load_and_search_sessions_to_False
 from init_database import init_mysql_timezone, \
@@ -28,7 +27,10 @@ from load_session import load_current_date_from_database, \
                         get_summary_by_session_id_return_dic, \
                         remove_if_a_session_not_exist_in_date_range, \
                         get_available_date_range, \
-                        get_current_session_date_in_message_table
+                        get_current_session_date_in_message_table, \
+                        set_new_session_to_false, \
+                        set_load_session_to_False, \
+                        set_search_session_to_False
 from model_behavior import insert_initial_default_model_behavior, \
                         Load_the_last_saved_model_behavior, \
                         return_temp_and_top_p_values_from_model_behavior, \
@@ -40,66 +42,7 @@ from save_to_html import convert_messages_to_markdown, \
                         is_valid_file_name
 from search_message import delete_all_rows_in_message_serach, \
                         search_keyword_and_save_to_message_search_table
-
-
-def load_previous_chat_session_all_questions_for_summary_only_users(conn, session1: str) -> str:
-    """
-    Loads and concatenates the content of all messages sent by the user in a given chat session.
-
-    Args:
-        conn: A MySQL database connection object.
-        session_id: The unique identifier for the chat session.
-
-    Returns:
-        A string containing all user messages concatenated together, or None if an error occurs.
-
-    Raises:
-        Raises an error and logs it with Streamlit if the database operation fails.
-    """
-    try:
-        with conn.cursor() as cursor:
-            sql = "SELECT role, content FROM message WHERE session_id = %s"
-            val = (session1,)
-            cursor.execute(sql, val)
-
-            chat_user = ""
-            for (role, content) in cursor:
-                if role == 'user':
-                    if content is not None:
-                        chat_user += content + " "
-                    else:
-                        chat_user += ""
-            chat_user = shorten_prompt_to_tokens(chat_user)
-            return chat_user
-
-    except Error as error:
-        st.error(f"Failed to load previous chat sessions for summary (user only): {error}")
-        raise
-
-
-def shorten_prompt_to_tokens(prompt: str, encoding_name: str="cl100k_base" , max_tokens: int=3800) -> str:
-    """
-    Shortens the input prompt to a specified maximum number of tokens using the specified encoding.
-    If the number of tokens in the prompt exceeds the max_tokens limit, it truncates the prompt.
-
-    Parameters:
-    - prompt (str): The input text to be potentially shortened.
-    - encoding_name (str): The name of the encoding to use for tokenization (default: "cl100k_base").
-    - max_tokens (int): The maximum number of tokens that the prompt should contain (default: 3800).
-
-    Returns:
-    - str: The original prompt if it's within the max_tokens limit, otherwise a truncated version of it.
-    """
-    encoding = tiktoken.get_encoding(encoding_name)
-    encoding_list = encoding.encode(prompt)
-    num_tokens = len(encoding_list)
-
-    if num_tokens > max_tokens:
-        truncated_tokens = encoding_list[:max_tokens]
-        truncated_prompt = encoding.decode(truncated_tokens)
-        return truncated_prompt
-    else:
-        return prompt
+from session_summary import get_session_summary_and_save_to_session_table
 
 
 def start_session_save_to_mysql_and_increment_session_id(conn):
@@ -151,44 +94,6 @@ def end_session_save_to_mysql_and_save_summary(conn) -> None:
         raise
 
     get_session_summary_and_save_to_session_table(conn, st.session_state.session)  # Save session summary after ending session
-
-
-def save_session_summary_to_mysql(conn, id: int, summary_text: str) -> None:
-    """
-    Updates the session summary text in the "session" table in a MySQL database.
-
-    Parameters:
-    - conn (MySQLConnection): An established MySQL connection object.
-    - id (int): The unique identifier for the session to be updated.
-    - summary_text (str): The new summary text for the session.
-
-    Raises:
-    - Error: If the database update operation fails.
-    """
-    try:
-        with conn.cursor() as cursor:
-            sql = "UPDATE session SET summary = %s WHERE session_id = %s;"
-            val = (summary_text, id)
-            cursor.execute(sql, val)
-            conn.commit()
-
-    except Error as error:
-        st.error(f"Failed to save the summary of a session: {error}")
-        raise
-
-
-def get_session_summary_and_save_to_session_table(conn, session_id1: int) -> None:
-    """
-    Retrieves the chat session's text, generates a summary for user messages only,
-    and saves the summary to the session table in the database.
-
-    Parameters:
-    - session_id1 (str): The unique identifier of the chat session.
-
-    """
-    chat_session_text_user_only = load_previous_chat_session_all_questions_for_summary_only_users(conn, session_id1)
-    session_summary = chatgpt_summary_user_only(chat_session_text_user_only)
-    save_session_summary_to_mysql(conn, session_id1, session_summary)
 
 
 def chatgpt(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
@@ -392,36 +297,6 @@ def claude(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
     return full_response
 
 
-def chatgpt_summary_user_only(chat_text_user_only: str) -> str:
-    """
-    Generates a summary sentence for the main topics of a user's chat input using OpenAI's Completion API.
-
-    Parameters:
-    chat_text_user_only (str): The chat text input from the user which needs to be summarized.
-
-    Returns:
-    str: A summary sentence of the user's chat input.
-
-    Note:
-    The prompt instructs the AI to avoid starting the sentence with "The user" or "Questions about"
-    and limits the summary to a maximum of sixteen words.
-    """
-    response = openai.Completion.create(
-      engine="gpt-3.5-turbo-instruct",
-      prompt="Use a sentence to summary the main topics of the user's questions in following chat session. " + 
-      "DO NOT start the sentence with 'The user' or 'Questions about'. For example, if the summary is 'Questions about handling errors " + 
-      "in OpenAI API.', just return 'Handling errors in OpenAI API'. DO NOT use special characters that can not be used in a file name. " + 
-      "No more than ten words in the sentence. A partial sentence is fine.\n\n" + chat_text_user_only,
-      max_tokens=30,  # Adjust the max tokens as per the summarization requirements
-      n=1,
-      stop=None,
-      temperature=0.5
-      )
-    summary = response.choices[0].text.strip()
-
-    return summary
-
-
 def save_session_state_messages(conn) -> None:
     """
     Iterates over messages in the session state and saves each to the message table.
@@ -499,18 +374,6 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
 
     save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
     save_to_mysql_message(conn, st.session_state.session, "assistant", responses)
-
-
-def set_new_session_to_false(): 
-    st.session_state.new_session = False
-
-
-def set_load_session_to_False():
-    st.session_state.load_session = False
-
-
-def set_search_session_to_False():
-    st.session_state.search_session = False
 
 
 # Get app keys
