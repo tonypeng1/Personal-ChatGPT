@@ -75,10 +75,9 @@ def set_only_current_session_state_to_true(current_state: str) -> None:
 
 
 if __name__ == "__main__":
-    """
-    This code displays the messages of the current active session (most recent session) 
-    in the database.
-    """
+    # This code displays the messages of the current active session (most recent session) 
+    # in the database.
+    
     connection = connect(**st.secrets["mysql"])  # Get LOCAL database credentials from .streamlit/secrets.toml for development.
 
     if "new_table" not in st.session_state:
