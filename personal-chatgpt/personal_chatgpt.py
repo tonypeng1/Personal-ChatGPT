@@ -5,7 +5,6 @@ from mysql.connector import connect, Error
 import openai
 from openai.error import OpenAIError
 import streamlit as st
-import tiktoken
 
 from delete_message import delete_the_messages_of_a_chat_session, \
                         delete_all_rows

@@ -55,7 +55,7 @@ def init_session_states():
         st.session_state.new_session = False
 
     if "load_history_level_2" not in st.session_state:
-        st.session_state.load_history_level_2 = False
+        st.session_state.load_history_level_2 = 0  # session ID that starts from 1
 
     if "delete_session" not in st.session_state:
         st.session_state.delete_session = False
