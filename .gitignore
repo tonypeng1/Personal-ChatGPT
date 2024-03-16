@@ -1,7 +1,8 @@
 .DS_Store
 .venv/
 counter.py
-.streamlit/
+.streamlit/secrets.toml
+personal-chatgpt/.streamlit/secrets.toml
 test.py
 langchat.py
 chat.py
