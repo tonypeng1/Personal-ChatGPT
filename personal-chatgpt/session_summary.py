@@ -1,5 +1,6 @@
 from mysql.connector import Error
 import openai
+from openai.error import OpenAIError
 import streamlit as st
 import tiktoken
 
@@ -78,20 +79,27 @@ def chatgpt_summary_user_only(chat_text_user_only: str) -> str:
     The prompt instructs the AI to avoid starting the sentence with "The user" or "Questions about"
     and limits the summary to a maximum of sixteen words.
     """
-    response = openai.Completion.create(
-      engine="gpt-3.5-turbo-instruct",
-      prompt="Use a sentence to summary the main topics of the user's questions in following chat session. " + 
-      "DO NOT start the sentence with 'The user' or 'Questions about'. For example, if the summary is 'Questions about handling errors " + 
-      "in OpenAI API.', just return 'Handling errors in OpenAI API'. DO NOT use special characters that can not be used in a file name. " + 
-      "No more than ten words in the sentence. A partial sentence is fine.\n\n" + chat_text_user_only,
-      max_tokens=30,  # Adjust the max tokens as per the summarization requirements
-      n=1,
-      stop=None,
-      temperature=0.5
-      )
-    summary = response.choices[0].text.strip()
+    try:
+        response = openai.Completion.create(
+        engine="gpt-3.5-turbo-instruct",
+        prompt="Use a sentence to summary the main topics of the user's questions in following chat session. " + 
+        "DO NOT start the sentence with 'The user' or 'Questions about'. For example, if the summary is 'Questions about handling errors " + 
+        "in OpenAI API.', just return 'Handling errors in OpenAI API'. DO NOT use special characters that can not be used in a file name. " + 
+        "No more than ten words in the sentence. A partial sentence is fine.\n\n" + chat_text_user_only,
+        max_tokens=30,  # Adjust the max tokens as per the summarization requirements
+        n=1,
+        stop=None,
+        temperature=0.5
+        )
+        summary = response.choices[0].text.strip()
+        return summary
 
-    return summary
+    except OpenAIError as e:
+        st.error(f"An error occurred with OpenAI in getting chat summary: {e}")
+        raise
+    except Exception as e:
+        st.error(f"An unexpected error occurred in OpenAI API call to get summary: {e}")
+        raise
 
 
 def save_session_summary_to_mysql(conn, id: int, summary_text: str) -> None:
