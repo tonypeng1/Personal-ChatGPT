@@ -11,7 +11,7 @@ setup(
     version=0.1,
     description="Personal ChatGpt ",
     author="Tony Peng",
-    author_email="goku@madewithml.com",
+    author_email="tony3t3t@hotmail.com",
     python_requires=">=3.11",
     packages=find_packages(),
     install_requires=required_packages,
