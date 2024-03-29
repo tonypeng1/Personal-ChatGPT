@@ -1,4 +1,6 @@
-from typing import Optional, Tuple
+import csv
+from io import StringIO
+import json
 
 import google.generativeai as genai
 from mysql.connector import connect, Error
@@ -202,6 +204,34 @@ def extract_text_from_pdf(pdf) -> str:
     return ''.join(page.extract_text() or '' for page in pdf_reader.pages)
 
 
+def extract_jason_from_csv(csv_file) -> json:
+    """
+    Converts an uploaded CSV file to a JSON string.
+
+    Args:
+        csv_file: An UploadedFile object representing the uploaded CSV file.
+
+    Returns:
+        str: The JSON string representation of the CSV data.
+    """
+    # Read the content of the uploaded file into a string (assuming UTF-8 encoding)
+    file_content = csv_file.read().decode('utf-8')
+    
+    # Strip the BOM if present
+    if file_content.startswith('\ufeff'):
+        file_content = file_content[1:]
+
+    # Use StringIO to simulate a text file object
+    string_io_obj = StringIO(file_content)
+    
+    # Now use csv.DictReader to read the simulated file object
+    reader = csv.DictReader(string_io_obj)
+    data = [row for row in reader]
+
+    json_data = json.dumps(data)
+    return json_data
+
+
 def extract_text_from_different_file_types(file):
     """
     Extract text from a file of various types including PDF, TXT, and RTF.
@@ -218,6 +248,8 @@ def extract_text_from_different_file_types(file):
     elif type in ['txt', 'rtf']:
         raw_text = file.read().decode("utf-8")
         text = rtf_to_text(raw_text) if type == 'rtf' else raw_text
+    elif type == 'csv':
+        text = extract_jason_from_csv(file) # in fact in json format
     else:  # Treat other file type as .txt file
         text = file.read().decode("utf-8")  # Treat all other types as text files
 

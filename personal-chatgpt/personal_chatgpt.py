@@ -493,7 +493,7 @@ model_name = st.sidebar.radio("Choose model:",
                                  "mistral-large-latest",
                                  "gemini-1.0-pro-latest"
                                  ),
-                                index=0)
+                                index=3)
 
 # Handle model behavior. The behavior chosen will be reused rather than using a default value. 
 # If the behavior table is empty, set the initial behavior to "Deterministic".
@@ -634,7 +634,7 @@ if st.session_state.load_session:
 
 
 # The following code handles dropping a file from the local computer
-dropped_files = st.sidebar.file_uploader("Drop a file or multiple files (.txt, .rtf, .pdf, etc.)", 
+dropped_files = st.sidebar.file_uploader("Drop a file or multiple files (.txt, .rtf, .pdf, .csv)", 
                                          accept_multiple_files=True,
                                          on_change=set_both_load_and_search_sessions_to_False,
                                          key=st.session_state.file_uploader_key)
