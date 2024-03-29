@@ -3,7 +3,7 @@ Personal LLM chat APP is an open-source app developed using Streamlit. It is pow
 
 ## APP Features
 
-This app (version 0.1.0) currently has the following features.
+This app (version 0.2.0) currently has the following features.
 
 1. Switch between the LLM model of OpenAI Gpt-4, Anthropic Claude 3, Mistral large, and Google Gemini anytime in a chat session.
 2. Select the behavior of your model as either deterministic, conservative, balanced, diverse, or creative.
@@ -45,12 +45,12 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 0.1.0 of this APP, and install the project,
+To create a Python virtual environment, check out version 0.2.0 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 pthon3 -m venv .venv
 source .venv/bin/activate
-git checkout v0.1.0
+git checkout v0.2.0
 python3 -m pip install –upgrade pip setuptools wheel
 python3 -m pip -e .
 ```
