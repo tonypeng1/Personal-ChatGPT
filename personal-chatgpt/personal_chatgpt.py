@@ -519,7 +519,7 @@ max_token = st.sidebar.number_input(
     label="Select the max number of tokens the model can generate",
     min_value=1000,
     max_value=4000,
-    value=4000,
+    value=2000,
     step=1000
     )
 
