@@ -40,7 +40,7 @@ If you have a MySQL database on your computer, another way to run this app witho
 streamlit run personal_chatgpt.py
 ```
 
-## Fork the GitHub Repository and APP Installation
+## Clone the GitHub Repository and APP Installation
 To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
@@ -56,7 +56,7 @@ python3 -m pip -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:0.1.0 .
+docker build -t streamlit-mysql:0.2.0 .
 docker compose up
 ```
 ## Medium Article
