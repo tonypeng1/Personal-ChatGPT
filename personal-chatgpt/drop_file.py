@@ -5,7 +5,7 @@ import json
 import google.generativeai as genai
 from mysql.connector import connect, Error
 import openai
-from openai.error import OpenAIError
+from openai import OpenAIError
 from PyPDF2 import PdfReader
 import streamlit as st
 from striprtf.striprtf import rtf_to_text
@@ -204,7 +204,7 @@ def extract_text_from_pdf(pdf) -> str:
     return ''.join(page.extract_text() or '' for page in pdf_reader.pages)
 
 
-def extract_jason_from_csv(csv_file) -> json:
+def extract_jason_from_csv(csv_file) -> str:
     """
     Converts an uploaded CSV file to a JSON string.
 

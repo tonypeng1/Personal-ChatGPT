@@ -1,6 +1,5 @@
 from mysql.connector import Error
-import openai
-from openai.error import OpenAIError
+from openai import OpenAIError
 import streamlit as st
 import tiktoken
 
@@ -65,7 +64,7 @@ def shorten_prompt_to_tokens(prompt: str, encoding_name: str="cl100k_base" , max
         return prompt
 
 
-def chatgpt_summary_user_only(chat_text_user_only: str) -> str:
+def chatgpt_summary_user_only(client, chat_text_user_only: str) -> str:
     """
     Generates a summary sentence for the main topics of a user's chat input using OpenAI's Completion API.
 
@@ -80,8 +79,8 @@ def chatgpt_summary_user_only(chat_text_user_only: str) -> str:
     and limits the summary to a maximum of sixteen words.
     """
     try:
-        response = openai.Completion.create(
-        engine="gpt-3.5-turbo-instruct",
+        response = client.completions.create(
+        model="gpt-3.5-turbo-instruct",
         prompt="Use a sentence to summary the main topics of the user's questions in following chat session. " + 
         "DO NOT start the sentence with 'The user' or 'Questions about'. For example, if the summary is 'Questions about handling errors " + 
         "in OpenAI API.', just return 'Handling errors in OpenAI API'. DO NOT use special characters that can not be used in a file name. " + 
@@ -126,7 +125,7 @@ def save_session_summary_to_mysql(conn, id: int, summary_text: str) -> None:
         raise
 
 
-def get_session_summary_and_save_to_session_table(conn, session_id1: int) -> None:
+def get_session_summary_and_save_to_session_table(conn, client, session_id1: int) -> None:
     """
     Retrieves the chat session's text, generates a summary for user messages only,
     and saves the summary to the session table in the database.
@@ -136,5 +135,5 @@ def get_session_summary_and_save_to_session_table(conn, session_id1: int) -> Non
 
     """
     chat_session_text_user_only = load_previous_chat_session_all_questions_for_summary_only_users(conn, session_id1)
-    session_summary = chatgpt_summary_user_only(chat_session_text_user_only)
+    session_summary = chatgpt_summary_user_only(client, chat_session_text_user_only)
     save_session_summary_to_mysql(conn, session_id1, session_summary)
