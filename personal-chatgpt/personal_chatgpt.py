@@ -304,8 +304,11 @@ def together(prompt1: str, model_role: str, temp: float, p: float, max_tok: int)
     Raises:
         Raises an exception if there is a failure in database operations or Together's API call.
     """
-    prompt1 = f"[INST]{prompt1}[/INST]"
-
+    role = "You are an expert programmer who helps to write and debug code based on \
+            the user's request with concise explanations. \
+            When rendering code samples always include the import statements if applicable. \
+            When giving required code solutions include complete code with no omission. \
+            When rephrasing paragraphs, use lightly casual, straight-to-the-point language."
     with st.chat_message("user"):
         st.markdown(prompt1)
     with st.chat_message("assistant"):
@@ -315,9 +318,11 @@ def together(prompt1: str, model_role: str, temp: float, p: float, max_tok: int)
             for response in together_client.chat.completions.create(
                 model="codellama/CodeLlama-70b-Instruct-hf",
                 messages=
+                    [{"role": "system", "content": role}] +
                     [
-                    {"role": m["role"], "content": f'[INST]{m["content"]}[/INST]'}
-                    # {f'[INST]{m["content"]}[/INST]' if m["role"] == "user" else m["content"]}
+                    {"role": m["role"], 
+                     "content": f'[INST]{m["content"]}[/INST]' if m["role"] == "user" \
+                     else m["content"]}
                     for m in st.session_state.messages
                     ],
                 temperature=temp,
@@ -343,7 +348,8 @@ def together(prompt1: str, model_role: str, temp: float, p: float, max_tok: int)
 
 def together_python(prompt1: str, temp: float, p: float, max_tok: int) -> str:
     """
-    Processes a chat prompt using Together's Completion and updates the chat session.
+    Processes a prompt using Together's Completion and updates the chat session. This
+    function is not a chat, only one prompt at a time.
 
     Args:
         conn: A connection object to the MySQL database.
@@ -371,7 +377,6 @@ def together_python(prompt1: str, temp: float, p: float, max_tok: int) -> str:
                 stream=True,
                 ):
                 full_response += response.choices[0].text or ""
-                # full_response = full_response.replace("# ", "## ")
                 message_placeholder.markdown(full_response + "▌")
             message_placeholder.markdown(full_response)
 
