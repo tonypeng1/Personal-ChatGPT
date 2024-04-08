@@ -186,7 +186,13 @@ def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
                                     ),
                 stream=True
                 ):
-                full_response += response.text
+                if hasattr(response, 'parts'):
+                    for part in response.parts:
+                        text_content = part.text
+                        full_response += text_content
+                else:
+                    text_content += response.text
+                    full_response += text_content
                 message_placeholder.markdown(full_response + "▌")
             message_placeholder.markdown(full_response)
 

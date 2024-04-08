@@ -232,6 +232,17 @@ def extract_jason_from_csv(csv_file) -> str:
     return json_data
 
 
+# def extract_from_text(file) -> str:
+
+#     raw_data = file.read()
+#     result = chardet.detect(raw_data)
+#     st.write(result)
+#     encode = result["encoding"]
+#     contents = raw_data.decode(encode)
+
+#     return contents 
+
+
 def extract_text_from_different_file_types(file):
     """
     Extract text from a file of various types including PDF, TXT, and RTF.
