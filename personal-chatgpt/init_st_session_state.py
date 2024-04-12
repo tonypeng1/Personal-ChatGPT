@@ -75,6 +75,9 @@ def init_session_states():
     if "search_session" not in st.session_state:
         st.session_state.search_session = False
 
+    if "drop_file" not in st.session_state:
+        st.session_state.drop_file = False
+
     if "send_drop_file" not in st.session_state:
         st.session_state.send_drop_file = False
 

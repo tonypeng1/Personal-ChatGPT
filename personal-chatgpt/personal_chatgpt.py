@@ -532,6 +532,7 @@ if new_chat_button:
     set_only_current_session_state_to_true("new_session")
     st.session_state.load_session = False
     st.session_state.search_session = False
+    st.session_state.drop_file = False
 
 
 # The following code handles the search and retreival of the messages of a chat session
@@ -544,6 +545,7 @@ search_session = st.sidebar.button\
 
 if search_session:
     st.session_state.search_session = True
+    st.session_state.drop_file = False
 
 if st.session_state.search_session:
     keywords = st.sidebar.text_input("Search keywords (separated by a space if more than one, default AND logic)")
@@ -672,6 +674,7 @@ load_session = st.sidebar.button \
 
 if load_session:
     st.session_state.load_session = True
+    st.session_state.drop_file = False
     
 if st.session_state.load_session:
     today_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Today', date_earlist, today))
@@ -752,35 +755,83 @@ if st.session_state.load_session:
 
 
 # The following code handles dropping a file from the local computer
-dropped_files = st.sidebar.file_uploader("Drop a file or multiple files (.txt, .rtf, .pdf, .csv)", 
-                                         accept_multiple_files=True,
-                                         on_change=set_both_load_and_search_sessions_to_False,
-                                         key=st.session_state.file_uploader_key)
+drop_file = st.sidebar.button \
+            (r"$\textsf{\normalsize Drop a file to LLM}$", 
+            type="primary", 
+            key="drop")
 
-if dropped_files == []:  # when a file is removed, reset the question to False
-    st.session_state.question = False
+if drop_file:
+    st.session_state.drop_file = True
+    st.session_state.load_session = False
+    st.session_state.search_session = False
 
-question = ""
-prompt_f = ""
-if dropped_files != [] \
-    and not st.session_state.question:
-        question = st.sidebar.text_area(
-            "Any question about the files? (to be inserted at start of the files)", 
-            placeholder="None")
-        
-        for dropped_file in dropped_files:   
-            file_prompt = extract_text_from_different_file_types(dropped_file)
-            prompt_f += file_prompt
-        
-        prompt_f = question + " " + prompt_f
+if st.session_state.drop_file:
+    dropped_files = st.sidebar.file_uploader("Drop a file or multiple files (.txt, .rtf, .pdf, .csv)", 
+                                            accept_multiple_files=True,
+                                            on_change=set_both_load_and_search_sessions_to_False,
+                                            key=st.session_state.file_uploader_key)
 
-        to_chatgpt = st.sidebar.button("Send to LLM API")
-        st.sidebar.markdown("""----------""")
+    if dropped_files == []:  # when a file is removed, reset the question to False
+        st.session_state.question = False
 
-        if dropped_files != [] and to_chatgpt:
-            # and (to_chatgpt and question != ""):
-            st.session_state.question = True
-            st.session_state.send_drop_file = True
+    question = ""
+    prompt_f = ""
+    if dropped_files != [] \
+        and not st.session_state.question:
+            question = st.sidebar.text_area(
+                "Any question about the files? (to be inserted at start of the files)", 
+                placeholder="None")
+            
+            for dropped_file in dropped_files:   
+                file_prompt = extract_text_from_different_file_types(dropped_file)
+                prompt_f += file_prompt
+            
+            prompt_f = question + " " + prompt_f
+
+            to_chatgpt = st.sidebar.button("Send to LLM API")
+            st.sidebar.markdown("""----------""")
+
+            if dropped_files != [] and to_chatgpt:
+                # and (to_chatgpt and question != ""):
+                st.session_state.question = True
+                st.session_state.send_drop_file = True
+                st.session_state.drop_file = False
+
+
+# The following code handles the deletion of all chat history. The code needs to be
+# after messages printing in order to show confirmation at end of messages.
+st.sidebar.markdown("""----------""")
+empty_database = st.sidebar.button(
+    r"$\textsf{\normalsize Delete the entire chat history}$", type="primary")
+
+if empty_database:
+    st.session_state.messages = []
+    st.session_state.empty_data = True
+    st.error(r"$\textsf{\large Do you really wanna DELETE THE ENTIRE CHAT HISTORY?}$", \
+             icon="🔥")
+
+placeholder_confirmation_all = st.empty()
+
+if st.session_state.empty_data:
+    with placeholder_confirmation_all.container():
+        confirmation_2 = st.selectbox(
+            label="CONFIRM YOUR ANSWER (If you choose 'Yes', ALL CHAT HISTORY in the local \
+                database will be deleted):",
+            placeholder="Pick a choice",
+            options=['No', 'Yes'],
+            index=None,
+            key="second_confirmation"
+        )
+    if confirmation_2 == 'Yes':
+        delete_all_rows(connection)
+        st.warning("All data in the database deleted.", icon="🚨")
+        st.session_state.empty_data = False
+        st.session_state.new_session = True
+        st.session_state.session = None
+        st.rerun()
+    elif confirmation_2 == 'No':
+        st.success("Data not deleted.")
+        st.session_state.empty_data = False
 
 
 # Print each message on page (this code prints pre-existing message before calling chatgpt(), 
@@ -820,37 +871,6 @@ if st.session_state.delete_session:
             st.success("Data not deleted.")
             st.session_state.delete_session = False
 
-
-# The following code handles the deletion of all chat history. The code needs to be
-# after messages printing in order to show confirmation at end of messages.
-empty_database = st.sidebar.button(
-    r"$\textsf{\normalsize Delete the entire chat history}$", type="primary")
-
-if empty_database:
-    st.session_state.empty_data = True
-    st.error("Do you really, really, wanna delete ALL CHAT HISTORY?", icon="🚨")
-
-placeholder_confirmation_all = st.empty()
-
-if st.session_state.empty_data:
-    with placeholder_confirmation_all.container():
-        confirmation_2 = st.selectbox(
-            label="CONFIRM YOUR ANSWER (If you choose 'Yes', ALL CHAT HISTORY in the database will be deleted):",
-            placeholder="Pick a choice",
-            options=['No', 'Yes'],
-            index=None,
-            key="second_confirmation"
-        )
-    if confirmation_2 == 'Yes':
-        delete_all_rows(connection)
-        st.warning("All data in the database deleted.", icon="🚨")
-        st.session_state.empty_data = False
-        st.session_state.new_session = True
-        st.session_state.session = None
-        st.rerun()
-    elif confirmation_2 == 'No':
-        st.success("Data not deleted.")
-        st.session_state.empty_data = False
 
 
 # The following code handles model API call and new chat session creation (if necessary) before sending
