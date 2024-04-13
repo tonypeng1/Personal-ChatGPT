@@ -810,28 +810,28 @@ if empty_database:
     st.error(r"$\textsf{\large Do you really wanna DELETE THE ENTIRE CHAT HISTORY?}$", \
              icon="🔥")
 
-placeholder_confirmation_all = st.empty()
+    placeholder_confirmation_all = st.empty()
 
-if st.session_state.empty_data:
-    with placeholder_confirmation_all.container():
-        confirmation_2 = st.selectbox(
-            label="CONFIRM YOUR ANSWER (If you choose 'Yes', ALL CHAT HISTORY in the local \
-                database will be deleted):",
-            placeholder="Pick a choice",
-            options=['No', 'Yes'],
-            index=None,
-            key="second_confirmation"
-        )
-    if confirmation_2 == 'Yes':
-        delete_all_rows(connection)
-        st.warning("All data in the database deleted.", icon="🚨")
-        st.session_state.empty_data = False
-        st.session_state.new_session = True
-        st.session_state.session = None
-        st.rerun()
-    elif confirmation_2 == 'No':
-        st.success("Data not deleted.")
-        st.session_state.empty_data = False
+    if st.session_state.empty_data:
+        with placeholder_confirmation_all.container():
+            confirmation_2 = st.selectbox(
+                label="CONFIRM YOUR ANSWER (If you choose 'Yes', ALL CHAT HISTORY in the local \
+                    database will be deleted):",
+                placeholder="Pick a choice",
+                options=['No', 'Yes'],
+                index=None,
+                key="second_confirmation"
+            )
+        if confirmation_2 == 'Yes':
+            delete_all_rows(connection)
+            st.warning("All data in the database deleted.", icon="🚨")
+            st.session_state.empty_data = False
+            st.session_state.new_session = True
+            st.session_state.session = None
+            st.rerun()
+        elif confirmation_2 == 'No':
+            st.success("Data not deleted.")
+            st.session_state.empty_data = False
 
 
 # Print each message on page (this code prints pre-existing message before calling chatgpt(), 
