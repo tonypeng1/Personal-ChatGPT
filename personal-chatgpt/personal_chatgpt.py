@@ -610,10 +610,10 @@ model_name = st.sidebar.radio("Choose model:",
                                  "claude-3-opus-20240229", 
                                  "mistral-large-latest",
                                  "CodeLlama-70b-Instruct-hf",
-                                 "CodeLlama-70b-Python-hf",
+                                #  "CodeLlama-70b-Python-hf",
                                  "gemini-1.0-pro-latest"
                                  ),
-                                index=5)
+                                index=4)
 
 # Handle model behavior. The behavior chosen will be reused rather than using a default value. 
 # If the behavior table is empty, set the initial behavior to "Deterministic".
