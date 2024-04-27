@@ -89,7 +89,7 @@ def return_behavior_index(behavior1: str) -> int:
     }
 
     if behavior1 not in behavior_dic:
-        raise KeyError(f"Behavior '{behavior}' not found in the behavior dictionary.")
+        raise KeyError(f"Behavior '{behavior1}' not found in the behavior dictionary.")
     
     return behavior_dic[behavior1]
 

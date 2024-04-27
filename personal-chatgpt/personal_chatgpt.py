@@ -36,6 +36,10 @@ from model_behavior import insert_initial_default_model_behavior, \
                         return_temp_and_top_p_values_from_model_behavior, \
                         return_behavior_index, \
                         save_model_behavior_to_mysql
+from model_type import insert_initial_default_model_type, \
+                        Load_the_last_saved_model_type, \
+                        return_type_index, \
+                        save_model_type_to_mysql
 from save_to_html import convert_messages_to_markdown, \
                         markdown_to_html, \
                         get_summary_and_return_as_file_name, \
@@ -118,7 +122,6 @@ def chatgpt(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
         full_response = ""
         try:
             for response in chatgpt_client.chat.completions.create(
-                # model="gpt-4-1106-preview",
                 model="gpt-4-turbo-2024-04-09",
                 messages=
                     [{"role": "system", "content": model_role}] +
@@ -463,12 +466,10 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
     determine_if_terminate_current_session_and_start_a_new_one(conn)
     st.session_state.messages.append({"role": "user", "content": prompt1})
     
-    # if model_name == "gpt-4-1106-preview":
     if model_name == "gpt-4-turbo-2024-04-09":
         responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token))
     elif model_name == "claude-3-opus-20240229":
         responses = claude(prompt1, model_role, temperature, top_p, int(max_token))
-    # elif model_name == "gemini-1.0-pro-latest":
     elif model_name == "gemini-1.5-pro-latest":
         responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
     elif model_name == "mistral-large-latest":
@@ -493,7 +494,6 @@ TOGETHER_API_KEY = st.secrets["TOGETHER_API_KEY"]
 
 # Set gemini api configuration
 genai.configure(api_key=GOOGLE_API_KEY)
-# gemini_model = genai.GenerativeModel('gemini-1.0-pro-latest')
 gemini_model = genai.GenerativeModel('gemini-1.5-pro-latest')
 
 # Set mastral api configuration
@@ -609,17 +609,30 @@ if st.session_state.search_session:
 
 st.title("Personal LLM APP")
 st.sidebar.title("Options")
-model_name = st.sidebar.radio("Choose model:",
-                                # ("gpt-4-1106-preview",
-                                ("gpt-4-turbo-2024-04-09",
-                                 "claude-3-opus-20240229", 
-                                 "mistral-large-latest",
-                                 "CodeLlama-70b-Instruct-hf",
-                                #  "CodeLlama-70b-Python-hf",
-                                #  "gemini-1.0-pro-latest"
-                                 "gemini-1.5-pro-latest"
+
+# Handle model type. The type chosen will be reused rather than using a default value. 
+# If the type table is empty, set the initial type to "Deterministic".
+insert_initial_default_model_type(connection, 'gemini-1.5-pro-latest')
+    
+Load_the_last_saved_model_type(connection)  # load from database and save to session_state
+type_index = return_type_index(st.session_state.type)  # from string to int (0 to 4)
+
+model_name = st.sidebar.radio(
+                                label="Choose model:",
+                                options=(
+                                    "gpt-4-turbo-2024-04-09",
+                                    "claude-3-opus-20240229", 
+                                    "mistral-large-latest",
+                                    "CodeLlama-70b-Instruct-hf",
+                                    "gemini-1.5-pro-latest"
                                  ),
-                                index=4)
+                                index=type_index,
+                                key="type1"
+                            )
+
+if model_name != st.session_state.type:  # only save to database if type is newly clicked 
+    save_model_type_to_mysql(connection, model_name)  
+
 
 # Handle model behavior. The behavior chosen will be reused rather than using a default value. 
 # If the behavior table is empty, set the initial behavior to "Deterministic".

@@ -27,7 +27,7 @@ def init_mysql_timezone(conn):
 
 def init_database_tables(conn):
     """
-    Creates tables 'session', 'message' and 'behavior' if they do not already exist.
+    Creates tables 'session', 'message', 'behavior', and 'model' if they do not already exist.
 
     Throws an error through the Streamlit interface if the connection or 
     table creation fails.
@@ -76,6 +76,16 @@ def init_database_tables(conn):
                     role TEXT,
                     content MEDIUMTEXT,
                     FOREIGN KEY (session_id) REFERENCES session(session_id)
+                );
+            """
+            )
+            cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS model
+                (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    choice TEXT
                 );
             """
             )

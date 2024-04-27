@@ -44,6 +44,9 @@ def init_session_states():
 
     if "behavior" not in st.session_state:
         st.session_state.behavior = ""
+    
+    if "type" not in st.session_state:
+        st.session_state.type = ""
 
     if "new_table" not in st.session_state:
         st.session_state.new_table = False
