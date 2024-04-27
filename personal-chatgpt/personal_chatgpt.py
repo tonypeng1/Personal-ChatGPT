@@ -118,7 +118,8 @@ def chatgpt(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
         full_response = ""
         try:
             for response in chatgpt_client.chat.completions.create(
-                model="gpt-4-1106-preview",
+                # model="gpt-4-1106-preview",
+                model="gpt-4-turbo-2024-04-09",
                 messages=
                     [{"role": "system", "content": model_role}] +
                     [
@@ -462,11 +463,13 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
     determine_if_terminate_current_session_and_start_a_new_one(conn)
     st.session_state.messages.append({"role": "user", "content": prompt1})
     
-    if model_name == "gpt-4-1106-preview":
+    # if model_name == "gpt-4-1106-preview":
+    if model_name == "gpt-4-turbo-2024-04-09":
         responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token))
     elif model_name == "claude-3-opus-20240229":
         responses = claude(prompt1, model_role, temperature, top_p, int(max_token))
-    elif model_name == "gemini-1.0-pro-latest":
+    # elif model_name == "gemini-1.0-pro-latest":
+    elif model_name == "gemini-1.5-pro-latest":
         responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
     elif model_name == "mistral-large-latest":
         responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))   
@@ -490,7 +493,8 @@ TOGETHER_API_KEY = st.secrets["TOGETHER_API_KEY"]
 
 # Set gemini api configuration
 genai.configure(api_key=GOOGLE_API_KEY)
-gemini_model = genai.GenerativeModel('gemini-1.0-pro-latest')
+# gemini_model = genai.GenerativeModel('gemini-1.0-pro-latest')
+gemini_model = genai.GenerativeModel('gemini-1.5-pro-latest')
 
 # Set mastral api configuration
 mistral_model = "mistral-large-latest"
@@ -606,12 +610,14 @@ if st.session_state.search_session:
 st.title("Personal LLM APP")
 st.sidebar.title("Options")
 model_name = st.sidebar.radio("Choose model:",
-                                ("gpt-4-1106-preview",
+                                # ("gpt-4-1106-preview",
+                                ("gpt-4-turbo-2024-04-09",
                                  "claude-3-opus-20240229", 
                                  "mistral-large-latest",
                                  "CodeLlama-70b-Instruct-hf",
                                 #  "CodeLlama-70b-Python-hf",
-                                 "gemini-1.0-pro-latest"
+                                #  "gemini-1.0-pro-latest"
+                                 "gemini-1.5-pro-latest"
                                  ),
                                 index=4)
 
