@@ -36,8 +36,9 @@ def search_keyword_and_save_to_message_search_table(conn, words: str):
             val = tuple(f"%{keyword}%" for keyword in filtered_word_list)
             cursor.execute(sql, val)
 
-            for mess_id, sess_id, time, user, content in cursor.fetchall():
-                save_to_mysql_message_search(conn, mess_id, sess_id, time, user, content)
+            for mess_id, sess_id, time, user, model, content in cursor.fetchall():
+                save_to_mysql_message_search(conn, mess_id, sess_id, time, user, model, \
+                                             content)
 
     except Error as error:
         st.error(f"Failed to search keyword: {error}")
@@ -45,7 +46,8 @@ def search_keyword_and_save_to_message_search_table(conn, words: str):
 
 
 def save_to_mysql_message_search(conn, message_id1: int, session_id1: int, 
-                                 timestamp1: datetime, role1: str, content1: str) -> None:
+                                 timestamp1: datetime, role1: str, model1: str, 
+                                 content1: str) -> None:
     """
     Inserts a new message into the message_search table in the MySQL database.
 
@@ -55,6 +57,7 @@ def save_to_mysql_message_search(conn, message_id1: int, session_id1: int,
     session_id1 (int): The ID of the session.
     timestamp1 (datetime): The timestamp when the message was sent.
     role1 (str): The role of the user who sent the message.
+    model1 (str): The mdoel used.
     content1 (str): The content of the message.
 
     Returns:
@@ -64,10 +67,10 @@ def save_to_mysql_message_search(conn, message_id1: int, session_id1: int,
         with conn.cursor() as cursor:
             sql = """
             INSERT INTO message_search 
-            (message_id, session_id, timestamp, role, content) 
-            VALUES (%s, %s, %s, %s, %s)
+            (message_id, session_id, timestamp, role, model, content) 
+            VALUES (%s, %s, %s, %s, %s, %s)
             """
-            val = (message_id1, session_id1, timestamp1, role1, content1)
+            val = (message_id1, session_id1, timestamp1, role1, model1, content1)
             cursor.execute(sql, val)
             conn.commit()
 

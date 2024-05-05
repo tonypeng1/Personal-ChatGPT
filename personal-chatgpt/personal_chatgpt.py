@@ -13,7 +13,8 @@ from drop_file import increment_file_uploader_key, \
                         extract_text_from_different_file_types, \
                         save_to_mysql_message, \
                         set_both_load_and_search_sessions_to_False
-from init_database import add_column_model_to_message_table, \
+from init_database import add_column_model_to_message_search_table, \
+                        add_column_model_to_message_table, \
                         init_mysql_timezone, \
                         init_database_tables, \
                         modify_content_column_data_type_if_different
@@ -46,6 +47,7 @@ from save_to_html import convert_messages_to_markdown, \
                         get_summary_and_return_as_file_name, \
                         is_valid_file_name
 from search_message import delete_all_rows_in_message_serach, \
+                        save_to_mysql_message_search, \
                         search_keyword_and_save_to_message_search_table
 from session_summary import get_session_summary_and_save_to_session_table
 
@@ -541,7 +543,8 @@ connection = connect(**st.secrets["mysql"])  # get database credentials from .st
 init_database_tables(connection) # Create tables if not existing
 init_mysql_timezone(connection)  # Set database global time zone to America/Chicago
 modify_content_column_data_type_if_different(connection)
-add_column_model_to_message_table(connection)  # Add model column if not exist
+add_column_model_to_message_table(connection)  # Add model column to message table if not exist
+add_column_model_to_message_search_table(connection) # Add model column to message_search table if not exist
 
 init_session_states()  # Initialize all streamlit session states if there is no value
 
@@ -613,7 +616,7 @@ if st.session_state.search_session:
             file_name = get_summary_and_return_as_file_name(connection, load_history_level_2) + ".html"
             
             download_chat_session = st.sidebar.download_button(
-                label="Save loaded session",
+                label="Save it to a .html file",
                 data=session_html,
                 file_name=file_name,
                 mime="text/markdown",
@@ -624,7 +627,7 @@ if st.session_state.search_session:
                 else:
                     st.error(f"The file name '{file_name}' is not a valid file name. File not saved!", icon="🚨")
 
-            delete_a_session = st.sidebar.button("Delete loaded session from database")
+            delete_a_session = st.sidebar.button("Delete it from database")
             st.sidebar.markdown("""----------""")
 
             if delete_a_session:
@@ -778,7 +781,7 @@ if st.session_state.load_session:
         file_name = get_summary_and_return_as_file_name(connection, load_history_level_2) + ".html"
         
         download_chat_session = st.sidebar.download_button(
-            label="Save loaded session",
+            label="Save it to a .html file",
             data=session_html,
             file_name=file_name,
             mime="text/markdown",
@@ -789,7 +792,7 @@ if st.session_state.load_session:
             else:
                 st.error(f"The file name '{file_name}' is not a valid file name. File not saved!", icon="🚨")
 
-        delete_a_session = st.sidebar.button("Delete loaded session from database")
+        delete_a_session = st.sidebar.button("Delete it from database")
         st.sidebar.markdown("""----------""")
 
         if delete_a_session:

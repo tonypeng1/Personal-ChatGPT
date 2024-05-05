@@ -193,9 +193,76 @@ def add_column_model_to_message_table(conn):
                     st.session_state.session = None
 
         except Error as error:
-            st.error(f"Failed to get the current session id: {error}")
+            st.error(f"Failed to add column model in message table: {error}")
             raise
     else:
         pass
 
 
+def check_if_column_model_exist_in_message_search_table(conn) -> str:
+    """ 
+    This function checks if the column 'model' exists in the 'message_search' table in the 
+    'chat' database.
+
+    It uses a MySQL query to count the number of columns with the name 'model' in the 
+    'message' table. If the count is 1, it means the column exists, and the function returns 
+    'Exist'. If the count is 0, it means the column does not exist, and the function returns 
+    'Not Exist'.
+
+    Parameters: conn (Connection): A MySQL connection object.
+
+    Returns: str: 'Exist' if the column 'model' exists in the 'message' table, 'Not Exist' 
+    otherwise. 
+    """
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+            """
+            SELECT IF(count(*) = 1, 'Exist','Not Exist') AS result
+            FROM information_schema.columns
+            WHERE
+                table_schema = 'chat'
+                AND table_name = 'message_search'
+                AND column_name = 'model';
+            """
+            )
+            result = cursor.fetchone()
+            return result[0]
+
+    except Error as error:
+        st.error(f"Failed to get return whether coulum model exists in table \
+                 message_search: {error}")
+        raise
+
+
+def add_column_model_to_message_search_table(conn):
+    """
+    This function checks if the column 'model' exists in the 'message_search' table in 
+    the 'chat' database.
+
+    If the column does not exist, it adds a new column 'model' to the 'message_search' 
+    table with a default value of an empty string.
+
+    Returns:
+    bool: True if the column 'model' exists in the 'message_search' table, False otherwise.
+    """
+    if check_if_column_model_exist_in_message_search_table(conn) == 'Not Exist':
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                """
+                ALTER TABLE message_search
+                ADD COLUMN model VARCHAR(50) NOT NULL DEFAULT "" AFTER role;
+                """
+                )
+                result = cursor.fetchone()
+                if result is not None and result[0] is not None:
+                    st.session_state.session = result[0]
+                else:
+                    st.session_state.session = None
+
+        except Error as error:
+            st.error(f"Failed to add column model in message table: {error}")
+            raise
+    else:
+        pass
