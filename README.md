@@ -3,9 +3,9 @@ Personal LLM chat APP is an open-source app developed using Streamlit. It is pow
 
 ## APP Features
 
-This app (version 0.4.0) currently has the following features.
+This app (version 0.5.0) currently has the following features.
 
-1. Switch between the LLM model of gpt-4-turbo-2024-04-09, claude-3-opus-20240229, mistral-large-latest, CodeLlama-70b-Instruct-hf, and gemini-1.5-pro-latest anytime in a chat session.
+1. Switch between the LLM model of gpt-4-turbo-2024-04-09, claude-3-opus-20240229, mistral-large-latest, CodeLlama-70b-Instruct-hf, and gemini-1.5-pro-latest anytime in a chat session. Each response from a LLM is labeled with the model name.
 2. Select the behavior of your model as either deterministic, conservative, balanced, diverse, or creative.
 3. Select the maximum number of tokens the model creates for each API call.
 4. Select a date range and a previous chat session in that range (by choosing from a session summary) and reload the messages of this chat session from a local MySQL database.
@@ -46,18 +46,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 0.4.0 of this APP, and install the project,
+To create a Python virtual environment, check out version 0.5.0 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 pthon3 -m venv .venv
 source .venv/bin/activate
-git checkout v0.4.0
+git checkout v0.5.0
 python3 -m pip install –upgrade pip setuptools wheel
 python3 -m pip -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:0.4.0 .
+docker build -t streamlit-mysql:0.5.0 .
 docker compose up
 ```
 ## Medium Article
