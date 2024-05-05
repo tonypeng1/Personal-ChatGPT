@@ -118,6 +118,9 @@ def chatgpt(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
+        text = f":blue-background[:blue[**{model_name}**]]"  
+        st.markdown(text)
+        
         message_placeholder = st.empty()
         full_response = ""
         try:
@@ -165,6 +168,9 @@ def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
         st.markdown(prompt1)
         
     with st.chat_message("assistant"):
+        text = f":blue-background[:blue[**{model_name}**]]"  
+        st.markdown(text)
+        
         message_placeholder = st.empty()
         full_response = ""
         try:
@@ -224,6 +230,9 @@ def mistral(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
+        text = f":blue-background[:blue[**{model_name}**]]"  
+        st.markdown(text)
+
         message_placeholder = st.empty()
         full_response = ""
 
@@ -272,6 +281,9 @@ def claude(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
+        text = f":blue-background[:blue[**{model_name}**]]"  
+        st.markdown(text)
+        
         message_placeholder = st.empty()
         full_response = ""
         try:
@@ -319,9 +331,14 @@ def together(prompt1: str, model_role: str, temp: float, p: float, max_tok: int)
             When rendering code samples always include the import statements if applicable. \
             When giving required code solutions include complete code with no omission. \
             When rephrasing paragraphs, use lightly casual, straight-to-the-point language."
+    
     with st.chat_message("user"):
         st.markdown(prompt1)
+
     with st.chat_message("assistant"):
+        text = f":blue-background[:blue[**{model_name}**]]"  
+        st.markdown(text)
+        
         message_placeholder = st.empty()
         full_response = ""
         try:
@@ -375,6 +392,9 @@ def together_python(prompt1: str, temp: float, p: float, max_tok: int) -> str:
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
+        text = f":blue-background[:blue[**{model_name}**]]"  
+        st.markdown(text)
+        
         message_placeholder = st.empty()
         full_response = ""
         try:
@@ -410,7 +430,8 @@ def save_session_state_messages(conn) -> None:
     conn: The database connection object.
     """
     for message in st.session_state.messages:
-        save_to_mysql_message(conn, st.session_state.session, message["role"], message["content"])
+        save_to_mysql_message(conn, st.session_state.session, message["role"], 
+                              message["model"], message["content"])
 
 
 def determine_if_terminate_current_session_and_start_a_new_one(conn) -> None:
@@ -464,7 +485,7 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
     None
     """
     determine_if_terminate_current_session_and_start_a_new_one(conn)
-    st.session_state.messages.append({"role": "user", "content": prompt1})
+    st.session_state.messages.append({"role": "user", "model": "", "content": prompt1})
     
     if model_name == "gpt-4-turbo-2024-04-09":
         responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token))
@@ -479,10 +500,11 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
     else:  # case for CodeLlama-70b-Python-hf from togetherAI 
         responses = together_python(prompt1, temperature, top_p, int(max_token))  
 
-    st.session_state.messages.append({"role": "assistant", "content": responses})
+    st.session_state.messages.append({"role": "assistant", "model": model_name, 
+                                      "content": responses})
 
-    save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
-    save_to_mysql_message(conn, st.session_state.session, "assistant", responses)
+    save_to_mysql_message(conn, st.session_state.session, "user", "", prompt1)
+    save_to_mysql_message(conn, st.session_state.session, "assistant", model_name, responses)
 
 
 # Get app keys
@@ -857,8 +879,17 @@ if empty_database:
 # where the latest messages will be printed.) if not loading or searching a previous session.
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
+        if message["role"] == "user":
+            st.markdown(message["content"])
+        else:
+            if message["model"] == "":
+                st.markdown(message["content"])
+            else:
+                text = message["model"]
+                text = f":blue-background[:blue[**{text}**]]"   
+                st.markdown(text)
+                st.markdown(message["content"])
+            
 
 # The following code handles previous session deletion after uploading. The code needs to be
 # after messages printing in order to show confirmation at end of messages.

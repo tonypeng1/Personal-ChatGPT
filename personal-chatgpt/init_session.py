@@ -45,13 +45,14 @@ def load_previous_chat_session(conn, session1: int) -> None:
     """
     try:
         with conn.cursor() as cursor:
-            sql = "SELECT role, content FROM message WHERE session_id = %s"
+            sql = "SELECT role, model, content FROM message WHERE session_id = %s"
             val = (session1,)
             cursor.execute(sql, val)
 
             st.session_state.messages = []
-            for (role, content) in cursor:
-                st.session_state.messages.append({"role": role, "content": content})
+            for (role, model, content) in cursor:
+                st.session_state.messages.append({"role": role, "model": model, 
+                                                  "content": content})
 
     except Error as error:
         st.error(f"Failed to load previous chat sessions: {error}")

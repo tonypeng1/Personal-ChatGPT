@@ -25,7 +25,7 @@ from model_behavior import insert_initial_default_model_behavior, \
                         save_model_behavior_to_mysql
 
 
-def save_to_mysql_message(conn, session_id1: int, role1: str, content1: str) -> None:
+def save_to_mysql_message(conn, session_id1: int, role1: str, model1: str, content1: str) -> None:
     """
     Inserts a new message into the "message" table in a MySQL database table.
 
@@ -33,6 +33,7 @@ def save_to_mysql_message(conn, session_id1: int, role1: str, content1: str) -> 
     - conn (MySQLConnection): A connection object to the MySQL database.
     - session_id1 (int): The session ID associated with the message.
     - role1 (str): The role of the user sending the message.
+    - model1 (str): The mdoel used.
     - content1 (str): The content of the message.
 
     Raises:
@@ -40,8 +41,8 @@ def save_to_mysql_message(conn, session_id1: int, role1: str, content1: str) -> 
     """
     try:
         with conn.cursor() as cursor:
-            sql = "INSERT INTO message (session_id, role, content) VALUES (%s, %s, %s)"
-            val = (session_id1, role1, content1)
+            sql = "INSERT INTO message (session_id, role, model, content) VALUES (%s, %s, %s, %s)"
+            val = (session_id1, role1, model1, content1)
             cursor.execute(sql, val)
             conn.commit()
 
