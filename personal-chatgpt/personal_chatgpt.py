@@ -13,7 +13,8 @@ from drop_file import increment_file_uploader_key, \
                         extract_text_from_different_file_types, \
                         save_to_mysql_message, \
                         set_both_load_and_search_sessions_to_False
-from init_database import init_mysql_timezone, \
+from init_database import add_column_model_to_message_table, \
+                        init_mysql_timezone, \
                         init_database_tables, \
                         modify_content_column_data_type_if_different
 from init_session import get_and_set_current_session_id, \
@@ -540,6 +541,7 @@ connection = connect(**st.secrets["mysql"])  # get database credentials from .st
 init_database_tables(connection) # Create tables if not existing
 init_mysql_timezone(connection)  # Set database global time zone to America/Chicago
 modify_content_column_data_type_if_different(connection)
+add_column_model_to_message_table(connection)  # Add model column if not exist
 
 init_session_states()  # Initialize all streamlit session states if there is no value
 
