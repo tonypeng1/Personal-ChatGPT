@@ -161,8 +161,7 @@ def check_if_column_model_exist_in_message_table(conn) -> str:
             return result[0]
 
     except Error as error:
-        st.error(f"Failed to get return whether coulum model exists in table \
-                 message: {error}")
+        st.error(f"Failed to get return whether coulum model exists in table message: {error}")
         raise
 
 
@@ -230,8 +229,7 @@ def check_if_column_model_exist_in_message_search_table(conn) -> str:
             return result[0]
 
     except Error as error:
-        st.error(f"Failed to get return whether coulum model exists in table \
-                 message_search: {error}")
+        st.error(f"Failed to get return whether coulum model exists in table message_search: {error}")
         raise
 
 
