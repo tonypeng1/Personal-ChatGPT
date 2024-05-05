@@ -177,7 +177,7 @@ def add_column_model_to_message_table(conn):
     Returns:
     bool: True if the column 'model' exists in the 'message' table, False otherwise.
     """
-    if check_if_column_model_exist_in_message_table() == 'Not Exist':
+    if check_if_column_model_exist_in_message_table(conn) == 'Not Exist':
         try:
             with conn.cursor() as cursor:
                 cursor.execute(
