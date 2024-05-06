@@ -63,4 +63,4 @@ docker compose up
 ```
 ## Medium Article
 More descriptions of this APP can be found in the Medium article,
-https://medium.com/@tony3t3t/personal-llm-chat-app-using-streamlit-e3996
+https://medium.com/@tony3t3t/personal-llm-chat-app-using-streamlit-e3996312b744
