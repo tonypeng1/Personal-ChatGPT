@@ -5,15 +5,16 @@ Personal LLM chat APP is an open-source app developed using Streamlit. It is pow
 
 This app (version 0.5.0) currently has the following features.
 
-1. Switch between the LLM model of gpt-4-turbo-2024-04-09, claude-3-opus-20240229, mistral-large-latest, CodeLlama-70b-Instruct-hf, and gemini-1.5-pro-latest anytime in a chat session. Each response from a LLM is labeled with the model name.
-2. Select the behavior of your model as either deterministic, conservative, balanced, diverse, or creative.
-3. Select the maximum number of tokens the model creates for each API call.
-4. Select a date range and a previous chat session in that range (by choosing from a session summary) and reload the messages of this chat session from a local MySQL database.
-5. Search a previous chat session using a combination of search keywords to reload a chat session.
-6. Save the messages of a session as an HTML file on the local computer.
-7. Upload a file (or multiple files) from the local computer with a question (optional) and send it to an API call.
-8. Delete the messages of a loaded chat session from the database, and
-9. Finally, delete the contents in all tables in the database, if that is what you want to do.
+1. Switch between the LLM model of gpt-4-turbo-2024-04-09, claude-3-opus-20240229, mistral-large-latest, CodeLlama-70b-Instruct-hf, and gemini-1.5-pro-latest anytime in a chat session.
+2. Show the name of a model in the response of a LLM API call.
+3. Select the behavior of your model as either deterministic, conservative, balanced, diverse, or creative.
+4. Select the maximum number of tokens the model creates for each API call.
+5. Select a date range and a previous chat session in that range (by choosing from a session summary) and reload the messages of this chat session from a local MySQL database.
+6. Search a previous chat session using a combination of search keywords to reload a chat session.
+7. Save the messages of a session as an HTML file on the local computer.
+8. Upload a file (or multiple files) from the local computer with a question (optional) and send it to an API call.
+9. Delete the messages of a loaded chat session from the database, and
+10. Finally, delete the contents in all tables in the database, if that is what you want to do.
 
 The short video below demonstrates some of the features.
 https://youtu.be/AtJQo8rvNz8
