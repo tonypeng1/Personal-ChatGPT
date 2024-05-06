@@ -17,7 +17,7 @@ This app (version 0.5.0) currently has the following features.
 10. Finally, delete the contents in all tables in the database, if that is what you want to do.
 
 The short video below demonstrates some of the features.
-https://youtu.be/AtJQo8rvNz8
+https://youtu.be/7oRQQifHHxc
 
 ## API Keys and Database Credentials
 
@@ -63,4 +63,4 @@ docker compose up
 ```
 ## Medium Article
 More descriptions of this APP can be found in the Medium article,
-https://medium.com/@tony3t3t/personal-llm-chat-app-using-streamlit-e3996312b744
+https://medium.com/@tony3t3t/personal-llm-chat-app-using-streamlit-e3996
