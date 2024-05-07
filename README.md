@@ -50,7 +50,7 @@ git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 To create a Python virtual environment, check out version 0.5.0 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
-pthon3 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 git checkout v0.5.0
 python3 -m pip install –upgrade pip setuptools wheel
