@@ -53,8 +53,8 @@ cd Personal-ChatGPT
 pthon3 -m venv .venv
 source .venv/bin/activate
 git checkout v0.5.0
-python3 -m pip install –upgrade pip setuptools wheel
-python3 -m pip -e .
+python3 -m pip install --upgrade pip setuptools wheel
+python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
