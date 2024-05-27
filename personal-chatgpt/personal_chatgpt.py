@@ -425,6 +425,59 @@ def together_python(prompt1: str, temp: float, p: float, max_tok: int) -> str:
     return full_response
 
 
+def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
+    """
+    Processes a chat prompt using Perplexity OpenAI's ChatCompletion and updates the chat session.
+
+    Args:
+        conn: A connection object to the MySQL database.
+        prompt (str): The user's input prompt to the chatbot.
+        temp (float): The temperature parameter for OpenAI's ChatCompletion.
+        p (float): The top_p parameter for OpenAI's ChatCompletion.
+        max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
+
+    Raises:
+        Raises an exception if there is a failure in database operations or OpenAI's API call.
+    """
+    with st.chat_message("user"):
+        st.markdown(prompt1)
+
+    with st.chat_message("assistant"):
+        text = f":blue-background[:blue[**{model_name}**]]"  
+        st.markdown(text)
+        
+        message_placeholder = st.empty()
+        full_response = ""
+        try:
+            for response in perplexity_client.chat.completions.create(
+                model="llama-3-sonar-large-32k-chat",
+                messages=
+                    [{"role": "system", "content": model_role}] +
+                    [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.messages
+                    ],
+                temperature=temp,
+                top_p=p,
+                max_tokens=max_tok,
+                stream=True,
+                ):
+                full_response += response.choices[0].delta.content or ""
+                message_placeholder.markdown(full_response + "▌")
+            message_placeholder.markdown(full_response)
+
+        except OpenAIError as e:
+            error_response = f"An error occurred with OpenAI in getting chat response: {e}"
+            full_response = error_response
+            message_placeholder.markdown(full_response)
+        except Exception as e:
+            error_response = f"An unexpected error occurred in OpenAI API call: {e}"
+            full_response = error_response
+            message_placeholder.markdown(full_response)
+    
+    return full_response
+
+
 def save_session_state_messages(conn) -> None:
     """
     Iterates over messages in the session state and saves each to the message table.
@@ -498,8 +551,10 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
         responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
     elif model_name == "mistral-large-latest":
         responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))   
-    elif model_name == "CodeLlama-70b-Instruct-hf":
-        responses = together(prompt1, model_role, temperature, top_p, int(max_token))  
+    elif model_name == "perplexity-llama-3-sonar-large-32k-chat":
+        responses = perplexity(prompt1, model_role, temperature, top_p, int(max_token))  
+    # elif model_name == "CodeLlama-70b-Instruct-hf":
+    #     responses = together(prompt1, model_role, temperature, top_p, int(max_token))  
     else:  # case for CodeLlama-70b-Python-hf from togetherAI 
         responses = together_python(prompt1, temperature, top_p, int(max_token))  
 
@@ -516,6 +571,7 @@ GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 MISTRAL_API_KEY = st.secrets["MISTRAL_API_KEY"]
 CLAUDE_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
 TOGETHER_API_KEY = st.secrets["TOGETHER_API_KEY"]
+PERPLEXITY_API_KEY = st.secrets["PERPLEXITY_API_KEY"]
 
 # Set gemini api configuration
 genai.configure(api_key=GOOGLE_API_KEY)
@@ -532,11 +588,17 @@ claude_client = anthropic.Anthropic(api_key=CLAUDE_API_KEY,)
 # Set chatgpt api configuration
 chatgpt_client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
-# Set together app configuration
+# Set together api configuration
 together_client = openai.OpenAI(
   api_key=TOGETHER_API_KEY,
   base_url='https://api.together.xyz/v1'
 )
+
+# Set perplexity api configuration
+perplexity_client = openai.OpenAI(
+    api_key=PERPLEXITY_API_KEY, 
+    base_url="https://api.perplexity.ai"
+    )
 
 # Database initial operation
 connection = connect(**st.secrets["mysql"])  # get database credentials from .streamlit/secrets.toml
@@ -650,7 +712,8 @@ model_name = st.sidebar.radio(
                                     "gpt-4-turbo-2024-04-09",
                                     "claude-3-opus-20240229", 
                                     "mistral-large-latest",
-                                    "CodeLlama-70b-Instruct-hf",
+                                    "perplexity-llama-3-sonar-large-32k-chat",
+                                    # "CodeLlama-70b-Instruct-hf",
                                     "gemini-1.5-pro-latest"
                                  ),
                                 index=type_index,
