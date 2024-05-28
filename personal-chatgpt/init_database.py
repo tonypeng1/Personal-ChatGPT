@@ -264,3 +264,66 @@ def add_column_model_to_message_search_table(conn):
             raise
     else:
         pass
+
+
+def check_if_column_content_in_message_table_is_indexed(conn) -> str:
+    """ 
+    Checks if the 'content' column in the 'message' table is indexed.
+
+    Args:
+        conn: A database connection object.
+
+    Returns:
+        str: "yes" if the 'content' column is indexed, "no" otherwise.
+
+    Raises:
+        Error: If there's an error executing the SQL query.
+    """
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+            """
+            SELECT COLUMN_NAME
+            FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_NAME = 'message';
+            """
+            )
+            if "content" in [row[0] for row in cursor.fetchall()]:
+                return "Yes"
+            else:
+                return "No"
+
+    except Error as error:
+        st.error(f"Failed to show index of the table message: {error}")
+        raise
+
+
+def index_column_content_in_table_message(conn):
+    """
+    Creates a full-text index on the 'content' column in the 'message' table if it doesn't already exist.
+
+    Args:
+        conn: A database connection object.
+
+    Returns:
+        None
+
+    Raises:
+        Error: If there's an error executing the SQL query to create the index.
+    """
+    if check_if_column_content_in_message_table_is_indexed(conn) == 'No':
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                """
+                ALTER TABLE message
+                ADD FULLTEXT(content);
+                """
+                )
+            conn.commit()
+
+        except Error as error:
+            st.error(f"Failed to index column content in table message: {error}")
+            raise
+    else:
+        pass

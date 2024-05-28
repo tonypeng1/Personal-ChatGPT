@@ -3,14 +3,14 @@ Personal LLM chat APP is an open-source app developed using Streamlit. It is pow
 
 ## APP Features
 
-This app (version 0.5.0) currently has the following features.
+This app (version 0.6.0) currently has the following features.
 
-1. Switch between the LLM model of gpt-4-turbo-2024-04-09, claude-3-opus-20240229, mistral-large-latest, CodeLlama-70b-Instruct-hf, and gemini-1.5-pro-latest anytime in a chat session.
+1. Switch between the LLM model of gpt-4-turbo-2024-04-09, claude-3-opus-20240229, mistral-large-latest, llama-3-sonar-large-32k-chat (perplexity), and gemini-1.5-pro-latest anytime in a chat session.
 2. Show the name of a model in the response of a LLM API call.
 3. Select the behavior of your model as either deterministic, conservative, balanced, diverse, or creative.
 4. Select the maximum number of tokens the model creates for each API call.
 5. Select a date range and a previous chat session in that range (by choosing from a session summary) and reload the messages of this chat session from a local MySQL database.
-6. Search a previous chat session using a combination of search keywords to reload a chat session.
+6. Search a previous chat session using the MySQL full-text boolean search with keywords to reload a chat session.
 7. Save the messages of a session as an HTML file on the local computer.
 8. Upload a file (or multiple files) from the local computer with a question (optional) and send it to an API call.
 9. Delete the messages of a loaded chat session from the database, and
@@ -29,7 +29,7 @@ OPENAI_API_KEY = "my_openai_key"
 GOOGLE_API_KEY = "my_gemini_key"
 MISTRAL_API_KEY = "my_mistral_key"
 ANTHROPIC_API_KEY = "my_claude_key"
-TOGETHER_API_KEY = "my_together_key"
+PERPLEXITY_API_KEY = "my_perplexity_key"
 
 [mysql]
 host = "mysql"
@@ -47,18 +47,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 0.5.0 of this APP, and install the project,
+To create a Python virtual environment, check out version 0.6.0 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v0.5.0
+git checkout v0.6.0
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:0.5.0 .
+docker build -t streamlit-mysql:0.6.0 .
 docker compose up
 ```
 ## Medium Article

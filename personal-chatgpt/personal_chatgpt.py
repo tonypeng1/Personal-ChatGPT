@@ -15,6 +15,7 @@ from drop_file import increment_file_uploader_key, \
                         set_both_load_and_search_sessions_to_False
 from init_database import add_column_model_to_message_search_table, \
                         add_column_model_to_message_table, \
+                        index_column_content_in_table_message, \
                         init_mysql_timezone, \
                         init_database_tables, \
                         modify_content_column_data_type_if_different
@@ -47,8 +48,7 @@ from save_to_html import convert_messages_to_markdown, \
                         get_summary_and_return_as_file_name, \
                         is_valid_file_name
 from search_message import delete_all_rows_in_message_serach, \
-                        save_to_mysql_message_search, \
-                        search_keyword_and_save_to_message_search_table
+                        search_full_text_and_save_to_message_search_table
 from session_summary import get_session_summary_and_save_to_session_table
 
 
@@ -542,27 +542,29 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
     """
     determine_if_terminate_current_session_and_start_a_new_one(conn)
     st.session_state.messages.append({"role": "user", "model": "", "content": prompt1})
-    
-    if model_name == "gpt-4-turbo-2024-04-09":
-        responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token))
-    elif model_name == "claude-3-opus-20240229":
-        responses = claude(prompt1, model_role, temperature, top_p, int(max_token))
-    elif model_name == "gemini-1.5-pro-latest":
-        responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
-    elif model_name == "mistral-large-latest":
-        responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))   
-    elif model_name == "perplexity-llama-3-sonar-large-32k-chat":
-        responses = perplexity(prompt1, model_role, temperature, top_p, int(max_token))  
-    # elif model_name == "CodeLlama-70b-Instruct-hf":
-    #     responses = together(prompt1, model_role, temperature, top_p, int(max_token))  
-    else:  # case for CodeLlama-70b-Python-hf from togetherAI 
-        responses = together_python(prompt1, temperature, top_p, int(max_token))  
-
-    st.session_state.messages.append({"role": "assistant", "model": model_name, 
+    try:
+        if model_name == "gpt-4-turbo-2024-04-09":
+            responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token))
+        elif model_name == "claude-3-opus-20240229":
+            responses = claude(prompt1, model_role, temperature, top_p, int(max_token))
+        elif model_name == "gemini-1.5-pro-latest":
+            responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
+        elif model_name == "mistral-large-latest":
+            responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))   
+        elif model_name == "perplexity-llama-3-sonar-large-32k-chat":
+            responses = perplexity(prompt1, model_role, temperature, top_p, int(max_token))  
+        else:
+            raise ValueError('Model is not in the list.')
+        
+        st.session_state.messages.append({"role": "assistant", "model": model_name, 
                                       "content": responses})
 
-    save_to_mysql_message(conn, st.session_state.session, "user", "", prompt1)
-    save_to_mysql_message(conn, st.session_state.session, "assistant", model_name, responses)
+        save_to_mysql_message(conn, st.session_state.session, "user", "", prompt1)
+        save_to_mysql_message(conn, st.session_state.session, "assistant", model_name, responses)
+
+    except ValueError as error:
+        st.error(f"Not recognized model name: {error}")
+        raise
 
 
 # Get app keys
@@ -607,6 +609,7 @@ init_mysql_timezone(connection)  # Set database global time zone to America/Chic
 modify_content_column_data_type_if_different(connection)
 add_column_model_to_message_table(connection)  # Add model column to message table if not exist
 add_column_model_to_message_search_table(connection) # Add model column to message_search table if not exist
+index_column_content_in_table_message(connection)  # index column content in table message if not yet indexed
 
 init_session_states()  # Initialize all streamlit session states if there is no value
 
@@ -641,10 +644,10 @@ if search_session:
     st.session_state.drop_file = False
 
 if st.session_state.search_session:
-    keywords = st.sidebar.text_input("Search keywords (separated by a space if more than one, default AND logic)")
+    keywords = st.sidebar.text_input('Full-text boolean search (Add + or - for a word that must be present or absent)')
     if keywords != "":
         delete_all_rows_in_message_serach(connection)
-        search_keyword_and_save_to_message_search_table(connection, keywords)
+        search_full_text_and_save_to_message_search_table(connection, keywords)
     
         all_dates_sessions = load_previous_chat_session_ids(connection, 'message_search', *convert_date('All dates', date_earlist, today))
         all_dates_dic = get_summary_by_session_id_return_dic(connection, all_dates_sessions)

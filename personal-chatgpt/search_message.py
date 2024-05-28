@@ -96,3 +96,33 @@ def filter_word_list_and_get_sql_conditions(word_list: List[str]) -> Tuple[str, 
     condition_operator = " OR " if contains_or else " AND "
     conditions = condition_operator.join(["content LIKE %s" for _ in filtered_word_list])
     return (conditions, filtered_word_list)
+
+
+def search_full_text_and_save_to_message_search_table(conn, words: str):
+    """
+    Full-text searches for messages and saves the results to the message_search table.
+
+    Parameters:
+    conn (MySQLConnection): A connection object to the MySQL database.
+    words (str): A string containing search words separated by spaces.
+
+    Raises:
+    Raises an exception if the search or saving to the message_search table fails.
+    """
+    try:
+        with conn.cursor() as cursor:
+            sql = """
+            SELECT * FROM message 
+            WHERE MATCH (content) AGAINST 
+            (%s IN BOOLEAN MODE)
+            """
+            val = (words,)
+            cursor.execute(sql, val)
+
+            for mess_id, sess_id, time, user, model, content in cursor.fetchall():
+                save_to_mysql_message_search(conn, mess_id, sess_id, time, user, model, \
+                                             content)
+
+    except Error as error:
+        st.error(f"Failed to search full-text: {error}")
+        raise

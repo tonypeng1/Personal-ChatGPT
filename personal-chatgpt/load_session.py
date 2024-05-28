@@ -15,7 +15,7 @@ from save_to_html import convert_messages_to_markdown, \
 from delete_message import delete_the_messages_of_a_chat_session, \
                         delete_all_rows
 from search_message import delete_all_rows_in_message_serach, \
-                        search_keyword_and_save_to_message_search_table
+                        search_full_text_and_save_to_message_search_table
 
 
 def load_current_date_from_database(conn) -> Optional[date]:
@@ -408,10 +408,10 @@ if __name__ == "__main__":
         st.session_state.search_session = True
 
     if st.session_state.search_session:
-        keywords = st.sidebar.text_input("Search keywords (separated by a space if more than one, default AND logic)")
+        keywords = st.sidebar.text_input("Full-text natural language search")
         if keywords != "":
             delete_all_rows_in_message_serach(connection)
-            search_keyword_and_save_to_message_search_table(connection, keywords)
+            search_full_text_and_save_to_message_search_table(connection, keywords)
         
             all_dates_sessions = load_previous_chat_session_ids(connection, 'message_search', *convert_date('All dates', date_earlist, today))
             all_dates_dic = get_summary_by_session_id_return_dic(connection, all_dates_sessions)
