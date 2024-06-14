@@ -450,7 +450,7 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
         full_response = ""
         try:
             for response in perplexity_client.chat.completions.create(
-                model="llama-3-sonar-large-32k-chat",
+                model="llama-3-sonar-large-32k-online",
                 messages=
                     [{"role": "system", "content": model_role}] +
                     [
@@ -551,7 +551,7 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "mistral-large-latest":
             responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))   
-        elif model_name == "perplexity-llama-3-sonar-large-32k-chat":
+        elif model_name == "perplexity-llama-3-sonar-large-32k-online":
             responses = perplexity(prompt1, model_role, temperature, top_p, int(max_token))  
         else:
             raise ValueError('Model is not in the list.')
@@ -715,7 +715,7 @@ model_name = st.sidebar.radio(
                                     "gpt-4-turbo-2024-04-09",
                                     "claude-3-opus-20240229", 
                                     "mistral-large-latest",
-                                    "perplexity-llama-3-sonar-large-32k-chat",
+                                    "perplexity-llama-3-sonar-large-32k-online",
                                     # "CodeLlama-70b-Instruct-hf",
                                     "gemini-1.5-pro-latest"
                                  ),
