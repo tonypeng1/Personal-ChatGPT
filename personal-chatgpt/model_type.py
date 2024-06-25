@@ -84,7 +84,7 @@ def return_type_index(type1: str) -> int:
     """
     type_dic = {
         "gpt-4-turbo-2024-04-09": 0,
-        "claude-3-opus-20240229": 1, 
+        "claude-3-5-sonnet-20240620": 1, 
         "mistral-large-latest": 2,
         # "CodeLlama-70b-Instruct-hf": 3,
         "perplexity-llama-3-sonar-large-32k-online": 3,

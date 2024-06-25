@@ -135,5 +135,9 @@ def get_session_summary_and_save_to_session_table(conn, client, session_id1: int
 
     """
     chat_session_text_user_only = load_previous_chat_session_all_questions_for_summary_only_users(conn, session_id1)
-    session_summary = chatgpt_summary_user_only(client, chat_session_text_user_only)
+    try:
+        session_summary = chatgpt_summary_user_only(client, chat_session_text_user_only)
+    except Error as error:
+        st.error(f"Failed to get summary from openai model: {error}")
+        raise
     save_session_summary_to_mysql(conn, session_id1, session_summary)
