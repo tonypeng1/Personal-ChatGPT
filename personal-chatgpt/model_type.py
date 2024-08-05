@@ -55,7 +55,8 @@ def Load_the_last_saved_model_type(conn) -> None:
 
             result = cursor.fetchone()
             if result is not None and result[0] is not None:
-                if result[0] == "perplexity-llama-3-sonar-large-32k-chat":  # for v.0.7.0
+                if result[0] in ("perplexity-llama-3-sonar-large-32k-chat", 
+                                 "perplexity-llama-3-sonar-large-32k-online"):  # for v0.7.0 and v0.8.0
                     result = ("perplexity-llama-3.1-sonar-large-128k-online", )
                 st.session_state.type = result[0]
             else:
