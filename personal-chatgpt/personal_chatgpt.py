@@ -547,7 +547,7 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "claude-3-5-sonnet-20240620":
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token))
-        elif model_name == "gemini-1.5-pro-latest":
+        elif model_name == "gemini-1.5-pro-exp-0801":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "mistral-large-latest":
             responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))   
@@ -577,7 +577,7 @@ PERPLEXITY_API_KEY = st.secrets["PERPLEXITY_API_KEY"]
 
 # Set gemini api configuration
 genai.configure(api_key=GOOGLE_API_KEY)
-gemini_model = genai.GenerativeModel('gemini-1.5-pro-latest')
+gemini_model = genai.GenerativeModel('gemini-1.5-pro-exp-0801')
 
 # Set mastral api configuration
 mistral_model = "mistral-large-latest"
@@ -704,7 +704,7 @@ st.sidebar.title("Options")
 
 # Handle model type. The type chosen will be reused rather than using a default value. 
 # If the type table is empty, set the initial type to "Deterministic".
-insert_initial_default_model_type(connection, 'gemini-1.5-pro-latest')
+insert_initial_default_model_type(connection, 'gemini-1.5-pro-exp-0801')
     
 Load_the_last_saved_model_type(connection)  # load from database and save to session_state
 type_index = return_type_index(st.session_state.type)  # from string to int (0 to 4)
@@ -717,7 +717,7 @@ model_name = st.sidebar.radio(
                                     "mistral-large-latest",
                                     "perplexity-llama-3.1-sonar-large-128k-online",
                                     # "CodeLlama-70b-Instruct-hf",
-                                    "gemini-1.5-pro-latest"
+                                    "gemini-1.5-pro-exp-0801"
                                  ),
                                 index=type_index,
                                 key="type1"
