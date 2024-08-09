@@ -61,7 +61,9 @@ def Load_the_last_saved_model_type(conn) -> None:
                 if result[0] == "gemini-1.5-pro-latest":
                     result = ("gemini-1.5-pro-exp-0801", )
                 if result[0] == "claude-3-opus-20240229":
-                    result = ("claude-3-5-sonnet-20240620", )
+                    result = ("claude-3-5-sonnet-20240620", )                
+                if result[0] == "gpt-4-turbo-2024-04-09":
+                    result = ("gpt-4o", )
                 st.session_state.type = result[0]
             else:
                 st.session_state.type = None
@@ -88,7 +90,7 @@ def return_type_index(type1: str) -> int:
         KeyError: If the type description is not found in the predefined dictionary.
     """
     type_dic = {
-        "gpt-4-turbo-2024-04-09": 0,
+        "gpt-4o": 0,
         "claude-3-5-sonnet-20240620": 1, 
         "mistral-large-latest": 2,
         # "CodeLlama-70b-Instruct-hf": 3,

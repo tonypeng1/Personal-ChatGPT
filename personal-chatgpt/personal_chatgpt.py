@@ -128,7 +128,7 @@ def chatgpt(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
         full_response = ""
         try:
             for response in chatgpt_client.chat.completions.create(
-                model="gpt-4-turbo-2024-04-09",
+                model="gpt-4o",
                 messages=
                     [{"role": "system", "content": model_role}] +
                     [
@@ -543,7 +543,7 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
     determine_if_terminate_current_session_and_start_a_new_one(conn)
     st.session_state.messages.append({"role": "user", "model": "", "content": prompt1})
     try:
-        if model_name == "gpt-4-turbo-2024-04-09":
+        if model_name == "gpt-4o":
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "claude-3-5-sonnet-20240620":
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token))
@@ -712,7 +712,7 @@ type_index = return_type_index(st.session_state.type)  # from string to int (0 t
 model_name = st.sidebar.radio(
                                 label="Choose model:",
                                 options=(
-                                    "gpt-4-turbo-2024-04-09",
+                                    "gpt-4o",
                                     "claude-3-5-sonnet-20240620", 
                                     "mistral-large-latest",
                                     "perplexity-llama-3.1-sonar-large-128k-online",
