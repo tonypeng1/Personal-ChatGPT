@@ -4,6 +4,7 @@ from mistralai.client import MistralClient
 from mysql.connector import connect, Error
 import openai
 from openai import OpenAIError
+import pytesseract
 import streamlit as st
 
 
