@@ -58,7 +58,7 @@ def init_session_states():
         st.session_state.new_session = False
 
     if "load_history_level_2" not in st.session_state:
-        st.session_state.load_history_level_2 = 0  # session ID that starts from 1
+        st.session_state.load_history_level_2 = False  
 
     if "delete_session" not in st.session_state:
         st.session_state.delete_session = False
@@ -86,3 +86,6 @@ def init_session_states():
 
     if "file_uploader_key" not in st.session_state:
         st.session_state.file_uploader_key = 0
+
+    if "drop_clip" not in st.session_state:
+        st.session_state["drop_clip"] = False

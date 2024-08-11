@@ -1,11 +1,15 @@
 import anthropic
 import google.generativeai as genai
+import io
 from mistralai.client import MistralClient
 from mysql.connector import connect, Error
+import ocrspace
 import openai
 from openai import OpenAIError
-import pytesseract
+import os
+from PIL import ImageGrab
 import streamlit as st
+import tempfile
 
 
 from delete_message import delete_the_messages_of_a_chat_session, \
@@ -539,7 +543,7 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
     max_token (int): The maximum number of tokens for the model's response.
 
     Returns:
-    None
+        None
     """
     determine_if_terminate_current_session_and_start_a_new_one(conn)
     st.session_state.messages.append({"role": "user", "model": "", "content": prompt1})
@@ -568,6 +572,44 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
         raise
 
 
+def convert_clipboard_to_text() -> str:
+    """
+    This function retrieves the text from the clipboard using the OCR API from ocr.space 
+    and returns it. If no text is found in the clipboard, it displays an error message.
+    Need to have a free account on ocr.space to get the API key.
+
+    Returns:
+        str: The text retrieved from the clipboard.
+    """
+    image = ImageGrab.grabclipboard()
+    if image is None:
+        st.error(r"$\textsf{\large No image found in clipboard}$")
+    else:
+        col1, col2 = st.columns([1, 1])  # Adjust the ratio as needed
+        with col1:
+            st.image(image, caption='Image from clipboard', use_column_width=True)
+        ocr_api = ocrspace.API(api_key=st.secrets["OCR_API_KEY"])
+
+        # Convert PngImageFile to bytes
+        with io.BytesIO() as output:
+            image.save(output, format="PNG")
+            image_bytes = output.getvalue()
+
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
+            temp_file.write(image_bytes)
+            temp_file_path = temp_file.name
+
+        extracted_text = ocr_api.ocr_file(temp_file_path)
+        # st.markdown(extracted_text)
+        
+        # Remove the temporary file
+        os.remove(temp_file_path)
+
+        return extracted_text
+
+
+
 # Get app keys
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
@@ -575,6 +617,7 @@ MISTRAL_API_KEY = st.secrets["MISTRAL_API_KEY"]
 CLAUDE_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
 TOGETHER_API_KEY = st.secrets["TOGETHER_API_KEY"]
 PERPLEXITY_API_KEY = st.secrets["PERPLEXITY_API_KEY"]
+OCR_API_KEY = st.secrets["OCR_API_KEY"]
 
 # Set gemini api configuration
 genai.configure(api_key=GOOGLE_API_KEY)
@@ -630,6 +673,7 @@ if new_chat_button:
     st.session_state.load_session = False
     st.session_state.search_session = False
     st.session_state.drop_file = False
+    st.session_state.drop_clip = False
 
 
 # The following code handles the search and retreival of the messages of a chat session
@@ -643,6 +687,7 @@ search_session = st.sidebar.button\
 if search_session:
     st.session_state.search_session = True
     st.session_state.drop_file = False
+    st.session_state.drop_clip = False
 
 if st.session_state.search_session:
     keywords = st.sidebar.text_input('Full-text boolean search (Add + or - for a word that must be present or absent)')
@@ -657,7 +702,7 @@ if st.session_state.search_session:
             None : {0: "None"},
             "All dates": all_dates_dic}
 
-        # Show options as summary. The returned value is the session id of the picked session.
+        # Show options as summary. The returned value is the session id of the picked session (= load_history_level_2).
         load_history_level_2 = st.sidebar.selectbox(
                 label="Select a chat session:",
                 placeholder='Pick a session',
@@ -788,6 +833,7 @@ load_session = st.sidebar.button \
 if load_session:
     st.session_state.load_session = True
     st.session_state.drop_file = False
+    st.session_state.drop_clip = False
     
 if st.session_state.load_session:
     today_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Today', date_earlist, today))
@@ -866,6 +912,12 @@ if st.session_state.load_session:
             st.session_state.delete_session = True
 
 
+# Show drop clipboard to LLM
+drop_clip = st.sidebar.button \
+            (r"$\textsf{\normalsize From Clipboard}$", 
+            type="primary", 
+            key="clip")
+
 
 # The following code handles dropping a file from the local computer
 drop_file = st.sidebar.button \
@@ -877,6 +929,7 @@ if drop_file:
     st.session_state.drop_file = True
     st.session_state.load_session = False
     st.session_state.search_session = False
+    st.session_state.drop_clip = False
 
 if st.session_state.drop_file:
     dropped_files = st.sidebar.file_uploader("Drop a file or multiple files (.txt, .rtf, .pdf, .csv)", 
@@ -897,9 +950,9 @@ if st.session_state.drop_file:
             
             for dropped_file in dropped_files:   
                 file_prompt = extract_text_from_different_file_types(dropped_file)
-                prompt_f += file_prompt
+                prompt_f = f"{prompt_f}\n\n{file_prompt}"
             
-            prompt_f = question + " " + prompt_f
+            prompt_f = f"{question}\n\n{prompt_f}"
 
             to_chatgpt = st.sidebar.button("Send to LLM API")
             st.sidebar.markdown("""----------""")
@@ -911,8 +964,7 @@ if st.session_state.drop_file:
                 st.session_state.drop_file = False
 
 
-# The following code handles the deletion of all chat history. The code needs to be
-# after messages printing in order to show confirmation at end of messages.
+# The following code handles the deletion of all chat history. 
 st.sidebar.markdown("""----------""")
 empty_database = st.sidebar.button(
     r"$\textsf{\normalsize Delete the entire chat history}$", type="primary")
@@ -963,6 +1015,19 @@ for message in st.session_state.messages:
                 st.markdown(message["content"])
             
 
+# The following code handles dropping an text image from the clipboard. The code needs to be
+# after messages printing in order to show confirmation at end of messages.
+if drop_clip:
+    st.session_state.drop_clip = True
+    # st.session_state.drop_file = False
+    # st.session_state.load_session = False
+    # st.session_state.search_session = False
+    # st.rerun()
+
+if st.session_state.drop_clip:
+    prompt_c = convert_clipboard_to_text()
+
+
 # The following code handles previous session deletion after uploading. The code needs to be
 # after messages printing in order to show confirmation at end of messages.
 if st.session_state.delete_session:
@@ -1008,13 +1073,16 @@ model_role = "You are an experienced software engineer based in Austin, Texas, \
             When rephrasing paragraphs, use lightly casual, straight-to-the-point language."
 
 if prompt := st.chat_input("What is up?"):
+    if st.session_state.drop_clip:
+        prompt = f"{prompt}\n\n{prompt_c}"
+        st.session_state.drop_clip = False
     process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
 
 if st.session_state.send_drop_file:
+    st.session_state.send_drop_file = False
     process_prompt(connection, prompt_f, model_name, model_role, temperature, top_p, max_token)
 
-    st.session_state.send_drop_file = False
-    increment_file_uploader_key()  # so that a new file_uploader shows up whithour the files
+    increment_file_uploader_key()  # so that a new file_uploader shows up whithout the files
     st.rerun()
 
 connection.close()
