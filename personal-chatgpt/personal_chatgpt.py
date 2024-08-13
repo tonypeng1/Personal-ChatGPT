@@ -588,7 +588,10 @@ def convert_clipboard_to_text() -> str:
         col1, col2 = st.columns([1, 1])  # Adjust the ratio as needed
         with col1:
             st.image(image, caption='Image from clipboard', use_column_width=True)
-        ocr_api = ocrspace.API(api_key=st.secrets["OCR_API_KEY"])
+        ocr_api = ocrspace.API(
+            api_key=st.secrets["OCR_API_KEY"],
+            OCREngine=2
+            )
 
         # Convert PngImageFile to bytes
         with io.BytesIO() as output:
@@ -601,13 +604,14 @@ def convert_clipboard_to_text() -> str:
             temp_file_path = temp_file.name
 
         extracted_text = ocr_api.ocr_file(temp_file_path)
+        extracted_text =f"```\n{extracted_text}\n```"   # Wrap the text in triple backticks as coded text to
+                                                        # prevent "#" be interpreted as header in markdown.
         # st.markdown(extracted_text)
         
         # Remove the temporary file
         os.remove(temp_file_path)
 
         return extracted_text
-
 
 
 # Get app keys
@@ -941,18 +945,14 @@ if st.session_state.drop_file:
         st.session_state.question = False
 
     question = ""
-    prompt_f = ""
     if dropped_files != [] \
         and not st.session_state.question:
             question = st.sidebar.text_area(
-                "Any question about the files? (to be inserted at start of the files)", 
+                "Any question about the files?", 
                 placeholder="None")
             
             for dropped_file in dropped_files:   
-                file_prompt = extract_text_from_different_file_types(dropped_file)
-                prompt_f = f"{prompt_f}\n\n{file_prompt}"
-            
-            prompt_f = f"{question}\n\n{prompt_f}"
+                prompt_f = extract_text_from_different_file_types(dropped_file, question)
 
             to_chatgpt = st.sidebar.button("Send to LLM API")
             st.sidebar.markdown("""----------""")
@@ -1005,6 +1005,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         if message["role"] == "user":
             st.markdown(message["content"])
+
         else:
             if message["model"] == "":
                 st.markdown(message["content"])
