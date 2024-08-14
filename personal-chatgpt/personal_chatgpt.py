@@ -996,12 +996,12 @@ if st.session_state.drop_file:
             else:
                 prompt_f = prompt_f + extract + "\n\n"
 
-        st.write(prompt_f)
+        # st.write(prompt_f)
 
         st.markdown(
         """
         <span style="font-size: 40px;">📂</span> 
-        <span style="font-style:italic; font-size: 20px; color:blue;"> (File loaded. Please enter your question below.)</span>
+        <span style="font-style:italic; font-size: 20px; color:blue;"> (File/Files loaded. Please enter your question below.)</span>
         """,
         unsafe_allow_html=True,
         )
@@ -1113,6 +1113,7 @@ if prompt := st.chat_input("What is up?"):
         # st.session_state.send_drop_file = False
         increment_file_uploader_key()  # so that a new file_uploader shows up whithout the files
         process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
+        st.session_state.drop_file = False
         st.rerun()  
     else:
         process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
