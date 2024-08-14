@@ -247,7 +247,7 @@ def extract_jason_from_csv(csv_file) -> str:
 #     return contents 
 
 
-def extract_text_from_different_file_types(file, _question) -> str:
+def extract_text_from_different_file_types(file) -> str:
     """
     Extract text from a file of various types including PDF, TXT, RTF, and ZIP.
     A file with another extension is treated as a .txt file.
@@ -259,6 +259,7 @@ def extract_text_from_different_file_types(file, _question) -> str:
     """
     type = file.name.split('.')[-1].lower()
     if type == 'zip':
+        st.session_state.zip_file = True
         text = extract_text_from_zip(file)
     elif type == 'pdf':
         text = extract_text_from_pdf(file)
@@ -270,7 +271,7 @@ def extract_text_from_different_file_types(file, _question) -> str:
     else:  # Treat other file type as .txt file
         text = file.read().decode("utf-8")  # Treat all other types as text files
 
-    return files_to_prompt_text(text, _question)
+    return text
 
 
 def increment_file_uploader_key():
@@ -288,7 +289,7 @@ def set_both_load_and_search_sessions_to_False():
     st.session_state.search_session = False
 
 
-def extract_text_from_zip(zip_file) -> str:
+def extract_text_from_zip(zip_file) -> list:
     """
     Unzip a .zip file and sends all content to an LLM AP.
 
@@ -325,43 +326,51 @@ def extract_text_from_zip(zip_file) -> str:
                     except Exception as e:
                         print(f"Error reading {filename}: {e}")
 
-    st.markdown(extracted_files)
-    st.markdown(
-        """
-        <span style="font-size: 50px;">📂</span>
-        """,
-        unsafe_allow_html=True,
-    )
+    # st.markdown(extracted_files)
+    # st.markdown(
+    #     """
+    #     <span style="font-size: 50px;">📂</span>
+    #     """,
+    #     unsafe_allow_html=True,
+    # )
         # st.markdown(":open_file_folder:")
         # st.markdown(":material/article:")
     return extracted_files
 
 
-def files_to_prompt_text(extracted_files, _question) -> str:
+def files_to_prompt_text(extracted_text, _question) -> str:
     """
     Convert the extracted files and their contents into a prompt text for an LLM API.
     """
-    # Initialize an empty string to store the prompt text
-    prompt_text = ""
+
     # Loop through each file and its content
-    for filename, content in extracted_files:
-        # Append the file name and content to the prompt text
-        prompt_text += f"File: \n{filename}\n\nContent: \n{content}\n\n"
-        # Add a separator between files
-        prompt_text += "-----\n"
+    if st.session_state.zip_file:
+        # Initialize an empty string to store the prompt text
+        prompt_text = ""
+        for filename, content in extracted_text:
+            # Append the file name and content to the prompt text
+            prompt_text += f"File: \n{filename}\n\nContent: \n{content}\n\n"
+            # Add a separator between files
+            prompt_text += "-----\n"
+        st.session_state.zip_file = False
+    else:
+        prompt_text = extracted_text
 
     llm_prompt = (
-        "You are a helpful assistant. "
-        "Context information from a set of files and their contents is below.\n"
+        "You are a helpful assistant.\n"
+        "Context information from a file (or files) and their contents is below.\n"
         "---------------------\n"
         f"{prompt_text}\n"
         "---------------------\n"
         "Given the information above answer the query below.\n"   
-        "Your answer should provide the main insights and patterns that can be derived from the files. "
+        "Your answer should provide the main insights and patterns that can be \n"
+        "derived from the files.\n"
         f"Query: {_question}\n"
         "Answer: "
     )
-
+    # Wrap the text in triple backticks as coded text to prevent "#" be interpreted as header in markdown.
+    llm_prompt =f"```\n{llm_prompt}\n```"   
+                                                        # 
     # Return the prompt text
     return llm_prompt
 

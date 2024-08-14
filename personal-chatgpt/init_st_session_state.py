@@ -89,3 +89,6 @@ def init_session_states():
 
     if "drop_clip" not in st.session_state:
         st.session_state["drop_clip"] = False
+
+    if "zip_file" not in st.session_state:
+        st.session_state.zip_file = False
