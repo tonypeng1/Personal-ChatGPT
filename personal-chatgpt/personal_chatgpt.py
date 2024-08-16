@@ -802,7 +802,7 @@ max_token = st.sidebar.number_input(
     label="Select the max number of tokens the model can generate",
     min_value=500,
     max_value=4000,
-    value=1000,
+    value=1500,
     step=500
     )
 
@@ -924,30 +924,6 @@ if st.session_state.load_session:
 #             key="clip")
 
 
-
-
-    # question = ""
-    # if dropped_files != [] \
-    #     and not st.session_state.question:
-    #         question = st.sidebar.text_area(
-    #             "Any question about the files?", 
-    #             placeholder="None")
-            
-    #         for dropped_file in dropped_files:   
-    #             prompt_f = extract_text_from_different_file_types(dropped_file, question)
-
-    #         to_chatgpt = st.sidebar.button("Send to LLM API")
-    #         st.sidebar.markdown("""----------""")
-
-    #         if dropped_files != [] and to_chatgpt:
-    #             # and (to_chatgpt and question != ""):
-    #             st.session_state.question = True
-    #             st.session_state.send_drop_file = True
-    #             st.session_state.drop_file = False
-
-
-
-
 # Print each message on page (this code prints pre-existing message before calling chatgpt(), 
 # where the latest messages will be printed.) if not loading or searching a previous session.
 for message in st.session_state.messages:
@@ -964,7 +940,6 @@ for message in st.session_state.messages:
                 st.markdown(text)
                 st.markdown(message["content"])
             
-
 
 # The following code handles dropping a file from the local computer
 drop_file = st.sidebar.button \
@@ -1005,10 +980,6 @@ if st.session_state.drop_file:
         """,
         unsafe_allow_html=True,
         )
-        #  
-        # color=#ADD8E6"; font-style=italic;
-        # font-size: 30px; 
-
 
 
 # The following code handles the deletion of all chat history. 
@@ -1044,7 +1015,6 @@ if empty_database:
         elif confirmation_2 == 'No':
             st.success("Data not deleted.")
             st.session_state.empty_data = False
-
 
 
 # # The following code handles dropping an text image from the clipboard. The code needs to be
@@ -1091,7 +1061,6 @@ if st.session_state.delete_session:
             st.session_state.delete_session = False
 
 
-
 # The following code handles model API call and new chat session creation (if necessary) before sending
 # the API call. 
 model_role = "You are an experienced software engineer based in Austin, Texas, \
@@ -1110,20 +1079,11 @@ if prompt := st.chat_input("What is up?"):
     #     st.session_state.drop_clip = False
     if st.session_state.drop_file:
         prompt = files_to_prompt_text(prompt_f, prompt)
-        # st.session_state.send_drop_file = False
         increment_file_uploader_key()  # so that a new file_uploader shows up whithout the files
         process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
         st.session_state.drop_file = False
         st.rerun()  
     else:
         process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
-
-
-# if st.session_state.send_drop_file:
-#     st.session_state.send_drop_file = False
-#     process_prompt(connection, prompt_f, model_name, model_role, temperature, top_p, max_token)
-
-    # increment_file_uploader_key()  # so that a new file_uploader shows up whithout the files
-    # st.rerun()
 
 connection.close()

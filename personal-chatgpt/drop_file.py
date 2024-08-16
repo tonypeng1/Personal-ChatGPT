@@ -327,14 +327,7 @@ def extract_text_from_zip(zip_file) -> list:
                         print(f"Error reading {filename}: {e}")
 
     # st.markdown(extracted_files)
-    # st.markdown(
-    #     """
-    #     <span style="font-size: 50px;">📂</span>
-    #     """,
-    #     unsafe_allow_html=True,
-    # )
-        # st.markdown(":open_file_folder:")
-        # st.markdown(":material/article:")
+
     return extracted_files
 
 
@@ -368,7 +361,7 @@ def files_to_prompt_text(extracted_text, _question) -> str:
         f"Query: {_question}\n"
         "Answer: "
     )
-    # Wrap the text in triple backticks as coded text to prevent "#" be interpreted as header in markdown.
+    # Wrap the text in triple backticks as code text to prevent "#" be interpreted as header in markdown.
     llm_prompt =f"```\n{llm_prompt}\n```"   
                                                         # 
     # Return the prompt text
