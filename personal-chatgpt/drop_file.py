@@ -331,7 +331,7 @@ def extract_text_from_zip(zip_file) -> list:
     return extracted_files
 
 
-def files_to_prompt_text(extracted_text, _question) -> str:
+def change_to_prompt_text(extracted_text, _question) -> str:
     """
     Convert the extracted files and their contents into a prompt text for an LLM API.
     """
@@ -349,6 +349,8 @@ def files_to_prompt_text(extracted_text, _question) -> str:
     else:
         prompt_text = extracted_text
 
+    # prompt_text =f"```\n{prompt_text}\n```" 
+
     llm_prompt = (
         "You are a helpful assistant.\n"
         "Context information from a file (or files) and their contents is below.\n"
@@ -357,13 +359,13 @@ def files_to_prompt_text(extracted_text, _question) -> str:
         "---------------------\n"
         "Given the information above answer the query below.\n"   
         "Your answer should provide the main insights and patterns that can be \n"
-        "derived from the files.\n"
+        "derived from the files. Do not answer in a code block\n"
         f"Query: {_question}\n"
         "Answer: "
     )
     # Wrap the text in triple backticks as code text to prevent "#" be interpreted as header in markdown.
     llm_prompt =f"```\n{llm_prompt}\n```"   
-                                                        # 
+    
     # Return the prompt text
     return llm_prompt
 

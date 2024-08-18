@@ -1,22 +1,26 @@
 import anthropic
 import google.generativeai as genai
-# import io
+import io
+from io import StringIO, BytesIO
 from mistralai.client import MistralClient
 from mysql.connector import connect, Error
-# import ocrspace
+import ocrspace
 import openai
 from openai import OpenAIError
-# import os
+import os
+from PIL import Image
 # from PIL import ImageGrab
 import streamlit as st
-# import tempfile
+from streamlit_paste_button import paste_image_button as pasteButton
+import tempfile
 
 
 from delete_message import delete_the_messages_of_a_chat_session, \
                         delete_all_rows
+# from clipboard import get_clipboard_image
 from drop_file import increment_file_uploader_key, \
                         extract_text_from_different_file_types, \
-                        files_to_prompt_text, \
+                        change_to_prompt_text, \
                         save_to_mysql_message, \
                         set_both_load_and_search_sessions_to_False
 from init_database import add_column_model_to_message_search_table, \
@@ -573,46 +577,51 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
         raise
 
 
-# def convert_clipboard_to_text() -> str:
-#     """
-#     This function retrieves the text from the clipboard using the OCR API from ocr.space 
-#     and returns it. If no text is found in the clipboard, it displays an error message.
-#     Need to have a free account on ocr.space to get the API key.
+def convert_clipboard_to_text(_image) -> str:
+    """
+    This function retrieves the text from the clipboard using the OCR API from ocr.space 
+    and returns the text in it. If no text is found in the clipboard, it displays an 
+    error message. Need to have a free account on ocr.space to get the API key.
 
-#     Returns:
-#         str: The text retrieved from the clipboard.
-#     """
-#     image = ImageGrab.grabclipboard()
-#     if image is None:
-#         st.error(r"$\textsf{\large No image found in clipboard}$")
-#     else:
-#         col1, col2 = st.columns([1, 1])  # Adjust the ratio as needed
-#         with col1:
-#             st.image(image, caption='Image from clipboard', use_column_width=True)
-#         ocr_api = ocrspace.API(
-#             api_key=st.secrets["OCR_API_KEY"],
-#             OCREngine=2
-#             )
+    Returns:
+        str: The text retrieved from the clipboard.
+    """
+    # image = ImageGrab.grabclipboard()
+    if _image is None:
+        st.error(r"$\textsf{\large No image found in clipboard}$")
+    else:
+        col1, col2 = st.columns([1, 1])  # Adjust the ratio as needed
+        with col1:
+            st.image(_image, caption='Image from clipboard', use_column_width=True)
+        ocr_api = ocrspace.API(
+            api_key=st.secrets["OCR_API_KEY"],
+            OCREngine=2
+            )
 
-#         # Convert PngImageFile to bytes
-#         with io.BytesIO() as output:
-#             image.save(output, format="PNG")
-#             image_bytes = output.getvalue()
+        # Convert PngImageFile to bytes
+        with io.BytesIO() as output:
+            _image.save(output, format="PNG")
+            image_bytes = output.getvalue()
 
-#         # Create a temporary file
-#         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
-#             temp_file.write(image_bytes)
-#             temp_file_path = temp_file.name
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
+            temp_file.write(image_bytes)
+            temp_file_path = temp_file.name
 
-#         extracted_text = ocr_api.ocr_file(temp_file_path)
-#         extracted_text =f"```\n{extracted_text}\n```"   # Wrap the text in triple backticks as coded text to
-#                                                         # prevent "#" be interpreted as header in markdown.
-#         # st.markdown(extracted_text)
+        # Use the OCR API to extract text from the image
+        try:
+            extracted_text = ocr_api.ocr_file(temp_file_path)
+        except Exception as e:
+            st.error(f"Error occurred while processing the image in ocr API: {e}")
         
-#         # Remove the temporary file
-#         os.remove(temp_file_path)
+        extracted_text =f"```\n{extracted_text}\n```"   # Wrap the text in triple backticks as coded text to
+                                                        # prevent "#" be interpreted as header in markdown.
+        # st.markdown(extracted_text)
+        
+        # Remove the temporary file
+        os.remove(temp_file_path)
 
-#         return extracted_text
+        return extracted_text
 
 
 # Get app keys
@@ -678,7 +687,7 @@ if new_chat_button:
     st.session_state.load_session = False
     st.session_state.search_session = False
     st.session_state.drop_file = False
-    # st.session_state.drop_clip = False
+    st.session_state.drop_clip = False
 
 
 # The following code handles the search and retreival of the messages of a chat session
@@ -692,7 +701,7 @@ search_session = st.sidebar.button\
 if search_session:
     st.session_state.search_session = True
     st.session_state.drop_file = False
-    # st.session_state.drop_clip = False
+    st.session_state.drop_clip = False
 
 if st.session_state.search_session:
     keywords = st.sidebar.text_input('Full-text boolean search (Add + or - for a word that must be present or absent)')
@@ -838,7 +847,7 @@ load_session = st.sidebar.button \
 if load_session:
     st.session_state.load_session = True
     st.session_state.drop_file = False
-    # st.session_state.drop_clip = False
+    st.session_state.drop_clip = False
     
 if st.session_state.load_session:
     today_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Today', date_earlist, today))
@@ -917,11 +926,11 @@ if st.session_state.load_session:
             st.session_state.delete_session = True
 
 
-# # Show drop clipboard to LLM
-# drop_clip = st.sidebar.button \
-#             (r"$\textsf{\normalsize From Clipboard}$", 
-#             type="primary", 
-#             key="clip")
+# Show drop clipboard to LLM
+drop_clip = st.sidebar.button \
+            (r"$\textsf{\normalsize From Clipboard}$", 
+            type="primary", 
+            key="clip")
 
 
 # Print each message on page (this code prints pre-existing message before calling chatgpt(), 
@@ -951,7 +960,7 @@ if drop_file:
     st.session_state.drop_file = True
     st.session_state.load_session = False
     st.session_state.search_session = False
-    # st.session_state.drop_clip = False
+    st.session_state.drop_clip = False
 
 if st.session_state.drop_file:
     dropped_files = st.sidebar.file_uploader("Drop a file or multiple files (.txt, .rtf, .pdf, .csv, .zip)", 
@@ -974,13 +983,10 @@ if st.session_state.drop_file:
         # st.write(prompt_f)
 
         st.markdown(
-        """
-        <span style="font-size: 40px;">📂</span> 
-        <span style="font-style:italic; font-size: 20px; color:blue;"> (File/Files loaded. Please enter your question below.)</span>
-        """,
-        unsafe_allow_html=True,
+        "&nbsp;:blue[**(📂 loaded. Please enter your question below.)**]"
         )
-
+        # <span style="font-style:italic; font-size: 20px; color:blue;"> (File/Files loaded. Please enter your question below.)</span>
+        # <span style="font-size: 40px;">📂</span> :blue-background[:blue[**(File/Files loaded. Please enter your question below.)**]] 
 
 # The following code handles the deletion of all chat history. 
 st.sidebar.markdown("""----------""")
@@ -1017,17 +1023,57 @@ if empty_database:
             st.session_state.empty_data = False
 
 
-# # The following code handles dropping an text image from the clipboard. The code needs to be
-# # after messages printing in order to show confirmation at end of messages.
-# if drop_clip:
-#     st.session_state.drop_clip = True
-#     # st.session_state.drop_file = False
-#     # st.session_state.load_session = False
-#     # st.session_state.search_session = False
-#     # st.rerun()
+# The following code handles dropping an text image from the clipboard. The code needs to be
+# after messages printing in order to show confirmation at end of messages.
+if drop_clip:
+    st.session_state.drop_clip = True
+    # st.session_state.drop_file = False
+    # st.session_state.load_session = False
+    # st.session_state.search_session = False
+    # st.rerun()
 
-# if st.session_state.drop_clip:
-#     prompt_c = convert_clipboard_to_text()
+if st.session_state.drop_clip:
+    paste_result = pasteButton(
+        label="📋 Paste an image",
+        errors="raise",
+        )
+    # st.write(paste_result)
+    # if paste_result:
+    # paste_result.image_data = None
+    # st.write(f"past_result.image_data 1 is: {paste_result.image_data}")
+
+    if paste_result.image_data is not None:
+        # st.write('Pasted image:')
+        # st.image(paste_result.image_data)
+
+        # try:
+            # Convert to bytes
+        # img_bytes = io.BytesIO()
+        # paste_result.image_data.save(img_bytes, format='PNG')
+        # img_bytes = img_bytes.getvalue() # Image as bytes
+
+        # img_bytes = io.BytesIO()
+        # image = Image.open(BytesIO(paste_result.image_data))
+        prompt_c = convert_clipboard_to_text(paste_result.image_data)
+        # st.write(f"past_result.image_data 2 is: {paste_result.image_data}")
+        # paste_result.image_data = None
+        # st.write(f"past_result.image_data 3 is: {paste_result.image_data}")
+
+        # except Exception as e:
+        #     st.error(f"Error processing image: {str(e)}")
+
+        # # Convert to base64
+        # img_b64 =  base64.b64encode(img_bytes).decode('utf-8') # Image as base64
+
+        # # Convert to numpy array
+        # img_np = np.array(paste_result.image_data) # Image as numpy array
+
+        # try:
+        #     image = Image.open(BytesIO(img_data))
+        #     prompt_c = convert_clipboard_to_text(image)
+        # except Exception as e:
+        #     st.error(f"Error processing image: {str(e)}")
+        
 
 
 # The following code handles previous session deletion after uploading. The code needs to be
@@ -1074,11 +1120,15 @@ model_role = "You are an experienced software engineer based in Austin, Texas, \
             When rephrasing paragraphs, use lightly casual, straight-to-the-point language."
 
 if prompt := st.chat_input("What is up?"):
-    # if st.session_state.drop_clip:
-    #     prompt = f"{prompt}\n\n{prompt_c}"
-    #     st.session_state.drop_clip = False
-    if st.session_state.drop_file:
-        prompt = files_to_prompt_text(prompt_f, prompt)
+    if st.session_state.drop_clip:
+        prompt = f"{prompt}\n\n{prompt_c}"
+        process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
+        st.session_state.drop_clip = False
+        # st.session_state.drop_clip_answered = True
+        # paste_result.image_data = None
+        st.rerun()
+    elif st.session_state.drop_file:
+        prompt = change_to_prompt_text(prompt_f, prompt)
         increment_file_uploader_key()  # so that a new file_uploader shows up whithout the files
         process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
         st.session_state.drop_file = False
