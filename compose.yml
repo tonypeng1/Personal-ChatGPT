@@ -1,7 +1,7 @@
 services:
   app:
     container_name: chat_gpt
-    image: streamlit-mysql:1.1.0
+    image: streamlit-mysql:0.0.0
     ports:
       - 8501:8501
 

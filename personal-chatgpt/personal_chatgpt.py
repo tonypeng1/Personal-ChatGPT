@@ -1,15 +1,12 @@
 import anthropic
 import google.generativeai as genai
 import io
-from io import StringIO, BytesIO
 from mistralai.client import MistralClient
 from mysql.connector import connect, Error
 import ocrspace
 import openai
 from openai import OpenAIError
 import os
-from PIL import Image
-# from PIL import ImageGrab
 import streamlit as st
 from streamlit_paste_button import paste_image_button as pasteButton
 import tempfile
@@ -17,7 +14,6 @@ import tempfile
 
 from delete_message import delete_the_messages_of_a_chat_session, \
                         delete_all_rows
-# from clipboard import get_clipboard_image
 from drop_file import increment_file_uploader_key, \
                         extract_text_from_different_file_types, \
                         change_to_prompt_text, \
@@ -577,7 +573,7 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
         raise
 
 
-def convert_clipboard_to_text(_image) -> str:
+def convert_clipboard_to_text(_image, ocr_key) -> str:
     """
     This function retrieves the text from the clipboard using the OCR API from ocr.space 
     and returns the text in it. If no text is found in the clipboard, it displays an 
@@ -594,7 +590,7 @@ def convert_clipboard_to_text(_image) -> str:
         with col1:
             st.image(_image, caption='Image from clipboard', use_column_width=True)
         ocr_api = ocrspace.API(
-            api_key=st.secrets["OCR_API_KEY"],
+            api_key=ocr_key,
             OCREngine=2
             )
 
@@ -631,7 +627,7 @@ MISTRAL_API_KEY = st.secrets["MISTRAL_API_KEY"]
 CLAUDE_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
 TOGETHER_API_KEY = st.secrets["TOGETHER_API_KEY"]
 PERPLEXITY_API_KEY = st.secrets["PERPLEXITY_API_KEY"]
-# OCR_API_KEY = st.secrets["OCR_API_KEY"]
+OCR_API_KEY = st.secrets["OCR_API_KEY"]
 
 # Set gemini api configuration
 genai.configure(api_key=GOOGLE_API_KEY)
@@ -976,8 +972,8 @@ if st.session_state.drop_file:
         for dropped_file in dropped_files:   
             extract = extract_text_from_different_file_types(dropped_file)
             if st.session_state.zip_file:  
-                prompt_f = extract  # if it is zip, the return is a list
-            else:
+                prompt_f = extract  # if it is a .zip file, the return is a list
+            else:  # if it is not zip, the return is a string (here we concatenate the strings)
                 prompt_f = prompt_f + extract + "\n\n"
 
         # st.write(prompt_f)
@@ -1027,53 +1023,16 @@ if empty_database:
 # after messages printing in order to show confirmation at end of messages.
 if drop_clip:
     st.session_state.drop_clip = True
-    # st.session_state.drop_file = False
-    # st.session_state.load_session = False
-    # st.session_state.search_session = False
-    # st.rerun()
 
 if st.session_state.drop_clip:
     paste_result = pasteButton(
         label="📋 Paste an image",
         errors="raise",
         )
-    # st.write(paste_result)
-    # if paste_result:
-    # paste_result.image_data = None
-    # st.write(f"past_result.image_data 1 is: {paste_result.image_data}")
 
     if paste_result.image_data is not None:
-        # st.write('Pasted image:')
-        # st.image(paste_result.image_data)
-
-        # try:
-            # Convert to bytes
-        # img_bytes = io.BytesIO()
-        # paste_result.image_data.save(img_bytes, format='PNG')
-        # img_bytes = img_bytes.getvalue() # Image as bytes
-
-        # img_bytes = io.BytesIO()
-        # image = Image.open(BytesIO(paste_result.image_data))
-        prompt_c = convert_clipboard_to_text(paste_result.image_data)
-        # st.write(f"past_result.image_data 2 is: {paste_result.image_data}")
-        # paste_result.image_data = None
-        # st.write(f"past_result.image_data 3 is: {paste_result.image_data}")
-
-        # except Exception as e:
-        #     st.error(f"Error processing image: {str(e)}")
-
-        # # Convert to base64
-        # img_b64 =  base64.b64encode(img_bytes).decode('utf-8') # Image as base64
-
-        # # Convert to numpy array
-        # img_np = np.array(paste_result.image_data) # Image as numpy array
-
-        # try:
-        #     image = Image.open(BytesIO(img_data))
-        #     prompt_c = convert_clipboard_to_text(image)
-        # except Exception as e:
-        #     st.error(f"Error processing image: {str(e)}")
-        
+        prompt_c = convert_clipboard_to_text(paste_result.image_data, OCR_API_KEY)
+        st.session_state.drop_clip_loaded = True        
 
 
 # The following code handles previous session deletion after uploading. The code needs to be
@@ -1109,25 +1068,26 @@ if st.session_state.delete_session:
 
 # The following code handles model API call and new chat session creation (if necessary) before sending
 # the API call. 
-model_role = "You are an experienced software engineer based in Austin, Texas, \
-            predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. \
-            You also work on machine learning projects using python, interested in generative AI and LLMs. \
-            When rendering code samples always include the import statements. \
-            When giving required code solutions include complete code with no omission. \
-            When giving long responses add the source of the information as URLs. \
-            You are fine with strong opinion as long as the source of the information can be pointed out \
-            and always question my understanding. \
-            When rephrasing paragraphs, use lightly casual, straight-to-the-point language."
+model_role = (
+    "You are an experienced software engineer based in Austin, Texas, "
+    "predominantly working with Kafka, Java, Flink, Kafka-Connect, Ververica-Platform. "
+    "You also work on machine learning projects using Python, interested in generative AI and LLMs. "
+    "When rendering code samples always include the import statements. "
+    "When giving required code solutions include complete code with no omission. "
+    "When giving long responses add the source of the information as URLs. "
+    "You are fine with strong opinion as long as the source of the information can be pointed out "
+    "and always question my understanding. "
+    "When rephrasing paragraphs, use lightly casual, straight-to-the-point language."
+    )
 
 if prompt := st.chat_input("What is up?"):
-    if st.session_state.drop_clip:
+    if st.session_state.drop_clip is True and st.session_state.drop_clip_loaded is True:
         prompt = f"{prompt}\n\n{prompt_c}"
         process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
         st.session_state.drop_clip = False
-        # st.session_state.drop_clip_answered = True
-        # paste_result.image_data = None
+        st.session_state.drop_clip_loaded = False
         st.rerun()
-    elif st.session_state.drop_file:
+    elif st.session_state.drop_file is True:
         prompt = change_to_prompt_text(prompt_f, prompt)
         increment_file_uploader_key()  # so that a new file_uploader shows up whithout the files
         process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
