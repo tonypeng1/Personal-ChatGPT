@@ -806,8 +806,8 @@ if behavior != st.session_state.behavior:  # only save to database if behavior i
 max_token = st.sidebar.number_input(
     label="Select the max number of tokens the model can generate",
     min_value=500,
-    max_value=4000,
-    value=1500,
+    max_value=6000,
+    value=4000,
     step=500
     )
 
