@@ -62,7 +62,7 @@ def Load_the_last_saved_model_type(conn) -> None:
                     result = ("gemini-1.5-pro-exp-0801", )
                 if result[0] == "claude-3-opus-20240229":
                     result = ("claude-3-5-sonnet-20240620", )                
-                if result[0] == "gpt-4-turbo-2024-04-09":
+                if result[0] in ("gpt-4-turbo-2024-04-09", "o1-preview"):
                     result = ("gpt-4o", )
                 st.session_state.type = result[0]
             else:

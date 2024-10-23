@@ -81,6 +81,9 @@ def convert_date(date1: str, date_early: datetime, today: date) -> Tuple[date, d
     Returns:
     A tuple of two datetime objects representing the start and end of the date range.
     """
+    if isinstance(date_early, str):
+        date_early = datetime.strptime(date_early, '%Y-%m-%d').date()
+         
     if date1 == "Today":
         return (today, today)
     elif date1 == "Yesterday":

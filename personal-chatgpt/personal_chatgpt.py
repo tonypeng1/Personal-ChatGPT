@@ -1,12 +1,14 @@
 import anthropic
 import google.generativeai as genai
 import io
+import json
 from mistralai.client import MistralClient
 from mysql.connector import connect, Error
 import ocrspace
 import openai
 from openai import OpenAIError
 import os
+import requests
 import streamlit as st
 from streamlit_paste_button import paste_image_button as pasteButton
 import tempfile
@@ -127,9 +129,9 @@ def chatgpt(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
-        text = f":blue-background[:blue[**{model_name}**]]"  
+        text = f":blue-background[:blue[**{model_name}**]]"
         st.markdown(text)
-        
+
         message_placeholder = st.empty()
         full_response = ""
         try:
@@ -158,7 +160,7 @@ def chatgpt(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
             error_response = f"An unexpected error occurred in OpenAI API call: {e}"
             full_response = error_response
             message_placeholder.markdown(full_response)
-    
+
     return full_response
 
 
@@ -175,21 +177,21 @@ def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
     """
     with st.chat_message("user"):
         st.markdown(prompt1)
-        
+
     with st.chat_message("assistant"):
-        text = f":blue-background[:blue[**{model_name}**]]"  
+        text = f":blue-background[:blue[**{model_name}**]]"
         st.markdown(text)
-        
+
         message_placeholder = st.empty()
         full_response = ""
         try:
             for response in  gemini_model.generate_content(
-                [{"role": "user", 
+                [{"role": "user",
                   "parts": [{
                       "text": model_role + "If you understand your role, please response 'I understand.'"
                       }]
                       },
-                {"role": "model", 
+                {"role": "model",
                  "parts": [{"text": "I understand."}]
                  }
                 ] +
@@ -231,7 +233,7 @@ def mistral(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
         conn: A MySQL connection object.
         prompt1: The user's input.
         temp: The temperature parameter for the mistral API.
-        p: The top-p parameter for the mistral API. 
+        p: The top-p parameter for the mistral API.
             (ignore, error occurs if used simultaneously with temperature)
         max_tok: The maximum number of tokens for the mistral API.
     """
@@ -239,7 +241,7 @@ def mistral(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
-        text = f":blue-background[:blue[**{model_name}**]]"  
+        text = f":blue-background[:blue[**{model_name}**]]"
         st.markdown(text)
 
         message_placeholder = st.empty()
@@ -290,9 +292,9 @@ def claude(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
-        text = f":blue-background[:blue[**{model_name}**]]"  
+        text = f":blue-background[:blue[**{model_name}**]]"
         st.markdown(text)
-        
+
         message_placeholder = st.empty()
         full_response = ""
         try:
@@ -317,7 +319,7 @@ def claude(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
             error_response = f"An unexpected error occurred in Claude 3.5 API call: {e}"
             full_response = error_response
             message_placeholder.markdown(full_response)
-    
+
     return full_response
 
 
@@ -340,14 +342,14 @@ def together(prompt1: str, model_role: str, temp: float, p: float, max_tok: int)
             When rendering code samples always include the import statements if applicable. \
             When giving required code solutions include complete code with no omission. \
             When rephrasing paragraphs, use lightly casual, straight-to-the-point language."
-    
+
     with st.chat_message("user"):
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
-        text = f":blue-background[:blue[**{model_name}**]]"  
+        text = f":blue-background[:blue[**{model_name}**]]"
         st.markdown(text)
-        
+
         message_placeholder = st.empty()
         full_response = ""
         try:
@@ -356,7 +358,7 @@ def together(prompt1: str, model_role: str, temp: float, p: float, max_tok: int)
                 messages=
                     [{"role": "system", "content": role}] +
                     [
-                    {"role": m["role"], 
+                    {"role": m["role"],
                      "content": f'[INST]{m["content"]}[/INST]' if m["role"] == "user" \
                      else m["content"]}
                     for m in st.session_state.messages
@@ -378,7 +380,7 @@ def together(prompt1: str, model_role: str, temp: float, p: float, max_tok: int)
             error_response = f"An unexpected error occurred in TogetherAI API call: {e}"
             full_response = error_response
             message_placeholder.markdown(full_response)
-    
+
     return full_response
 
 
@@ -388,7 +390,6 @@ def together_python(prompt1: str, temp: float, p: float, max_tok: int) -> str:
     function is not a chat, only one prompt at a time.
 
     Args:
-        conn: A connection object to the MySQL database.
         prompt (str): The user's input prompt to the chatbot.
         temp (float): The temperature parameter for Together's ChatCompletion.
         p (float): The top_p parameter for Together's Completion.
@@ -401,9 +402,9 @@ def together_python(prompt1: str, temp: float, p: float, max_tok: int) -> str:
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
-        text = f":blue-background[:blue[**{model_name}**]]"  
+        text = f":blue-background[:blue[**{model_name}**]]"
         st.markdown(text)
-        
+
         message_placeholder = st.empty()
         full_response = ""
         try:
@@ -427,8 +428,104 @@ def together_python(prompt1: str, temp: float, p: float, max_tok: int) -> str:
             error_response = f"An unexpected error occurred in TogetherAI API call: {e}"
             full_response = error_response
             message_placeholder.markdown(full_response)
-    
+
     return full_response
+
+
+# def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
+#     """
+#     Processes a chat prompt using Perplexity OpenAI's ChatCompletion and updates the chat session.
+
+#     Args:
+#         prompt (str): The user's input prompt to the chatbot.
+#         temp (float): The temperature parameter for OpenAI's ChatCompletion.
+#         p (float): The top_p parameter for OpenAI's ChatCompletion.
+#         max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
+
+#     Raises:
+#         Raises an exception if there is a failure in database operations or OpenAI's API call.
+#     """
+#     with st.chat_message("user"):
+#         st.markdown(prompt1)
+
+#     with st.chat_message("assistant"):
+#         text = f":blue-background[:blue[**{model_name}**]]"
+#         st.markdown(text)
+
+#         message_placeholder = st.empty()
+#         full_response = ""
+
+#         payload = {
+#             "model": "llama-3.1-sonar-large-128k-online",
+#             "messages": [{
+#                     "role": "system",
+#                     "content": model_role
+#                     }] +
+#                     [
+#                     {"role": m["role"], "content": m["content"]}
+#                     for m in st.session_state.messages
+#                     ],
+#             "temperature": temp,
+#             "top_p":p,
+#             "max_tokens": max_tok,
+#             "stream": False,
+#             "return_citations": True
+#             # "search_domain_filter": ["perplexity.ai"],
+#             # "return_images": False,
+#             # "return_related_questions": False,
+#             # "search_recency_filter": "month",
+#             # "top_k": 0,
+#             # "presence_penalty": 0,
+#             # "frequency_penalty": 1
+#         }
+#         headers = {
+#             "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
+#             "Content-Type": "application/json",
+#             "Accept": "application/json"
+#         }
+
+#         url = "https://api.perplexity.ai/chat/completions"
+#         try:
+#             response = requests.request(
+#                 "POST",
+#                 url,
+#                 json=payload,
+#                 headers=headers
+#                 )
+#             response_string = response.json()
+#             print(response_string)
+#             full_response = response_string["choices"][0]["message"]["content"]
+#             message_placeholder.markdown(full_response)
+#             # for response in requests.request(
+#             #     "POST",
+#             #     url,
+#             #     json=payload,
+#             #     headers=headers
+#             #     ):
+#             #     # response_string = response.decode("utf-8")
+#             #     # print(response_string)
+#             #     # Remove the "data: " prefix if it exists
+#             #     # st.markdown(response_string[0:10])
+#             #     # if response_string.startswith("data: "):
+#             #     #     response_string = response_string[6:]
+#             #     # response_data = json.loads(response_string)
+#             #     # full_response += response_data
+#             #     # full_response += response_string
+#             #     # full_response += response_data["choices"][0]["message"]["content"] or ""
+#             #     full_response += response.text or ""
+#             #     message_placeholder.markdown(full_response + "▌")
+#             # message_placeholder.markdown(full_response)
+
+#         except OpenAIError as e:
+#             error_response = f"An error occurred with Perplexity API in getting chat response: {e}"
+#             full_response = error_response
+#             message_placeholder.markdown(full_response)
+#         # except Exception as e:
+#         #     error_response = f"An unexpected error occurred in Perplexity API call: {e}"
+#         #     full_response = error_response
+#         #     message_placeholder.markdown(full_response)
+
+#     return full_response
 
 
 def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
@@ -436,7 +533,6 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
     Processes a chat prompt using Perplexity OpenAI's ChatCompletion and updates the chat session.
 
     Args:
-        conn: A connection object to the MySQL database.
         prompt (str): The user's input prompt to the chatbot.
         temp (float): The temperature parameter for OpenAI's ChatCompletion.
         p (float): The top_p parameter for OpenAI's ChatCompletion.
@@ -449,9 +545,9 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
-        text = f":blue-background[:blue[**{model_name}**]]"  
+        text = f":blue-background[:blue[**{model_name}**]]"
         st.markdown(text)
-        
+
         message_placeholder = st.empty()
         full_response = ""
         try:
@@ -480,7 +576,7 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
             error_response = f"An unexpected error occurred in OpenAI API call: {e}"
             full_response = error_response
             message_placeholder.markdown(full_response)
-    
+
     return full_response
 
 
@@ -492,7 +588,7 @@ def save_session_state_messages(conn) -> None:
     conn: The database connection object.
     """
     for message in st.session_state.messages:
-        save_to_mysql_message(conn, st.session_state.session, message["role"], 
+        save_to_mysql_message(conn, st.session_state.session, message["role"],
                               message["model"], message["content"])
 
 
@@ -509,11 +605,11 @@ def determine_if_terminate_current_session_and_start_a_new_one(conn) -> None:
                                 start_session_save_to_mysql_and_increment_session_id(conn)),
         'load_history_level_2': lambda: (end_session_save_to_mysql_and_save_summary(conn),
                                          start_session_save_to_mysql_and_increment_session_id(conn),
-                                         save_session_state_messages(conn),  # with messages of the already loaded old session 
+                                         save_session_state_messages(conn),  # with messages of the already loaded old session
                                          delete_the_messages_of_a_chat_session(conn, load_history_level_2)),  # with the old session id
-        'session_different_date': lambda: (end_session_save_to_mysql_and_save_summary(conn), 
-                                           delete_the_messages_of_a_chat_session(conn, st.session_state.session), 
-                                           start_session_save_to_mysql_and_increment_session_id(conn), 
+        'session_different_date': lambda: (end_session_save_to_mysql_and_save_summary(conn),
+                                           delete_the_messages_of_a_chat_session(conn, st.session_state.session),
+                                           start_session_save_to_mysql_and_increment_session_id(conn),
                                            save_session_state_messages(conn)
                                          )
     }
@@ -530,7 +626,7 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
     This function processes a given prompt by performing the following steps:
     1. Determines if the current session should be terminated and a new one started.
     2. Appends the prompt to the session state messages with the role 'user'.
-    3. Calls the appropriate model (chatgpt, gemini, or mistral) based on the model_name and passes 
+    3. Calls the appropriate model (chatgpt, gemini, or mistral) based on the model_name and passes
         the prompt, temperature, top_p, and max_token parameters.
     4. Appends the model's response to the session state messages with the role 'assistant'.
     5. Saves the prompt and response to the MySQL database.
@@ -556,13 +652,13 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
         elif model_name == "gemini-1.5-pro-exp-0801":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "mistral-large-latest":
-            responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))   
+            responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "perplexity-llama-3.1-sonar-large-128k-online":
-            responses = perplexity(prompt1, model_role, temperature, top_p, int(max_token))  
+            responses = perplexity(prompt1, model_role, temperature, top_p, int(max_token))
         else:
             raise ValueError('Model is not in the list.')
-        
-        st.session_state.messages.append({"role": "assistant", "model": model_name, 
+
+        st.session_state.messages.append({"role": "assistant", "model": model_name,
                                       "content": responses})
 
         save_to_mysql_message(conn, st.session_state.session, "user", "", prompt1)
@@ -575,8 +671,8 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
 
 def convert_clipboard_to_text(_image, ocr_key) -> str:
     """
-    This function retrieves the text from the clipboard using the OCR API from ocr.space 
-    and returns the text in it. If no text is found in the clipboard, it displays an 
+    This function retrieves the text from the clipboard using the OCR API from ocr.space
+    and returns the text in it. If no text is found in the clipboard, it displays an
     error message. Need to have a free account on ocr.space to get the API key.
 
     Returns:
@@ -609,11 +705,11 @@ def convert_clipboard_to_text(_image, ocr_key) -> str:
             extracted_text = ocr_api.ocr_file(temp_file_path)
         except Exception as e:
             st.error(f"Error occurred while processing the image in ocr API: {e}")
-        
+
         extracted_text =f"```\n{extracted_text}\n```"   # Wrap the text in triple backticks as coded text to
                                                         # prevent "#" be interpreted as header in markdown.
         # st.markdown(extracted_text)
-        
+
         # Remove the temporary file
         os.remove(temp_file_path)
 
@@ -652,7 +748,7 @@ together_client = openai.OpenAI(
 
 # Set perplexity api configuration
 perplexity_client = openai.OpenAI(
-    api_key=PERPLEXITY_API_KEY, 
+    api_key=PERPLEXITY_API_KEY,
     base_url="https://api.perplexity.ai"
     )
 
@@ -668,11 +764,11 @@ index_column_content_in_table_message(connection)  # index column content in tab
 init_session_states()  # Initialize all streamlit session states if there is no value
 
 ## Get the current date (US central time) and the earliest date from database
-today = load_current_date_from_database(connection)  
+today = load_current_date_from_database(connection)
 date_earlist = get_the_earliest_date(connection)
 
-new_chat_button = st.sidebar.button(r"$\textsf{\normalsize New chat session}$", 
-                                    type="primary", 
+new_chat_button = st.sidebar.button(r"$\textsf{\normalsize New chat session}$",
+                                    type="primary",
                                     key="new",
                                     on_click=increment_file_uploader_key)
 
@@ -689,9 +785,9 @@ if new_chat_button:
 # The following code handles the search and retreival of the messages of a chat session
 # (list of all matched sessions together)
 search_session = st.sidebar.button\
-                (r"$\textsf{\normalsize SEARCH for a session}$", 
-                 on_click=set_load_session_to_False, 
-                 type="primary", 
+                (r"$\textsf{\normalsize SEARCH for a session}$",
+                 on_click=set_load_session_to_False,
+                 type="primary",
                  key="search")
 
 if search_session:
@@ -704,7 +800,7 @@ if st.session_state.search_session:
     if keywords != "":
         delete_all_rows_in_message_serach(connection)
         search_full_text_and_save_to_message_search_table(connection, keywords)
-    
+
         all_dates_sessions = load_previous_chat_session_ids(connection, 'message_search', *convert_date('All dates', date_earlist, today))
         all_dates_dic = get_summary_by_session_id_return_dic(connection, all_dates_sessions)
 
@@ -735,7 +831,7 @@ if st.session_state.search_session:
             session_html = markdown_to_html(session_md)
 
             file_name = get_summary_and_return_as_file_name(connection, load_history_level_2) + ".html"
-            
+
             download_chat_session = st.sidebar.download_button(
                 label="Save it to a .html file",
                 data=session_html,
@@ -758,10 +854,10 @@ if st.session_state.search_session:
 st.title("Personal LLM APP")
 st.sidebar.title("Options")
 
-# Handle model type. The type chosen will be reused rather than using a default value. 
+# Handle model type. The type chosen will be reused rather than using a default value.
 # If the type table is empty, set the initial type to "Deterministic".
 insert_initial_default_model_type(connection, 'gemini-1.5-pro-exp-0801')
-    
+
 Load_the_last_saved_model_type(connection)  # load from database and save to session_state
 type_index = return_type_index(st.session_state.type)  # from string to int (0 to 4)
 
@@ -769,7 +865,7 @@ model_name = st.sidebar.radio(
                                 label="Choose model:",
                                 options=(
                                     "gpt-4o",
-                                    "claude-3-5-sonnet-20240620", 
+                                    "claude-3-5-sonnet-20240620",
                                     "mistral-large-latest",
                                     "perplexity-llama-3.1-sonar-large-128k-online",
                                     # "CodeLlama-70b-Instruct-hf",
@@ -779,14 +875,14 @@ model_name = st.sidebar.radio(
                                 key="type1"
                             )
 
-if model_name != st.session_state.type:  # only save to database if type is newly clicked 
-    save_model_type_to_mysql(connection, model_name)  
+if model_name != st.session_state.type:  # only save to database if type is newly clicked
+    save_model_type_to_mysql(connection, model_name)
 
 
-# Handle model behavior. The behavior chosen will be reused rather than using a default value. 
+# Handle model behavior. The behavior chosen will be reused rather than using a default value.
 # If the behavior table is empty, set the initial behavior to "Deterministic".
 insert_initial_default_model_behavior(connection, 'Deterministic (T=0.0, top_p=0.2)')
-    
+
 Load_the_last_saved_model_behavior(connection)  # load from database and save to session_state
 (temperature, top_p) = return_temp_and_top_p_values_from_model_behavior(st.session_state.behavior)
 behavior_index = return_behavior_index(st.session_state.behavior)  # from string to int (0 to 4)
@@ -794,14 +890,14 @@ behavior_index = return_behavior_index(st.session_state.behavior)  # from string
 behavior = st.sidebar.selectbox(
     label="Select the behavior of your model",
     placeholder='Pick a behavior',
-    options=['Deterministic (T=0.0, top_p=0.2)', 'Conservative (T=0.3, top_p=0.4)', 
+    options=['Deterministic (T=0.0, top_p=0.2)', 'Conservative (T=0.3, top_p=0.4)',
              'Balanced (T=0.6, top_p=0.6)', 'Diverse (T=0.8, top_p=0.8)', 'Creative (T=1.0, top_p=1.0)'],
     index=behavior_index,
     key="behavior1"
     )
 
-if behavior != st.session_state.behavior:  # only save to database if behavior is newly clicked 
-    save_model_behavior_to_mysql(connection, behavior)  
+if behavior != st.session_state.behavior:  # only save to database if behavior is newly clicked
+    save_model_behavior_to_mysql(connection, behavior)
 
 max_token = st.sidebar.number_input(
     label="Select the max number of tokens the model can generate",
@@ -811,7 +907,7 @@ max_token = st.sidebar.number_input(
     step=500
     )
 
-# Initiate a session (either display the current active session in the database or 
+# Initiate a session (either display the current active session in the database or
 # start a new session)
 if "session" not in st.session_state:
     get_and_set_current_session_id(connection)
@@ -835,16 +931,16 @@ if "session" not in st.session_state:
 # The following code handles the retreival of the messages of a previous chat session
 # (list of session_ids of different date ranges)
 load_session = st.sidebar.button \
-            (r"$\textsf{\normalsize LOAD a session}$", 
-            on_click=set_search_session_to_False, 
-            type="primary", 
+            (r"$\textsf{\normalsize LOAD a session}$",
+            on_click=set_search_session_to_False,
+            type="primary",
             key="load")
 
 if load_session:
     st.session_state.load_session = True
     st.session_state.drop_file = False
     st.session_state.drop_clip = False
-    
+
 if st.session_state.load_session:
     today_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Today', date_earlist, today))
     yesterday_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Yesterday', date_earlist, today))
@@ -902,7 +998,7 @@ if st.session_state.load_session:
         session_html = markdown_to_html(session_md)
 
         file_name = get_summary_and_return_as_file_name(connection, load_history_level_2) + ".html"
-        
+
         download_chat_session = st.sidebar.download_button(
             label="Save it to a .html file",
             data=session_html,
@@ -924,12 +1020,12 @@ if st.session_state.load_session:
 
 # Show drop clipboard to LLM
 drop_clip = st.sidebar.button \
-            (r"$\textsf{\normalsize From Clipboard}$", 
-            type="primary", 
+            (r"$\textsf{\normalsize From Clipboard}$",
+            type="primary",
             key="clip")
 
 
-# Print each message on page (this code prints pre-existing message before calling chatgpt(), 
+# Print each message on page (this code prints pre-existing message before calling chatgpt(),
 # where the latest messages will be printed.) if not loading or searching a previous session.
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -941,15 +1037,15 @@ for message in st.session_state.messages:
                 st.markdown(message["content"])
             else:
                 text = message["model"]
-                text = f":blue-background[:blue[**{text}**]]"   
+                text = f":blue-background[:blue[**{text}**]]"
                 st.markdown(text)
                 st.markdown(message["content"])
-            
+
 
 # The following code handles dropping a file from the local computer
 drop_file = st.sidebar.button \
-            (r"$\textsf{\normalsize Drop a file to LLM}$", 
-            type="primary", 
+            (r"$\textsf{\normalsize Drop a file to LLM}$",
+            type="primary",
             key="drop")
 
 if drop_file:
@@ -959,7 +1055,7 @@ if drop_file:
     st.session_state.drop_clip = False
 
 if st.session_state.drop_file:
-    dropped_files = st.sidebar.file_uploader("Drop a file or multiple files (.txt, .rtf, .pdf, .csv, .zip)", 
+    dropped_files = st.sidebar.file_uploader("Drop a file or multiple files (.txt, .rtf, .pdf, .csv, .zip)",
                                             accept_multiple_files=True,
                                             on_change=set_both_load_and_search_sessions_to_False,
                                             key=st.session_state.file_uploader_key)
@@ -969,9 +1065,9 @@ if st.session_state.drop_file:
 
     prompt_f =""
     if dropped_files != []:
-        for dropped_file in dropped_files:   
+        for dropped_file in dropped_files:
             extract = extract_text_from_different_file_types(dropped_file)
-            if st.session_state.zip_file:  
+            if st.session_state.zip_file:
                 prompt_f = extract  # if it is a .zip file, the return is a list
             else:  # if it is not zip, the return is a string (here we concatenate the strings)
                 prompt_f = prompt_f + extract + "\n\n"
@@ -982,9 +1078,9 @@ if st.session_state.drop_file:
         "&nbsp;:blue[**(📂 loaded. Please enter your question below.)**]"
         )
         # <span style="font-style:italic; font-size: 20px; color:blue;"> (File/Files loaded. Please enter your question below.)</span>
-        # <span style="font-size: 40px;">📂</span> :blue-background[:blue[**(File/Files loaded. Please enter your question below.)**]] 
+        # <span style="font-size: 40px;">📂</span> :blue-background[:blue[**(File/Files loaded. Please enter your question below.)**]]
 
-# The following code handles the deletion of all chat history. 
+# The following code handles the deletion of all chat history.
 st.sidebar.markdown("""----------""")
 empty_database = st.sidebar.button(
     r"$\textsf{\normalsize Delete the entire chat history}$", type="primary")
@@ -1032,7 +1128,7 @@ if st.session_state.drop_clip:
 
     if paste_result.image_data is not None:
         prompt_c = convert_clipboard_to_text(paste_result.image_data, OCR_API_KEY)
-        st.session_state.drop_clip_loaded = True        
+        st.session_state.drop_clip_loaded = True
 
 
 # The following code handles previous session deletion after uploading. The code needs to be
@@ -1067,11 +1163,10 @@ if st.session_state.delete_session:
 
 
 # The following code handles model API call and new chat session creation (if necessary) before sending
-# the API call. 
+# the API call.
 model_role = (
-    "You are an experienced software engineer based in Austin, Texas, "
-    "predominantly working with Kafka, Java, Flink, Kafka-Connect, Ververica-Platform. "
-    "You also work on machine learning projects using Python, interested in generative AI and LLMs. "
+    "You are an experienced senior engineer based in Austin, Texas, "
+    "predominantly working on machine learning projects using Python, interested in generative AI and LLMs. "
     "When rendering code samples always include the import statements. "
     "When giving required code solutions include complete code with no omission. "
     "When giving long responses add the source of the information as URLs. "
@@ -1092,7 +1187,7 @@ if prompt := st.chat_input("What is up?"):
         increment_file_uploader_key()  # so that a new file_uploader shows up whithout the files
         process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
         st.session_state.drop_file = False
-        st.rerun()  
+        st.rerun()
     else:
         process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
 
