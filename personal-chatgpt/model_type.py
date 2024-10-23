@@ -60,8 +60,8 @@ def Load_the_last_saved_model_type(conn) -> None:
                     result = ("perplexity-llama-3.1-sonar-large-128k-online", )
                 if result[0] == "gemini-1.5-pro-latest":
                     result = ("gemini-1.5-pro-exp-0801", )
-                if result[0] == "claude-3-opus-20240229":
-                    result = ("claude-3-5-sonnet-20240620", )                
+                if result[0] in ("claude-3-opus-20240229", "claude-3-5-sonnet-20240620"):
+                    result = ("claude-3-5-sonnet-20241022", )                
                 if result[0] in ("gpt-4-turbo-2024-04-09", "o1-preview"):
                     result = ("gpt-4o", )
                 st.session_state.type = result[0]
@@ -91,7 +91,7 @@ def return_type_index(type1: str) -> int:
     """
     type_dic = {
         "gpt-4o": 0,
-        "claude-3-5-sonnet-20240620": 1, 
+        "claude-3-5-sonnet-20241022": 1, 
         "mistral-large-latest": 2,
         # "CodeLlama-70b-Instruct-hf": 3,
         "perplexity-llama-3.1-sonar-large-128k-online": 3,

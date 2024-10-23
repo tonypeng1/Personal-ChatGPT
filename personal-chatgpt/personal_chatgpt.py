@@ -647,7 +647,7 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
     try:
         if model_name == "gpt-4o":
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token))
-        elif model_name == "claude-3-5-sonnet-20240620":
+        elif model_name == "claude-3-5-sonnet-20241022":
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "gemini-1.5-pro-exp-0801":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
@@ -734,7 +734,7 @@ mistral_model = "mistral-large-latest"
 mistral_client = MistralClient(api_key=MISTRAL_API_KEY)
 
 # Set Claude api configuration
-claude_model = "claude-3-5-sonnet-20240620"
+claude_model = "claude-3-5-sonnet-20241022"
 claude_client = anthropic.Anthropic(api_key=CLAUDE_API_KEY,)
 
 # Set chatgpt api configuration
@@ -865,7 +865,7 @@ model_name = st.sidebar.radio(
                                 label="Choose model:",
                                 options=(
                                     "gpt-4o",
-                                    "claude-3-5-sonnet-20240620",
+                                    "claude-3-5-sonnet-20241022",
                                     "mistral-large-latest",
                                     "perplexity-llama-3.1-sonar-large-128k-online",
                                     # "CodeLlama-70b-Instruct-hf",
