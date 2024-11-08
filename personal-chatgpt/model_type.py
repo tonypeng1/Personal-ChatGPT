@@ -56,8 +56,9 @@ def Load_the_last_saved_model_type(conn) -> None:
             result = cursor.fetchone()
             if result is not None and result[0] is not None:
                 if result[0] in ("perplexity-llama-3-sonar-large-32k-chat", 
-                                 "perplexity-llama-3-sonar-large-32k-online"):  # for v0.7.0 and v0.8.0
-                    result = ("perplexity-llama-3.1-sonar-large-128k-online", )
+                                 "perplexity-llama-3-sonar-large-32k-online",
+                                 "perplexity-llama-3.1-sonar-large-128k-online"):  # for v0.7.0 and v0.8.0
+                    result = ("perplexity-llama-3.1-sonar-huge-128k-online", )
                 if result[0] == "gemini-1.5-pro-latest":
                     result = ("gemini-1.5-pro-exp-0801", )
                 if result[0] in ("claude-3-opus-20240229", "claude-3-5-sonnet-20240620"):
@@ -94,7 +95,7 @@ def return_type_index(type1: str) -> int:
         "claude-3-5-sonnet-20241022": 1, 
         "mistral-large-latest": 2,
         # "CodeLlama-70b-Instruct-hf": 3,
-        "perplexity-llama-3.1-sonar-large-128k-online": 3,
+        "perplexity-llama-3.1-sonar-huge-128k-online": 3,
         "gemini-1.5-pro-exp-0801":4
     }
     if type1 not in type_dic:

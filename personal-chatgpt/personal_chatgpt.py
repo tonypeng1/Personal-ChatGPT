@@ -552,7 +552,7 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
         full_response = ""
         try:
             for response in perplexity_client.chat.completions.create(
-                model="llama-3.1-sonar-large-128k-online",
+                model="llama-3.1-sonar-huge-128k-online",
                 messages=
                     [{"role": "system", "content": model_role}] +
                     [
@@ -653,7 +653,7 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "mistral-large-latest":
             responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))
-        elif model_name == "perplexity-llama-3.1-sonar-large-128k-online":
+        elif model_name == "perplexity-llama-3.1-sonar-huge-128k-online":
             responses = perplexity(prompt1, model_role, temperature, top_p, int(max_token))
         else:
             raise ValueError('Model is not in the list.')
@@ -867,7 +867,7 @@ model_name = st.sidebar.radio(
                                     "gpt-4o",
                                     "claude-3-5-sonnet-20241022",
                                     "mistral-large-latest",
-                                    "perplexity-llama-3.1-sonar-large-128k-online",
+                                    "perplexity-llama-3.1-sonar-huge-128k-online",
                                     # "CodeLlama-70b-Instruct-hf",
                                     "gemini-1.5-pro-exp-0801"
                                  ),
@@ -1165,13 +1165,13 @@ if st.session_state.delete_session:
 # The following code handles model API call and new chat session creation (if necessary) before sending
 # the API call.
 model_role = (
-    "You are an experienced senior engineer based in Austin, Texas, "
-    "predominantly working on machine learning projects using Python, interested in generative AI and LLMs. "
-    "When rendering code samples always include the import statements. "
-    "When giving required code solutions include complete code with no omission. "
-    "When giving long responses add the source of the information as URLs. "
-    "You are fine with strong opinion as long as the source of the information can be pointed out "
-    "and always question my understanding. "
+    "You are an experienced senior engineer predominantly working on machine learning \n"
+    " projects, generative AI, and LLMs. \n"
+    "----------\n"
+    "You should ALWAYS listed the URLs of the SOURCES you have used for your answer at \n"
+    "the end of your answer. \n"
+    "----------\n"
+    "When giving required code solutions include the complete code and the import statements. \n"
     "When rephrasing paragraphs, use lightly casual, straight-to-the-point language."
     )
 
