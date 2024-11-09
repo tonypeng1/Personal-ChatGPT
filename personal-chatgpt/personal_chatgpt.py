@@ -205,6 +205,7 @@ def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
                                     top_p=p,
                                     max_output_tokens=max_tok
                                     ),
+                tools='google_search_retrieval',
                 stream=True
                 ):
                 if hasattr(response, 'parts'):
@@ -469,10 +470,10 @@ def together_python(prompt1: str, temp: float, p: float, max_tok: int) -> str:
 #             "top_p":p,
 #             "max_tokens": max_tok,
 #             "stream": False,
-#             "return_citations": True
+#             "return_citations": True,
 #             # "search_domain_filter": ["perplexity.ai"],
 #             # "return_images": False,
-#             # "return_related_questions": False,
+#             "return_related_questions": True,
 #             # "search_recency_filter": "month",
 #             # "top_k": 0,
 #             # "presence_penalty": 0,
@@ -550,11 +551,21 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
 
         message_placeholder = st.empty()
         full_response = ""
+
+        additional_model_role = (
+        "----------\n"
+        "You should ALWAYS include citations of the SOURCES you have used in your answer in \n" 
+        "the format [1], [2], [3], etc. \n"
+        "----------\n"
+        "You should also ALWAYS list URLs of the citations at the end of your answer \n" 
+        "in a bulet point format. \n"
+        "----------\n"
+        )
         try:
             for response in perplexity_client.chat.completions.create(
                 model="llama-3.1-sonar-huge-128k-online",
                 messages=
-                    [{"role": "system", "content": model_role}] +
+                    [{"role": "system", "content": model_role + additional_model_role}] +
                     [
                     {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages
@@ -649,7 +660,7 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "claude-3-5-sonnet-20241022":
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token))
-        elif model_name == "gemini-1.5-pro-exp-0801":
+        elif model_name == "gemini-1.5-pro-002":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "mistral-large-latest":
             responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))
@@ -727,7 +738,7 @@ OCR_API_KEY = st.secrets["OCR_API_KEY"]
 
 # Set gemini api configuration
 genai.configure(api_key=GOOGLE_API_KEY)
-gemini_model = genai.GenerativeModel('gemini-1.5-pro-exp-0801')
+gemini_model = genai.GenerativeModel('gemini-1.5-pro-002')
 
 # Set mastral api configuration
 mistral_model = "mistral-large-latest"
@@ -856,7 +867,7 @@ st.sidebar.title("Options")
 
 # Handle model type. The type chosen will be reused rather than using a default value.
 # If the type table is empty, set the initial type to "Deterministic".
-insert_initial_default_model_type(connection, 'gemini-1.5-pro-exp-0801')
+insert_initial_default_model_type(connection, 'gemini-1.5-pro-002')
 
 Load_the_last_saved_model_type(connection)  # load from database and save to session_state
 type_index = return_type_index(st.session_state.type)  # from string to int (0 to 4)
@@ -869,7 +880,7 @@ model_name = st.sidebar.radio(
                                     "mistral-large-latest",
                                     "perplexity-llama-3.1-sonar-huge-128k-online",
                                     # "CodeLlama-70b-Instruct-hf",
-                                    "gemini-1.5-pro-exp-0801"
+                                    "gemini-1.5-pro-002"
                                  ),
                                 index=type_index,
                                 key="type1"
@@ -1166,13 +1177,9 @@ if st.session_state.delete_session:
 # the API call.
 model_role = (
     "You are an experienced senior engineer predominantly working on machine learning \n"
-    " projects, generative AI, and LLMs. \n"
-    "----------\n"
-    "You should ALWAYS listed the URLs of the SOURCES you have used for your answer at \n"
-    "the end of your answer. \n"
-    "----------\n"
+    "projects, generative AI, and LLMs. \n"
     "When giving required code solutions include the complete code and the import statements. \n"
-    "When rephrasing paragraphs, use lightly casual, straight-to-the-point language."
+    "When rephrasing paragraphs, use lightly casual, straight-to-the-point language. \n"
     )
 
 if prompt := st.chat_input("What is up?"):

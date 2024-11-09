@@ -7,8 +7,8 @@ pycryptodome==3.19.1
 tiktoken==0.5.2
 Pygments==2.17.2
 striprtf==0.0.26
-google-generativeai==0.3.2
 mistralai==0.1.3
 anthropic==0.19.1
 ocrspace==2.3.0
 streamlit-paste-button==0.1.2
+google-generativeai==0.8.3

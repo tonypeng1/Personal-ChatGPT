@@ -2,10 +2,12 @@
 Personal LLM chat APP is an open-source app developed using Streamlit. It is powered by a variety of LLM APIs with extra features to customize the user experience.
 
 ## APP Features
+Version 1.4.0 of this APP has made two changes:
+- Change the perplexity model to llama-3.1-sonar-huge-128k-online with the features of source citation and clickable URL links.
+- Change the Gemini model to gemini-1.5-pro-002 with the feature of Grounding with Google Search.
 
-This app (version 1.4.0) currently has the following features:
-
-1. Switch between the LLM model of gpt-4o, claude-3-5-sonnet-20241022, mistral-large-latest, llama-3.1-sonar-huge-128k-online (perplexity), and gemini-1.5-pro-exp-0801 anytime in a chat session.
+This version currently also has the following features:
+1. Switch between the LLM model of gpt-4o, claude-3-5-sonnet-20241022, mistral-large-latest, llama-3.1-sonar-huge-128k-online (perplexity), and gemini-1.5-pro-002 anytime in a chat session.
 2. Extract text from a screenshot image. This feature uses the Streamlit component "streamlit-paste-button" to paste an image from the clipboard after user consent (tested on Google Chrome and Microsoft Edge). Then, the image is sent to the free API of OCRSpace's OCR engine2 to extract the text with automatic Western language detection.
 3. Extract the folder structure and file contents of a .zip file.
 4. Show the name of a model in the response of a LLM API call.
