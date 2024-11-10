@@ -2,6 +2,8 @@
 Personal LLM chat APP is an open-source app developed using Streamlit. It is powered by a variety of LLM APIs with extra features to customize the user experience.
 
 ## APP Features
+Version 1.5.0 of this APP added a new model from Nvidia "llama-3.1-nemotron-70b-instruct".
+
 Version 1.4.0 of this APP has made two changes:
 - Change the perplexity model to llama-3.1-sonar-huge-128k-online with the features of source citation and clickable URL links.
 - Change the Gemini model to gemini-1.5-pro-002 with the feature of Grounding with Google Search.
@@ -52,18 +54,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 1.4.0 of this APP, and install the project,
+To create a Python virtual environment, check out version 1.5.0 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v1.4.0
+git checkout v1.5.0
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:1.4.0 .
+docker build -t streamlit-mysql:1.5.0 .
 docker compose up
 ```
 ## Medium Article

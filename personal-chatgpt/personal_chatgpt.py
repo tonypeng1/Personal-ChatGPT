@@ -6,6 +6,7 @@ from mistralai.client import MistralClient
 from mysql.connector import connect, Error
 import ocrspace
 import openai
+from openai import OpenAI
 from openai import OpenAIError
 import os
 import requests
@@ -158,6 +159,60 @@ def chatgpt(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
             message_placeholder.markdown(full_response)
         except Exception as e:
             error_response = f"An unexpected error occurred in OpenAI API call: {e}"
+            full_response = error_response
+            message_placeholder.markdown(full_response)
+
+    return full_response
+
+
+def nvidia(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
+    """
+    Processes a chat prompt using OpenAI's ChatCompletion and updates the chat session.
+
+    Args:
+        conn: A connection object to the MySQL database.
+        prompt (str): The user's input prompt to the chatbot.
+        temp (float): The temperature parameter for OpenAI's ChatCompletion.
+        p (float): The top_p parameter for OpenAI's ChatCompletion.
+        max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
+
+    Raises:
+        Raises an exception if there is a failure in database operations or OpenAI's API call.
+    """
+    with st.chat_message("user"):
+        st.markdown(prompt1)
+
+    with st.chat_message("assistant"):
+        text = f":blue-background[:blue[**{model_name}**]]"
+        st.markdown(text)
+
+        message_placeholder = st.empty()
+        full_response = ""
+        try:
+            for response in nvidia_client.chat.completions.create(
+                model="nvidia/llama-3.1-nemotron-70b-instruct",
+                messages=
+                    [{"role": "system", "content": model_role}] +
+                    [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.messages
+                    ],
+                temperature=temp,
+                top_p=p,
+                max_tokens=max_tok,
+                stream=True,
+                # timeout=10,
+                ):
+                full_response += response.choices[0].delta.content or ""
+                message_placeholder.markdown(full_response + "▌")
+            message_placeholder.markdown(full_response)
+
+        except OpenAIError as e:
+            error_response = f"An error occurred with Nvidia OpenAI in getting chat response: {e}"
+            full_response = error_response
+            message_placeholder.markdown(full_response)
+        except Exception as e:
+            error_response = f"An unexpected error occurred in Nvidia OpenAI API call: {e}"
             full_response = error_response
             message_placeholder.markdown(full_response)
 
@@ -553,14 +608,21 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
         full_response = ""
 
         additional_model_role = (
+        "Academic Integrity & Transparency: \n"
+        "CITATIONS: \n"
+        "When referencing external sources, use NUMERIC CITATIONS in the format [1], [2], etc., within your answer."
         "----------\n"
-        "You should ALWAYS include citations of the SOURCES you have used in your answer in \n" 
-        "the format [1], [2], [3], etc. \n"
+        "SOURCE LISTING: \n"
+        "Always conclude your response with a BULLET POINT LIST of cited sources, including: \n"
+        "1. URLs for online resources \n"
+        "2. Full Citation (e.g., author, title, publication, date) for academic online sources \n"
         "----------\n"
-        "You should also ALWAYS list URLs of the citations at the end of your answer \n" 
-        "in a bulet point format. \n"
-        "----------\n"
+        "Example Citation & Source Listing: [Response Content Here...] \n"
+        "Sources: List each citation EACH IN A NEW LINE using the format: \n"
+        "[1] https://example.com/resource \n"
+        "[2] Doe, J. (2022). Example Publication. Example Publisher. https://example.com/publication \n"
         )
+
         try:
             for response in perplexity_client.chat.completions.create(
                 model="llama-3.1-sonar-huge-128k-online",
@@ -666,6 +728,8 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
             responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "perplexity-llama-3.1-sonar-huge-128k-online":
             responses = perplexity(prompt1, model_role, temperature, top_p, int(max_token))
+        elif model_name == "nvidia-llama-3.1-nemotron-70b-instruct":
+            responses = nvidia(prompt1, model_role, temperature, top_p, int(max_token))
         else:
             raise ValueError('Model is not in the list.')
 
@@ -735,6 +799,7 @@ CLAUDE_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
 TOGETHER_API_KEY = st.secrets["TOGETHER_API_KEY"]
 PERPLEXITY_API_KEY = st.secrets["PERPLEXITY_API_KEY"]
 OCR_API_KEY = st.secrets["OCR_API_KEY"]
+NVIDIA_API_KEY = st.secrets["NVIDIA_API_KEY"]
 
 # Set gemini api configuration
 genai.configure(api_key=GOOGLE_API_KEY)
@@ -761,6 +826,12 @@ together_client = openai.OpenAI(
 perplexity_client = openai.OpenAI(
     api_key=PERPLEXITY_API_KEY,
     base_url="https://api.perplexity.ai"
+    )
+
+# Set nvidia api configuration
+nvidia_client = OpenAI(
+    api_key = NVIDIA_API_KEY,
+    base_url = "https://integrate.api.nvidia.com/v1",
     )
 
 # Database initial operation
@@ -880,7 +951,8 @@ model_name = st.sidebar.radio(
                                     "mistral-large-latest",
                                     "perplexity-llama-3.1-sonar-huge-128k-online",
                                     # "CodeLlama-70b-Instruct-hf",
-                                    "gemini-1.5-pro-002"
+                                    "gemini-1.5-pro-002",
+                                    "nvidia-llama-3.1-nemotron-70b-instruct"
                                  ),
                                 index=type_index,
                                 key="type1"
@@ -1176,10 +1248,24 @@ if st.session_state.delete_session:
 # The following code handles model API call and new chat session creation (if necessary) before sending
 # the API call.
 model_role = (
-    "You are an experienced senior engineer predominantly working on machine learning \n"
-    "projects, generative AI, and LLMs. \n"
-    "When giving required code solutions include the complete code and the import statements. \n"
-    "When rephrasing paragraphs, use lightly casual, straight-to-the-point language. \n"
+    "Your Role & Expertise: \n"
+    "You're a seasoned Senior Engineer, specializing in: \n"
+    "1. Machine Learning (ML) projects \n"
+    "2. Generative Artificial Intelligence (AI) \n"
+    "3. Large Language Models (LLMs) \n"
+    "4. Kafka, Java, Flink, Kafka-connect, and Ververica-platform \n"
+    "---------- \n"
+    "Text Responses Gudelines: \n"
+    "1. Use a LIGHTLY CASUAL, CONCISE tone (think 'explaining to a colleague') \n"
+    "2. Use STRAIGHT-TO-THE-POINT language for clarity and efficiency \n"
+    "3. When providing code solutions, include the complete code and the import statements. \n"
+    "---------- \n"
+    "Code Solutions Guidelines: \n"
+    "1. Always provide COMPLETE, RUNNABLE CODE examples \n"
+    "2. Include all necessary IMPORT STATEMENTS for ease of execution \n"
+    "3. Ensure the code is WELL-COMMENTED for understanding \n"
+    "4. Test the code before sending to ensure it works as expected \n"
+    "---------- \n"
     )
 
 if prompt := st.chat_input("What is up?"):
