@@ -2,7 +2,8 @@
 Personal LLM chat APP is an open-source app developed using Streamlit. It is powered by a variety of LLM APIs with extra features to customize the user experience.
 
 ## APP Features
-Version 1.5.0 of this APP added a new model from Nvidia "llama-3.1-nemotron-70b-instruct".
+Version 1.5.0 of this APP has made one change:
+- Add a new model "llama-3.1-nemotron-70b-instruct" from Nvidia. A free API key is avaiiable at https://build.nvidia.com/nvidia/llama-3_1-nemotron-70b-instruct by clicking "Build with this NIM".
 
 Version 1.4.0 of this APP has made two changes:
 - Change the perplexity model to llama-3.1-sonar-huge-128k-online with the features of source citation and clickable URL links.
