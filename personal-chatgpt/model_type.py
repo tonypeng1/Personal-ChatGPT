@@ -100,7 +100,8 @@ def return_type_index(type1: str) -> int:
         # "CodeLlama-70b-Instruct-hf": 3,
         "perplexity-llama-3.1-sonar-huge-128k-online": 3,
         "gemini-1.5-pro-002":4,
-        "nvidia-llama-3.1-nemotron-70b-instruct":5
+        "nvidia-llama-3.1-nemotron-70b-instruct":5,
+        "Qwen2.5-Coder-32B-Instruct":6,
     }
     if type1 not in type_dic:
         raise KeyError(f"Type '{type1}' not found in the type dictionary.")

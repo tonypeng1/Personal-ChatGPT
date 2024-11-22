@@ -2,6 +2,9 @@
 Personal LLM chat APP is an open-source app developed using Streamlit. It is powered by a variety of LLM APIs with extra features to customize the user experience.
 
 ## APP Features
+Version 1.6.0 of this APP has made one change:
+- Add a new model "Qwen2.5-Coder-32B-Instruct". This 32B model is developed by Alibaba Cloud and is available at [together](https://www.together.ai/) currently with a $5 starting credit.
+
 Version 1.5.0 of this APP has made one change:
 - Add a new model "llama-3.1-nemotron-70b-instruct" from Nvidia. A free API key is avaiiable at https://build.nvidia.com/nvidia/llama-3_1-nemotron-70b-instruct by clicking "Build with this NIM".
 
@@ -36,8 +39,10 @@ OPENAI_API_KEY = "my_openai_key"
 GOOGLE_API_KEY = "my_gemini_key"
 MISTRAL_API_KEY = "my_mistral_key"
 ANTHROPIC_API_KEY = "my_claude_key"
+TOGETHER_API_KEY = "my_together_key"
 PERPLEXITY_API_KEY = "my_perplexity_key"
 OCR_API_KEY = "my_ocrspace_key"
+NVIDIA_API_KEY = "my_nvidia_key"
 
 [mysql]
 host = "mysql"
@@ -55,18 +60,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 1.5.0 of this APP, and install the project,
+To create a Python virtual environment, check out version 1.6.0 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v1.5.0
+git checkout v1.6.0
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:1.5.0 .
+docker build -t streamlit-mysql:1.6.0 .
 docker compose up
 ```
 ## Medium Article

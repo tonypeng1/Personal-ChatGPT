@@ -410,7 +410,8 @@ def together(prompt1: str, model_role: str, temp: float, p: float, max_tok: int)
         full_response = ""
         try:
             for response in together_client.chat.completions.create(
-                model="codellama/CodeLlama-70b-Instruct-hf",
+                # model="codellama/CodeLlama-70b-Instruct-hf",
+                model="Qwen/Qwen2.5-Coder-32B-Instruct",
                 messages=
                     [{"role": "system", "content": role}] +
                     [
@@ -730,6 +731,8 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
             responses = perplexity(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "nvidia-llama-3.1-nemotron-70b-instruct":
             responses = nvidia(prompt1, model_role, temperature, top_p, int(max_token))
+        elif model_name == "Qwen2.5-Coder-32B-Instruct":
+            responses = together(prompt1, model_role, temperature, top_p, int(max_token))
         else:
             raise ValueError('Model is not in the list.')
 
@@ -952,7 +955,8 @@ model_name = st.sidebar.radio(
                                     "perplexity-llama-3.1-sonar-huge-128k-online",
                                     # "CodeLlama-70b-Instruct-hf",
                                     "gemini-1.5-pro-002",
-                                    "nvidia-llama-3.1-nemotron-70b-instruct"
+                                    "nvidia-llama-3.1-nemotron-70b-instruct",
+                                    "Qwen2.5-Coder-32B-Instruct"
                                  ),
                                 index=type_index,
                                 key="type1"
