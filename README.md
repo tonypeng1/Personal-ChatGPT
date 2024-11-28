@@ -2,6 +2,10 @@
 Personal LLM chat APP is an open-source app developed using Streamlit. It is powered by a variety of LLM APIs with extra features to customize the user experience.
 
 ## APP Features
+Version 1.7.0 of this APP has made two changes:
+- Change the OpenAI model to "gpt-4o-2024-11-20" with better creative writing ability and better at working with uploaded files, providing deeper insights & more thorough responses (from an OpenAI X post).
+- Change the Gemini model to "gemini-exp-1121" with significant gains on coding performance, stronger reasoning capabilities and improved visual understanding (from a Google AI X post). This model currently does not support Grounding with Google Search (as of Nov 28, 2024).
+
 Version 1.6.0 of this APP has made one change:
 - Add a new model "Qwen2.5-Coder-32B-Instruct". This 32B model is developed by Alibaba Cloud and is available at [together](https://www.together.ai/) currently with a $5 starting credit.
 
@@ -60,18 +64,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 1.6.0 of this APP, and install the project,
+To create a Python virtual environment, check out version 1.7.0 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v1.6.0
+git checkout v1.7.0
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:1.6.0 .
+docker build -t streamlit-mysql:1.7.0 .
 docker compose up
 ```
 ## Medium Article

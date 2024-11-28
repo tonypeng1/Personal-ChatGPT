@@ -137,7 +137,7 @@ def chatgpt(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
         full_response = ""
         try:
             for response in chatgpt_client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o-2024-11-20",
                 messages=
                     [{"role": "system", "content": model_role}] +
                     [
@@ -260,7 +260,7 @@ def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
                                     top_p=p,
                                     max_output_tokens=max_tok
                                     ),
-                tools='google_search_retrieval',
+                # tools='google_search_retrieval',
                 stream=True
                 ):
                 if hasattr(response, 'parts'):
@@ -719,11 +719,11 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
     determine_if_terminate_current_session_and_start_a_new_one(conn)
     st.session_state.messages.append({"role": "user", "model": "", "content": prompt1})
     try:
-        if model_name == "gpt-4o":
+        if model_name == "gpt-4o-2024-11-20":
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "claude-3-5-sonnet-20241022":
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token))
-        elif model_name == "gemini-1.5-pro-002":
+        elif model_name == "gemini-exp-1121":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "mistral-large-latest":
             responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))
@@ -806,7 +806,7 @@ NVIDIA_API_KEY = st.secrets["NVIDIA_API_KEY"]
 
 # Set gemini api configuration
 genai.configure(api_key=GOOGLE_API_KEY)
-gemini_model = genai.GenerativeModel('gemini-1.5-pro-002')
+gemini_model = genai.GenerativeModel('gemini-exp-1121')
 
 # Set mastral api configuration
 mistral_model = "mistral-large-latest"
@@ -941,7 +941,7 @@ st.sidebar.title("Options")
 
 # Handle model type. The type chosen will be reused rather than using a default value.
 # If the type table is empty, set the initial type to "Deterministic".
-insert_initial_default_model_type(connection, 'gemini-1.5-pro-002')
+insert_initial_default_model_type(connection, 'gemini-exp-1121')
 
 Load_the_last_saved_model_type(connection)  # load from database and save to session_state
 type_index = return_type_index(st.session_state.type)  # from string to int (0 to 4)
@@ -949,12 +949,12 @@ type_index = return_type_index(st.session_state.type)  # from string to int (0 t
 model_name = st.sidebar.radio(
                                 label="Choose model:",
                                 options=(
-                                    "gpt-4o",
+                                    "gpt-4o-2024-11-20",
                                     "claude-3-5-sonnet-20241022",
                                     "mistral-large-latest",
                                     "perplexity-llama-3.1-sonar-huge-128k-online",
                                     # "CodeLlama-70b-Instruct-hf",
-                                    "gemini-1.5-pro-002",
+                                    "gemini-exp-1121",
                                     "nvidia-llama-3.1-nemotron-70b-instruct",
                                     "Qwen2.5-Coder-32B-Instruct"
                                  ),

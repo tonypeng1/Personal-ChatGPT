@@ -60,14 +60,16 @@ def Load_the_last_saved_model_type(conn) -> None:
                                  "perplexity-llama-3.1-sonar-large-128k-online"):  # for v0.7.0 and v0.8.0
                     result = ("perplexity-llama-3.1-sonar-huge-128k-online", )
                 if result[0] in ("gemini-1.5-pro-latest",
-                                 "gemini-1.5-pro-exp-0801"):
-                    result = ("gemini-1.5-pro-002", )
+                                 "gemini-1.5-pro-exp-0801",
+                                 "gemini-1.5-pro-002"):
+                    result = ("gemini-exp-1121", )
                 if result[0] in ("claude-3-opus-20240229", 
                                  "claude-3-5-sonnet-20240620"):
                     result = ("claude-3-5-sonnet-20241022", )                
                 if result[0] in ("gpt-4-turbo-2024-04-09", 
-                                 "o1-preview"):
-                    result = ("gpt-4o", )
+                                 "o1-preview",
+                                 "gpt-4o"):
+                    result = ("gpt-4o-2024-11-20", )
                 st.session_state.type = result[0]
             else:
                 st.session_state.type = None
@@ -94,12 +96,12 @@ def return_type_index(type1: str) -> int:
         KeyError: If the type description is not found in the predefined dictionary.
     """
     type_dic = {
-        "gpt-4o": 0,
+        "gpt-4o-2024-11-20": 0,
         "claude-3-5-sonnet-20241022": 1, 
         "mistral-large-latest": 2,
         # "CodeLlama-70b-Instruct-hf": 3,
         "perplexity-llama-3.1-sonar-huge-128k-online": 3,
-        "gemini-1.5-pro-002":4,
+        "gemini-exp-1121":4,
         "nvidia-llama-3.1-nemotron-70b-instruct":5,
         "Qwen2.5-Coder-32B-Instruct":6,
     }
