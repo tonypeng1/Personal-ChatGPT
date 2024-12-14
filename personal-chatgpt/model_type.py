@@ -61,8 +61,9 @@ def Load_the_last_saved_model_type(conn) -> None:
                     result = ("perplexity-llama-3.1-sonar-huge-128k-online", )
                 if result[0] in ("gemini-1.5-pro-latest",
                                  "gemini-1.5-pro-exp-0801",
-                                 "gemini-1.5-pro-002"):
-                    result = ("gemini-exp-1121", )
+                                 "gemini-1.5-pro-002",
+                                 "gemini-exp-1121"):
+                    result = ("gemini-2.0-flash-exp", )
                 if result[0] in ("claude-3-opus-20240229", 
                                  "claude-3-5-sonnet-20240620"):
                     result = ("claude-3-5-sonnet-20241022", )                
@@ -101,7 +102,7 @@ def return_type_index(type1: str) -> int:
         "mistral-large-latest": 2,
         # "CodeLlama-70b-Instruct-hf": 3,
         "perplexity-llama-3.1-sonar-huge-128k-online": 3,
-        "gemini-exp-1121":4,
+        "gemini-2.0-flash-exp":4,
         "nvidia-llama-3.1-nemotron-70b-instruct":5,
         "Qwen2.5-Coder-32B-Instruct":6,
     }

@@ -723,7 +723,7 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "claude-3-5-sonnet-20241022":
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token))
-        elif model_name == "gemini-exp-1121":
+        elif model_name == "gemini-2.0-flash-exp":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "mistral-large-latest":
             responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))
@@ -806,7 +806,7 @@ NVIDIA_API_KEY = st.secrets["NVIDIA_API_KEY"]
 
 # Set gemini api configuration
 genai.configure(api_key=GOOGLE_API_KEY)
-gemini_model = genai.GenerativeModel('gemini-exp-1121')
+gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
 # Set mastral api configuration
 mistral_model = "mistral-large-latest"
@@ -941,7 +941,7 @@ st.sidebar.title("Options")
 
 # Handle model type. The type chosen will be reused rather than using a default value.
 # If the type table is empty, set the initial type to "Deterministic".
-insert_initial_default_model_type(connection, 'gemini-exp-1121')
+insert_initial_default_model_type(connection, 'gemini-2.0-flash-exp')
 
 Load_the_last_saved_model_type(connection)  # load from database and save to session_state
 type_index = return_type_index(st.session_state.type)  # from string to int (0 to 4)
@@ -954,7 +954,7 @@ model_name = st.sidebar.radio(
                                     "mistral-large-latest",
                                     "perplexity-llama-3.1-sonar-huge-128k-online",
                                     # "CodeLlama-70b-Instruct-hf",
-                                    "gemini-exp-1121",
+                                    "gemini-2.0-flash-exp",
                                     "nvidia-llama-3.1-nemotron-70b-instruct",
                                     "Qwen2.5-Coder-32B-Instruct"
                                  ),
