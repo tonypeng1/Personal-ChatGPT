@@ -1,11 +1,13 @@
 .DS_Store
 .venv/
+.venv_backup/
 counter.py
 .streamlit/secrets.toml
 personal-chatgpt/.streamlit/secrets.toml
-test.py
-langchat.py
-chat.py
+# test.py
+# langchat.py
+# chat.py
 secrets_backup.toml
 personal-chatgpt/__pycache__/
 personal_chatgpt.egg-info/
+requirements_backup.txt

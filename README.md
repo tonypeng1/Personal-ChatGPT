@@ -2,25 +2,28 @@
 Personal LLM chat APP is an open-source app developed using Streamlit. It is powered by a variety of LLM APIs with extra features to customize the user experience.
 
 ## APP Features
+Vers 1.9.0 of this APP has made one change:
+- Leverage the `GoogleSearch` tool of `gemini-2.0-flash-exp` to improve the accuracy and recency of responses from the model. The model can decide when to use Google Search. Install a new `google-genai` package from Pypi.
+
 Vers 1.8.0 of this APP has made one change:
-- Change the Gemini model to "gemini-2.0-flash-exp" that delivers improvements to multimodal understanding, coding, complex instruction following, and function calling.
+- Change the Gemini model to `gemini-2.0-flash-exp` that delivers improvements to multimodal understanding, coding, complex instruction following, and function calling.
 
 Version 1.7.0 of this APP has made two changes:
-- Change the OpenAI model to "gpt-4o-2024-11-20" with better creative writing ability and better at working with uploaded files, providing deeper insights & more thorough responses (from an OpenAI X post).
-- Change the Gemini model to "gemini-exp-1121" with significant gains on coding performance, stronger reasoning capabilities and improved visual understanding (from a Google AI X post). This model currently does not support Grounding with Google Search (as of Nov 28, 2024).
+- Change the OpenAI model to `gpt-4o-2024-11-20` with better creative writing ability and better at working with uploaded files, providing deeper insights & more thorough responses (from an OpenAI X post).
+- Change the Gemini model to `gemini-exp-1121` with significant gains on coding performance, stronger reasoning capabilities and improved visual understanding (from a Google AI X post). This model currently does not support Grounding with Google Search (as of Nov 28, 2024).
 
 Version 1.6.0 of this APP has made one change:
-- Add a new model "Qwen2.5-Coder-32B-Instruct". This 32B model is developed by Alibaba Cloud and is available at [together](https://www.together.ai/) currently with a $5 starting credit.
+- Add a new model `Qwen2.5-Coder-32B-Instruct`. This 32B model is developed by Alibaba Cloud and is available at [together](https://www.together.ai/) currently with a $5 starting credit.
 
 Version 1.5.0 of this APP has made one change:
-- Add a new model "llama-3.1-nemotron-70b-instruct" from Nvidia. A free API key is avaiiable at https://build.nvidia.com/nvidia/llama-3_1-nemotron-70b-instruct by clicking "Build with this NIM".
+- Add a new model `llama-3.1-nemotron-70b-instruct` from Nvidia. A free API key is avaiiable at https://build.nvidia.com/nvidia/llama-3_1-nemotron-70b-instruct by clicking "Build with this NIM".
 
 Version 1.4.0 of this APP has made two changes:
-- Change the perplexity model to llama-3.1-sonar-huge-128k-online with the features of source citation and clickable URL links.
-- Change the Gemini model to gemini-1.5-pro-002 with the feature of Grounding with Google Search.
+- Change the perplexity model to `llama-3.1-sonar-huge-128k-online` with the features of source citation and clickable URL links.
+- Change the Gemini model to `gemini-1.5-pro-002` with the feature of Grounding with Google Search.
 
 This version currently also has the following features:
-1. Switch between the LLM model of claude-3-5-sonnet-20241022 and mistral-large-latest anytime in a chat session.
+1. Switch between the LLM model of `claude-3-5-sonnet-20241022` and `mistral-large-latest` anytime in a chat session.
 2. Extract text from a screenshot image. This feature uses the Streamlit component "streamlit-paste-button" to paste an image from the clipboard after user consent (tested on Google Chrome and Microsoft Edge). Then, the image is sent to the free API of OCRSpace's OCR engine2 to extract the text with automatic Western language detection.
 3. Extract the folder structure and file contents of a .zip file.
 4. Show the name of a model in the response of a LLM API call.
@@ -67,18 +70,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 1.8.0 of this APP, and install the project,
+To create a Python virtual environment, check out version 1.9.0 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v1.8.0
+git checkout v1.9.0
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:1.8.0 .
+docker build -t streamlit-mysql:1.9.0 .
 docker compose up
 ```
 ## Medium Article

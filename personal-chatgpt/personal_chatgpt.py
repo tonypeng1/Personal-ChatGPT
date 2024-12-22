@@ -1,7 +1,8 @@
 import anthropic
-import google.generativeai as genai
+from google import genai
+from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
+
 import io
-import json
 from mistralai.client import MistralClient
 from mysql.connector import connect, Error
 import ocrspace
@@ -9,7 +10,6 @@ import openai
 from openai import OpenAI
 from openai import OpenAIError
 import os
-import requests
 import streamlit as st
 from streamlit_paste_button import paste_image_button as pasteButton
 import tempfile
@@ -230,6 +230,10 @@ def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
         p: The top-p parameter for the Gemini API.
         max_tok: The maximum number of tokens for the Gemini API.
     """
+    google_search_tool = Tool(
+        google_search = GoogleSearch()
+        )
+    
     with st.chat_message("user"):
         st.markdown(prompt1)
 
@@ -240,8 +244,8 @@ def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
         message_placeholder = st.empty()
         full_response = ""
         try:
-            for response in  gemini_model.generate_content(
-                [{"role": "user",
+            for response in  client.models.generate_content_stream(
+                contents=[{"role": "user",
                   "parts": [{
                       "text": model_role + "If you understand your role, please response 'I understand.'"
                       }]
@@ -254,22 +258,16 @@ def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
                 {"role": m["role"] if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]}
                 for m in st.session_state.messages
                 ],
-                generation_config = genai.types.GenerationConfig(
-                                    candidate_count = 1,
-                                    temperature=temp,
-                                    top_p=p,
-                                    max_output_tokens=max_tok
-                                    ),
-                # tools='google_search_retrieval',
-                stream=True
+                model=model_id,
+                config=GenerateContentConfig(
+                    temperature=temp,
+                    top_p=p,
+                    max_output_tokens=max_tok,
+                    tools=[google_search_tool],
+                    response_modalities=["TEXT"],
+                    ),
                 ):
-                if hasattr(response, 'parts'):
-                    for part in response.parts:
-                        text_content = part.text
-                        full_response += text_content
-                else:
-                    text_content += response.text
-                    full_response += text_content
+                full_response += response.text
                 message_placeholder.markdown(full_response + "▌")
             message_placeholder.markdown(full_response)
 
@@ -805,8 +803,12 @@ OCR_API_KEY = st.secrets["OCR_API_KEY"]
 NVIDIA_API_KEY = st.secrets["NVIDIA_API_KEY"]
 
 # Set gemini api configuration
-genai.configure(api_key=GOOGLE_API_KEY)
-gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+client = genai.Client()
+model_id = "gemini-2.0-flash-exp"
+
+# genai.configure(api_key=GOOGLE_API_KEY)
+# gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+
 
 # Set mastral api configuration
 mistral_model = "mistral-large-latest"
