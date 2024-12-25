@@ -233,7 +233,7 @@ def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
     google_search_tool = Tool(
         google_search = GoogleSearch()
         )
-    
+
     with st.chat_message("user"):
         st.markdown(prompt1)
 
@@ -243,11 +243,37 @@ def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
 
         message_placeholder = st.empty()
         full_response = ""
+
+        additional_model_role = (
+        "\nALWAYS USE THE GOOGLESEARCH TOOL TO SEARCH THE INTERNET FOR THE LATEST INFORMATION. \n"
+        "You MUST cite the sources you have used in the format described below, \n"
+        "BUT IT IS IMPORTANT: ONLY CITE A SOURCE WITH A VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
+        "AGAIN, ONLY CITE A SOURCE WITH A VALID LINK STARTING WITH SOURCES FROM https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
+        "Academic Integrity & Transparency: \n"
+        "----------\n"
+        "CITATIONS: \n"
+        "When referencing external sources, use NUMERIC CITATIONS in the format [1], [2], etc., within your answer."
+        "----------\n"
+        "SOURCE LISTING: \n"
+        "Always conclude your response with a BULLET POINT LIST of cited sources, including: \n"
+        "1. URLs for online resources \n"
+        "2. Full Citation (e.g., author, title, publication, date) for academic online sources \n"
+        "----------\n"
+        "Example Citation & Source Listing: [Response Content Here...] \n"
+        " ---------\n"
+        "SOURCES: " 
+        "List citation each on a NEW line with the citation number FIRST on a BULLETED line using the format: \n"
+        "* [1] 'Example Title of Source', https://example.com/resource \n"
+        "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://example.com/publication \n"
+        )
+
+        promp_suffix = " USE THE GOOGLESEARCH TOOL TO SEARCH THE INTERNET FOR THE LATEST INFORMATION."
+
         try:
             for response in  client.models.generate_content_stream(
                 contents=[{"role": "user",
                   "parts": [{
-                      "text": model_role + "If you understand your role, please response 'I understand.'"
+                      "text": model_role + additional_model_role +  "If you understand your role, please response 'I understand.'"
                       }]
                       },
                 {"role": "model",
@@ -255,7 +281,8 @@ def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
                  }
                 ] +
                 [
-                {"role": m["role"] if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]}
+                {"role": m["role"] if m["role"] == "user" else "model", \
+                 "parts": [{"text": m["content"]} if m["role"] == "model" else {"text": m["content"] + promp_suffix}]}
                 for m in st.session_state.messages
                 ],
                 model=model_id,
