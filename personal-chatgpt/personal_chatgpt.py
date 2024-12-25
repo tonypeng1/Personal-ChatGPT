@@ -645,8 +645,8 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
         "----------\n"
         "Example Citation & Source Listing: [Response Content Here...] \n"
         "Sources: List each citation EACH IN A NEW LINE using the format: \n"
-        "[1] https://example.com/resource \n"
-        "[2] Doe, J. (2022). Example Publication. Example Publisher. https://example.com/publication \n"
+        "* [1] 'Example Title of Source' https://example.com/resource \n"
+        "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://example.com/publication \n"
         )
 
         try:
