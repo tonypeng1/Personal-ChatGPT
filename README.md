@@ -2,7 +2,7 @@
 Personal LLM chat APP is an open-source app developed using Streamlit. It is powered by a variety of LLM APIs with extra features to customize the user experience.
 
 ## APP Features
-Version 1.10.0 of this APP has made one change:
+Version 1.10.0 of this APP has made two changes:
 - Add a new model `gemini-2.0-flash-thinking-exp` that's trained to generate the "thinking process" the model goes through as part of its response. As a result, Thinking Mode is capable of stronger reasoning capabilities in its responses than the Gemini 2.0 Flash Experimental model. This model currenlty does not support tool usage like Google Search (from the Gemini 2.0 Flash web site).
 - Prompt the `gemini-2.0-flash-exp` model to provide web-link citations of its Google Search results. Citation format is similar to that from the `perplexity-llama-3.1-sonar-huge-128k-online` model. 
 
