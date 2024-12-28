@@ -306,6 +306,68 @@ def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
     return full_response
 
 
+def gemini_thinking(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
+    """
+    Generates a response using the Gemini thinking API.
+
+    Args:
+        conn: A MySQL connection object.
+        prompt1: The user's input.
+        temp: The temperature parameter for the Gemini API.
+        p: The top-p parameter for the Gemini API.
+        max_tok: The maximum number of tokens for the Gemini API.
+    """
+
+    with st.chat_message("user"):
+        st.markdown(prompt1)
+
+    with st.chat_message("assistant"):
+        text = f":blue-background[:blue[**{model_name}**]]"
+        st.markdown(text)
+
+        message_placeholder = st.empty()
+        full_response = ""
+
+        try:
+            for response in  client_thinking.models.generate_content_stream(
+                contents=[{"role": "user",
+                  "parts": [{
+                      "text": model_role +  "If you understand your role, please response 'I understand.'"
+                      }]
+                      },
+                {"role": "model",
+                 "parts": [{"text": "I understand."}]
+                 }
+                ] +
+                [
+                {"role": m["role"] if m["role"] == "user" else "model", \
+                 "parts": [{"text": m["content"]} if m["role"] == "model" else {"text": m["content"]}]}
+                for m in st.session_state.messages
+                ],
+                model=model_id_thinking,
+                config=GenerateContentConfig(
+                    temperature=temp,
+                    top_p=p,
+                    max_output_tokens=max_tok,
+                    response_modalities=["TEXT"],
+                    ),
+                ):
+                for part in response.candidates[0].content.parts:
+                    if part.thought == True:  # Catching the thoughts
+                        full_response += part.text
+                    else:
+                        full_response += part.text
+                message_placeholder.markdown(full_response + "▌")
+            message_placeholder.markdown(full_response)
+
+        except Exception as e:
+            error_response = f"An unexpected error occurred in gemini API call: {e}"
+            full_response = error_response
+            message_placeholder.markdown(full_response)
+
+    return full_response
+
+
 def mistral(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
     """
     Generates a response using the mistral API.
@@ -750,6 +812,8 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "gemini-2.0-flash-exp":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
+        elif model_name == "gemini-2.0-flash-thinking-exp":
+            responses = gemini_thinking(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "mistral-large-latest":
             responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "perplexity-llama-3.1-sonar-huge-128k-online":
@@ -830,12 +894,18 @@ OCR_API_KEY = st.secrets["OCR_API_KEY"]
 NVIDIA_API_KEY = st.secrets["NVIDIA_API_KEY"]
 
 # Set gemini api configuration
-client = genai.Client()
+client = genai.Client(api_key=GOOGLE_API_KEY)
 model_id = "gemini-2.0-flash-exp"
+
+# Set gemini thinking api configuration
+client_thinking = genai.Client(
+    api_key=GOOGLE_API_KEY,
+    http_options={'api_version':'v1alpha'},
+    )
+model_id_thinking = "gemini-2.0-flash-thinking-exp"
 
 # genai.configure(api_key=GOOGLE_API_KEY)
 # gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
-
 
 # Set mastral api configuration
 mistral_model = "mistral-large-latest"
@@ -984,6 +1054,7 @@ model_name = st.sidebar.radio(
                                     "perplexity-llama-3.1-sonar-huge-128k-online",
                                     # "CodeLlama-70b-Instruct-hf",
                                     "gemini-2.0-flash-exp",
+                                    "gemini-2.0-flash-thinking-exp",
                                     "nvidia-llama-3.1-nemotron-70b-instruct",
                                     "Qwen2.5-Coder-32B-Instruct"
                                  ),

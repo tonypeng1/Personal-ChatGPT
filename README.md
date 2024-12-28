@@ -2,10 +2,14 @@
 Personal LLM chat APP is an open-source app developed using Streamlit. It is powered by a variety of LLM APIs with extra features to customize the user experience.
 
 ## APP Features
-Vers 1.9.0 of this APP has made one change:
+Version 1.10.0 of this APP has made one change:
+- Add a new model `gemini-2.0-flash-thinking-exp` that's trained to generate the "thinking process" the model goes through as part of its response. As a result, Thinking Mode is capable of stronger reasoning capabilities in its responses than the Gemini 2.0 Flash Experimental model. This model currenlty does not support tool usage like Google Search (from the Gemini 2.0 Flash web site).
+- Prompt the `gemini-2.0-flash-exp` model to provide web-link citations of its Google Search results. Citation format is similar to that from the `perplexity-llama-3.1-sonar-huge-128k-online` model. 
+
+Version 1.9.0 of this APP has made one change:
 - Leverage the `GoogleSearch` tool of `gemini-2.0-flash-exp` to improve the accuracy and recency of responses from the model. The model can decide when to use Google Search. Install a new `google-genai` package from Pypi.
 
-Vers 1.8.0 of this APP has made one change:
+Version 1.8.0 of this APP has made one change:
 - Change the Gemini model to `gemini-2.0-flash-exp` that delivers improvements to multimodal understanding, coding, complex instruction following, and function calling.
 
 Version 1.7.0 of this APP has made two changes:
@@ -70,18 +74,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 1.9.0 of this APP, and install the project,
+To create a Python virtual environment, check out version 1.10.0 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v1.9.0
+git checkout v1.10.0
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:1.9.0 .
+docker build -t streamlit-mysql:1.10.0 .
 docker compose up
 ```
 ## Medium Article
