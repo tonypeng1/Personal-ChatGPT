@@ -283,256 +283,256 @@ def set_search_session_to_False():
     st.session_state.search_session = False
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     
-    # This code illustrate retrieval or searching for a previous session, as well as the
-    # deletion of one session or of ALL data in ALL tables in the database.
+#     # This code illustrate retrieval or searching for a previous session, as well as the
+#     # deletion of one session or of ALL data in ALL tables in the database.
     
-    # Database initial operation
-    connection = connect(**st.secrets["mysql"])  # get database credentials from .streamlit/secrets.toml
-    init_database_tables(connection) # Create tables if not existing
+#     # Database initial operation
+#     connection = connect(**st.secrets["mysql"])  # get database credentials from .streamlit/secrets.toml
+#     init_database_tables(connection) # Create tables if not existing
     
-    ## Get the current date (US central time) and the earliest date from database
-    today = load_current_date_from_database(connection)  
-    date_earlist = get_the_earliest_date(connection)
+#     ## Get the current date (US central time) and the earliest date from database
+#     today = load_current_date_from_database(connection)  
+#     date_earlist = get_the_earliest_date(connection)
 
-    init_session_states()  # Initialize all streamlit session states
+#     init_session_states()  # Initialize all streamlit session states
 
-    if "session" not in st.session_state:
-        get_and_set_current_session_id(connection)
+#     if "session" not in st.session_state:
+#         get_and_set_current_session_id(connection)
 
-        if st.session_state.session is not None:
-            load_previous_chat_session(connection, st.session_state.session)
+#         if st.session_state.session is not None:
+#             load_previous_chat_session(connection, st.session_state.session)
 
-            # The code below is used to handle a current active session across different dates and a new prompt is added.
-            current_session_datetime = \
-            get_current_session_date_in_message_table(connection, st.session_state.session)
-            if current_session_datetime is not None:
-                current_session_date = current_session_datetime[0].date()
+#             # The code below is used to handle a current active session across different dates and a new prompt is added.
+#             current_session_datetime = \
+#             get_current_session_date_in_message_table(connection, st.session_state.session)
+#             if current_session_datetime is not None:
+#                 current_session_date = current_session_datetime[0].date()
 
-                if today != current_session_date:  # If a new session ignore the line below.
-                    set_only_current_session_state_to_true("session_different_date")
+#                 if today != current_session_date:  # If a new session ignore the line below.
+#                     set_only_current_session_state_to_true("session_different_date")
 
-        else:
-            set_only_current_session_state_to_true("new_table")  # The case where the session table is empty
+#         else:
+#             set_only_current_session_state_to_true("new_table")  # The case where the session table is empty
 
-    # The following code handles the retreival of the messages of a previous chat session
-    # (list of session_ids of different date ranges)
-    load_session = st.sidebar.button \
-    (r"$\textsf{\normalsize LOAD a previous session}$", on_click=set_search_session_to_False, type="primary", key="load")
+#     # The following code handles the retreival of the messages of a previous chat session
+#     # (list of session_ids of different date ranges)
+#     load_session = st.sidebar.button \
+#     (r"$\textsf{\normalsize LOAD a previous session}$", on_click=set_search_session_to_False, type="primary", key="load")
 
-    if load_session:
-        st.session_state.load_session = True
+#     if load_session:
+#         st.session_state.load_session = True
         
-    if st.session_state.load_session:
-        today_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Today', date_earlist, today))
-        yesterday_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Yesterday', date_earlist, today))
-        seven_days_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Previous 7 days', date_earlist, today))
-        thirty_days_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Previous 30 days', date_earlist, today))
-        older_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Older', date_earlist, today))
+#     if st.session_state.load_session:
+#         today_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Today', date_earlist, today))
+#         yesterday_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Yesterday', date_earlist, today))
+#         seven_days_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Previous 7 days', date_earlist, today))
+#         thirty_days_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Previous 30 days', date_earlist, today))
+#         older_sessions = load_previous_chat_session_ids(connection, 'message', *convert_date('Older', date_earlist, today))
 
-        today_dic = get_summary_by_session_id_return_dic(connection, today_sessions)
-        yesterday_dic = get_summary_by_session_id_return_dic(connection, yesterday_sessions)
-        seven_days_dic = get_summary_by_session_id_return_dic(connection, seven_days_sessions)
-        thirty_days_dic = get_summary_by_session_id_return_dic(connection, thirty_days_sessions)
-        older_dic = get_summary_by_session_id_return_dic(connection, older_sessions)
+#         today_dic = get_summary_by_session_id_return_dic(connection, today_sessions)
+#         yesterday_dic = get_summary_by_session_id_return_dic(connection, yesterday_sessions)
+#         seven_days_dic = get_summary_by_session_id_return_dic(connection, seven_days_sessions)
+#         thirty_days_dic = get_summary_by_session_id_return_dic(connection, thirty_days_sessions)
+#         older_dic = get_summary_by_session_id_return_dic(connection, older_sessions)
 
-        level_two_options = {
-            None : {0: "None"},
-            "Today" : today_dic,
-            "Yesterday" : yesterday_dic,
-            "Previous 7 days" : seven_days_dic,
-            "Previous 30 days" : thirty_days_dic,
-            "Older" : older_dic
-        }
+#         level_two_options = {
+#             None : {0: "None"},
+#             "Today" : today_dic,
+#             "Yesterday" : yesterday_dic,
+#             "Previous 7 days" : seven_days_dic,
+#             "Previous 30 days" : thirty_days_dic,
+#             "Older" : older_dic
+#         }
 
-        level_two_options_new = remove_if_a_session_not_exist_in_date_range(level_two_options)
-        level_one_options = get_available_date_range(level_two_options_new)
+#         level_two_options_new = remove_if_a_session_not_exist_in_date_range(level_two_options)
+#         level_one_options = get_available_date_range(level_two_options_new)
 
-        # Only shows the data ranges with saved chat sessions.
-        load_history_level_1 = st.sidebar.selectbox(
-            label='Select a previous chat date:',
-            placeholder='Pick a date',
-            options=level_one_options,
-            index=None,
-            key="first_level"
-            )
+#         # Only shows the data ranges with saved chat sessions.
+#         load_history_level_1 = st.sidebar.selectbox(
+#             label='Select a previous chat date:',
+#             placeholder='Pick a date',
+#             options=level_one_options,
+#             index=None,
+#             key="first_level"
+#             )
 
-        # Show options as summary. The returned value is the session id of the picked session.
-        load_history_level_2 = st.sidebar.selectbox(
-                label="Select a previous chat session:",
-                placeholder='Pick a session',
-                options=list((level_two_options_new[load_history_level_1]).keys()),
-                index=None,
-                format_func=lambda x:level_two_options_new[load_history_level_1][x],
-                on_change=set_new_session_to_false
-                )
+#         # Show options as summary. The returned value is the session id of the picked session.
+#         load_history_level_2 = st.sidebar.selectbox(
+#                 label="Select a previous chat session:",
+#                 placeholder='Pick a session',
+#                 options=list((level_two_options_new[load_history_level_1]).keys()),
+#                 index=None,
+#                 format_func=lambda x:level_two_options_new[load_history_level_1][x],
+#                 on_change=set_new_session_to_false
+#                 )
 
-        # st.session_state.messages = []
+#         # st.session_state.messages = []
 
-        if load_history_level_2:
-            load_previous_chat_session(connection, load_history_level_2)
+#         if load_history_level_2:
+#             load_previous_chat_session(connection, load_history_level_2)
 
-            if load_history_level_2 != st.session_state.session:
-                set_only_current_session_state_to_true("load_history_level_2")
-            else:
-                st.session_state.load_history_level_2 = False  # case for current active session
+#             if load_history_level_2 != st.session_state.session:
+#                 set_only_current_session_state_to_true("load_history_level_2")
+#             else:
+#                 st.session_state.load_history_level_2 = False  # case for current active session
 
-            # The following code is for saving the messages to a html file.
-            session_md = convert_messages_to_markdown(st.session_state.messages)
-            session_html = markdown_to_html(session_md)
+#             # The following code is for saving the messages to a html file.
+#             session_md = convert_messages_to_markdown(st.session_state.messages)
+#             session_html = markdown_to_html(session_md)
 
-            file_name = get_summary_and_return_as_file_name(connection, load_history_level_2) + ".html"
+#             file_name = get_summary_and_return_as_file_name(connection, load_history_level_2) + ".html"
             
-            download_chat_session = st.sidebar.download_button(
-                label="Save loaded session",
-                data=session_html,
-                file_name=file_name,
-                mime="text/markdown",
-            )
-            if download_chat_session:
-                if is_valid_file_name(file_name):
-                    st.success("Data saved.")
-                else:
-                    st.error(f"The file name '{file_name}' is not a valid file name. File not saved!", icon="🚨")
+#             download_chat_session = st.sidebar.download_button(
+#                 label="Save loaded session",
+#                 data=session_html,
+#                 file_name=file_name,
+#                 mime="text/markdown",
+#             )
+#             if download_chat_session:
+#                 if is_valid_file_name(file_name):
+#                     st.success("Data saved.")
+#                 else:
+#                     st.error(f"The file name '{file_name}' is not a valid file name. File not saved!", icon="🚨")
 
-            delete_a_session = st.sidebar.button("Delete loaded session from database")
-            st.sidebar.markdown("""----------""")
+#             delete_a_session = st.sidebar.button("Delete loaded session from database")
+#             st.sidebar.markdown("""----------""")
 
-            if delete_a_session:
-                st.session_state.delete_session = True
+#             if delete_a_session:
+#                 st.session_state.delete_session = True
 
-    # The following code handles the search and retreival of the messages of a previous chat session
-    # (list of all matched sessions together)
-    search_session = st.sidebar.button \
-    (r"$\textsf{\normalsize SEARCH a previous session}$", on_click=set_load_session_to_False, type="primary", key="search")
+#     # The following code handles the search and retreival of the messages of a previous chat session
+#     # (list of all matched sessions together)
+#     search_session = st.sidebar.button \
+#     (r"$\textsf{\normalsize SEARCH a previous session}$", on_click=set_load_session_to_False, type="primary", key="search")
 
-    if search_session:
-        st.session_state.search_session = True
+#     if search_session:
+#         st.session_state.search_session = True
 
-    if st.session_state.search_session:
-        keywords = st.sidebar.text_input("Full-text natural language search")
-        if keywords != "":
-            delete_all_rows_in_message_serach(connection)
-            search_full_text_and_save_to_message_search_table(connection, keywords)
+#     if st.session_state.search_session:
+#         keywords = st.sidebar.text_input("Full-text natural language search")
+#         if keywords != "":
+#             delete_all_rows_in_message_serach(connection)
+#             search_full_text_and_save_to_message_search_table(connection, keywords)
         
-            all_dates_sessions = load_previous_chat_session_ids(connection, 'message_search', *convert_date('All dates', date_earlist, today))
-            all_dates_dic = get_summary_by_session_id_return_dic(connection, all_dates_sessions)
+#             all_dates_sessions = load_previous_chat_session_ids(connection, 'message_search', *convert_date('All dates', date_earlist, today))
+#             all_dates_dic = get_summary_by_session_id_return_dic(connection, all_dates_sessions)
 
-            level_two_options_new = {
-                None : {0: "None"},
-                "All dates": all_dates_dic}
+#             level_two_options_new = {
+#                 None : {0: "None"},
+#                 "All dates": all_dates_dic}
 
-            # Show options as summary. The returned value is the session id of the picked session.
-            load_history_level_2 = st.sidebar.selectbox(
-                    label="Select a previous chat session:",
-                    placeholder='Pick a session',
-                    options=list((level_two_options_new["All dates"]).keys()),
-                    index=None,
-                    format_func=lambda x:level_two_options_new["All dates"][x],
-                    on_change=set_new_session_to_false
-                    )
+#             # Show options as summary. The returned value is the session id of the picked session.
+#             load_history_level_2 = st.sidebar.selectbox(
+#                     label="Select a previous chat session:",
+#                     placeholder='Pick a session',
+#                     options=list((level_two_options_new["All dates"]).keys()),
+#                     index=None,
+#                     format_func=lambda x:level_two_options_new["All dates"][x],
+#                     on_change=set_new_session_to_false
+#                     )
 
-            if load_history_level_2:
-                load_previous_chat_session(connection, load_history_level_2)
+#             if load_history_level_2:
+#                 load_previous_chat_session(connection, load_history_level_2)
 
-                if load_history_level_2 != st.session_state.session:
-                    set_only_current_session_state_to_true("load_history_level_2")
-                else:
-                    st.session_state.load_history_level_2 = False  # case for current active session
+#                 if load_history_level_2 != st.session_state.session:
+#                     set_only_current_session_state_to_true("load_history_level_2")
+#                 else:
+#                     st.session_state.load_history_level_2 = False  # case for current active session
 
-                # The following code is for saving the messages to a html file.
-                session_md = convert_messages_to_markdown(st.session_state.messages)
-                session_html = markdown_to_html(session_md)
+#                 # The following code is for saving the messages to a html file.
+#                 session_md = convert_messages_to_markdown(st.session_state.messages)
+#                 session_html = markdown_to_html(session_md)
 
-                file_name = get_summary_and_return_as_file_name(connection, load_history_level_2) + ".html"
+#                 file_name = get_summary_and_return_as_file_name(connection, load_history_level_2) + ".html"
                 
-                download_chat_session = st.sidebar.download_button(
-                    label="Save loaded session",
-                    data=session_html,
-                    file_name=file_name,
-                    mime="text/markdown",
-                )
-                if download_chat_session:
-                    if is_valid_file_name(file_name):
-                        st.success("Data saved.")
-                    else:
-                        st.error(f"The file name '{file_name}' is not a valid file name. File not saved!", icon="🚨")
+#                 download_chat_session = st.sidebar.download_button(
+#                     label="Save loaded session",
+#                     data=session_html,
+#                     file_name=file_name,
+#                     mime="text/markdown",
+#                 )
+#                 if download_chat_session:
+#                     if is_valid_file_name(file_name):
+#                         st.success("Data saved.")
+#                     else:
+#                         st.error(f"The file name '{file_name}' is not a valid file name. File not saved!", icon="🚨")
 
-                delete_a_session = st.sidebar.button("Delete loaded session from database")
-                st.sidebar.markdown("""----------""")
+#                 delete_a_session = st.sidebar.button("Delete loaded session from database")
+#                 st.sidebar.markdown("""----------""")
 
-                if delete_a_session:
-                    st.session_state.delete_session = True
-
-
-    # Print each message on page (this code prints pre-existing message before calling chatgpt(), 
-    # where the latest messages will be printed.) if not loading or searching a previous session.
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+#                 if delete_a_session:
+#                     st.session_state.delete_session = True
 
 
-    # The following code handles previous session deletion after uploading. The code needs to be
-    # after messages printing in order to show confirmation at end of messages.
-    if st.session_state.delete_session:
-        if load_history_level_2 != 0:
-            st.session_state.delete_session = True
-            st.error("Do you really wanna delete this chat history?", icon="🚨")
-        else:
-            st.warning("No previously saved session loaded. Please select one from the above drop-down lists.")
-            st.session_state.delete_session = False
-
-        placeholder_confirmation_sesson = st.empty()
-
-        if st.session_state.delete_session:
-            with placeholder_confirmation_sesson.container():
-                confirmation_1 = st.selectbox(
-                    label="Confirm your answer (If you choose 'Yes', this chat history of thie loaded session will be deleted):",
-                    placeholder="Pick a choice",
-                    options=['No', 'Yes'],
-                    index=None
-                )
-            if confirmation_1 == 'Yes':
-                delete_the_messages_of_a_chat_session(connection, load_history_level_2)
-                st.session_state.delete_session = False
-                st.session_state.messages = []
-                st.session_state.new_session = True
-                st.rerun()
-            elif confirmation_1 == 'No':
-                st.success("Data not deleted.")
-                st.session_state.delete_session = False
+#     # Print each message on page (this code prints pre-existing message before calling chatgpt(), 
+#     # where the latest messages will be printed.) if not loading or searching a previous session.
+#     for message in st.session_state.messages:
+#         with st.chat_message(message["role"]):
+#             st.markdown(message["content"])
 
 
-    # The following code handles the deletion of all chat history. The code needs to be
-    # after messages printing in order to show confirmation at end of messages.
-    empty_database = st.sidebar.button(
-        r"$\textsf{\normalsize Delete the entire chat history}$", type="primary")
+#     # The following code handles previous session deletion after uploading. The code needs to be
+#     # after messages printing in order to show confirmation at end of messages.
+#     if st.session_state.delete_session:
+#         if load_history_level_2 != 0:
+#             st.session_state.delete_session = True
+#             st.error("Do you really wanna delete this chat history?", icon="🚨")
+#         else:
+#             st.warning("No previously saved session loaded. Please select one from the above drop-down lists.")
+#             st.session_state.delete_session = False
 
-    if empty_database:
-        st.session_state.empty_data = True
-        st.error("Do you really, really, wanna delete ALL CHAT HISTORY?", icon="🚨")
+#         placeholder_confirmation_sesson = st.empty()
 
-    placeholder_confirmation_all = st.empty()
+#         if st.session_state.delete_session:
+#             with placeholder_confirmation_sesson.container():
+#                 confirmation_1 = st.selectbox(
+#                     label="Confirm your answer (If you choose 'Yes', this chat history of thie loaded session will be deleted):",
+#                     placeholder="Pick a choice",
+#                     options=['No', 'Yes'],
+#                     index=None
+#                 )
+#             if confirmation_1 == 'Yes':
+#                 delete_the_messages_of_a_chat_session(connection, load_history_level_2)
+#                 st.session_state.delete_session = False
+#                 st.session_state.messages = []
+#                 st.session_state.new_session = True
+#                 st.rerun()
+#             elif confirmation_1 == 'No':
+#                 st.success("Data not deleted.")
+#                 st.session_state.delete_session = False
 
-    if st.session_state.empty_data:
-        with placeholder_confirmation_all.container():
-            confirmation_2 = st.selectbox(
-                label="CONFIRM YOUR ANSWER (If you choose 'Yes', ALL CHAT HISTORY in the database will be deleted):",
-                placeholder="Pick a choice",
-                options=['No', 'Yes'],
-                index=None,
-                key="second_confirmation"
-            )
-        if confirmation_2 == 'Yes':
-            delete_all_rows(connection)
-            st.warning("All data in the database deleted.", icon="🚨")
-            st.session_state.empty_data = False
-            st.session_state.new_session = True
-            st.session_state.session = None
-            st.rerun()
-        elif confirmation_2 == 'No':
-            st.success("Data not deleted.")
-            st.session_state.empty_data = False
 
-    connection.close()
+#     # The following code handles the deletion of all chat history. The code needs to be
+#     # after messages printing in order to show confirmation at end of messages.
+#     empty_database = st.sidebar.button(
+#         r"$\textsf{\normalsize Delete the entire chat history}$", type="primary")
+
+#     if empty_database:
+#         st.session_state.empty_data = True
+#         st.error("Do you really, really, wanna delete ALL CHAT HISTORY?", icon="🚨")
+
+#     placeholder_confirmation_all = st.empty()
+
+#     if st.session_state.empty_data:
+#         with placeholder_confirmation_all.container():
+#             confirmation_2 = st.selectbox(
+#                 label="CONFIRM YOUR ANSWER (If you choose 'Yes', ALL CHAT HISTORY in the database will be deleted):",
+#                 placeholder="Pick a choice",
+#                 options=['No', 'Yes'],
+#                 index=None,
+#                 key="second_confirmation"
+#             )
+#         if confirmation_2 == 'Yes':
+#             delete_all_rows(connection)
+#             st.warning("All data in the database deleted.", icon="🚨")
+#             st.session_state.empty_data = False
+#             st.session_state.new_session = True
+#             st.session_state.session = None
+#             st.rerun()
+#         elif confirmation_2 == 'No':
+#             st.success("Data not deleted.")
+#             st.session_state.empty_data = False
+
+#     connection.close()

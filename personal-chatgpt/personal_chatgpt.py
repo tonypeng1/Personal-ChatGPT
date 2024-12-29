@@ -1,19 +1,20 @@
+import io
+import os
+import PIL.Image
+
 import anthropic
+
 from google import genai
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
-
-import io
 from mistralai.client import MistralClient
 from mysql.connector import connect, Error
 import ocrspace
 import openai
 from openai import OpenAI
 from openai import OpenAIError
-import os
 import streamlit as st
 from streamlit_paste_button import paste_image_button as pasteButton
 import tempfile
-
 
 from delete_message import delete_the_messages_of_a_chat_session, \
                         delete_all_rows
@@ -22,7 +23,9 @@ from drop_file import increment_file_uploader_key, \
                         change_to_prompt_text, \
                         save_to_mysql_message, \
                         set_both_load_and_search_sessions_to_False
-from init_database import add_column_model_to_message_search_table, \
+from init_database import add_column_image_to_message_table, \
+                        add_column_image_to_message_search_table, \
+                        add_column_model_to_message_search_table, \
                         add_column_model_to_message_table, \
                         index_column_content_in_table_message, \
                         init_mysql_timezone, \
@@ -219,7 +222,101 @@ def nvidia(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
     return full_response
 
 
-def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
+# def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
+#     """
+#     Generates a response using the Gemini API.
+
+#     Args:
+#         conn: A MySQL connection object.
+#         prompt1: The user's input.
+#         temp: The temperature parameter for the Gemini API.
+#         p: The top-p parameter for the Gemini API.
+#         max_tok: The maximum number of tokens for the Gemini API.
+#     """
+#     google_search_tool = Tool(
+#         google_search = GoogleSearch()
+#         )
+
+#     with st.chat_message("user"):
+#         st.markdown(prompt1)
+
+#     with st.chat_message("assistant"):
+#         text = f":blue-background[:blue[**{model_name}**]]"
+#         st.markdown(text)
+
+#         message_placeholder = st.empty()
+#         full_response = ""
+
+#         additional_model_role = (
+#         "\nALWAYS USE THE GOOGLESEARCH TOOL TO SEARCH THE INTERNET FOR THE LATEST INFORMATION. \n"
+#         "You MUST cite the sources you have used in the format described below, \n"
+#         "BUT IT IS IMPORTANT: ONLY CITE A SOURCE WITH A VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
+#         "AGAIN, ONLY CITE A SOURCE WITH A VALID LINK STARTING WITH SOURCES FROM https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
+#         "Academic Integrity & Transparency: \n"
+#         "----------\n"
+#         "CITATIONS: \n"
+#         "When referencing external sources, use NUMERIC CITATIONS in the format [1], [2], etc., within your answer."
+#         "----------\n"
+#         "SOURCE LISTING: \n"
+#         "Always conclude your response with a BULLET POINT LIST of cited sources, including: \n"
+#         "1. URLs for online resources \n"
+#         "2. Full Citation (e.g., author, title, publication, date) for academic online sources \n"
+#         "----------\n"
+#         "Example Citation & Source Listing: [Response Content Here...] \n"
+#         " ---------\n"
+#         "SOURCES: " 
+#         "List citation each on a NEW line with the citation number FIRST on a BULLETED line using the format: \n"
+#         "* [1] 'Example Title of Source', https://example.com/resource \n"
+#         "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://example.com/publication \n"
+#         )
+
+#         promp_suffix = " USE THE GOOGLESEARCH TOOL TO SEARCH THE INTERNET FOR THE LATEST INFORMATION."
+
+#         try:
+#             for response in  client.models.generate_content_stream(
+#                 contents=[{"role": "user",
+#                   "parts": [{
+#                       "text": model_role + additional_model_role +  "If you understand your role, please response 'I understand.'"
+#                       }]
+#                       },
+#                 {"role": "model",
+#                  "parts": [{"text": "I understand."}]
+#                  }
+#                 ] +
+#                 [
+#                 {"role": m["role"] if m["role"] == "user" else "model", \
+#                  "parts": [{"text": m["content"]} if m["role"] == "model" else {"text": m["content"] + promp_suffix}]}
+#                 for m in st.session_state.messages
+#                 ],
+#                 model=model_id,
+#                 config=GenerateContentConfig(
+#                     temperature=temp,
+#                     top_p=p,
+#                     max_output_tokens=max_tok,
+#                     tools=[google_search_tool],
+#                     response_modalities=["TEXT"],
+#                     ),
+#                 ):
+#                 full_response += response.text
+#                 message_placeholder.markdown(full_response + "▌")
+#             message_placeholder.markdown(full_response)
+
+#         except Exception as e:
+#             error_response = f"An unexpected error occurred in gemini API call: {e}"
+#             full_response = error_response
+#             message_placeholder.markdown(full_response)
+
+#     return full_response
+
+
+def gemini(
+        prompt1: str, 
+        model_role: str, 
+        temp: float, 
+        p: float, 
+        max_tok: int,
+        _image_file_path: str = None,
+        ) -> str:
     """
     Generates a response using the Gemini API.
 
@@ -235,6 +332,9 @@ def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
         )
 
     with st.chat_message("user"):
+        if st.session_state.image_file_path != "":
+            image_file = PIL.Image.open(st.session_state.image_file_path)
+            st.image(image_file, width=500)
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
@@ -245,46 +345,51 @@ def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
         full_response = ""
 
         additional_model_role = (
-        "\nALWAYS USE THE GOOGLESEARCH TOOL TO SEARCH THE INTERNET FOR THE LATEST INFORMATION. \n"
-        "You MUST cite the sources you have used in the format described below, \n"
-        "BUT IT IS IMPORTANT: ONLY CITE A SOURCE WITH A VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
-        "AGAIN, ONLY CITE A SOURCE WITH A VALID LINK STARTING WITH SOURCES FROM https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
+        "If you have performed a search, you MUST cite the sources from your search in the format described below, \n"
         "Academic Integrity & Transparency: \n"
         "----------\n"
         "CITATIONS: \n"
-        "When referencing external sources, use NUMERIC CITATIONS in the format [1], [2], etc., within your answer."
+        "When referencing the sources from your serach results, use NUMERIC CITATIONS in the format [1], [2], etc., within your answer."
         "----------\n"
         "SOURCE LISTING: \n"
         "Always conclude your response with a BULLET POINT LIST of cited sources, including: \n"
-        "1. URLs for online resources \n"
-        "2. Full Citation (e.g., author, title, publication, date) for academic online sources \n"
+        "1. Title of a source \n" 
+        "2. URL ONLY FROM an online source with a VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/. \n"
         "----------\n"
         "Example Citation & Source Listing: [Response Content Here...] \n"
         " ---------\n"
         "SOURCES: " 
-        "List citation each on a NEW line with the citation number FIRST on a BULLETED line using the format: \n"
-        "* [1] 'Example Title of Source', https://example.com/resource \n"
-        "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://example.com/publication \n"
+        "* [1] 'Example Title of Source', https://vertexaisearch.cloud.google.com/grounding-api-redirect/* \n"
+        "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://vertexaisearch.cloud.google.com/grounding-api-redirect/* \n"
         )
+        
+        promp_suffix = " USE THE GOOGLESEARCH TOOL TO SEARCH THE INTERNET FOR THE LATEST INFORMATION IF NEEDED. Only cite an online source with a VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/."
 
-        promp_suffix = " USE THE GOOGLESEARCH TOOL TO SEARCH THE INTERNET FOR THE LATEST INFORMATION."
-
-        try:
-            for response in  client.models.generate_content_stream(
-                contents=[{"role": "user",
-                  "parts": [{
-                      "text": model_role + additional_model_role +  "If you understand your role, please response 'I understand.'"
-                      }]
-                      },
+        input_list = \
+                [{"role": "user",
+                "parts": [{
+                        "text": model_role + additional_model_role +  "If you understand your role, please response 'I understand.'"
+                        }]
+                },
                 {"role": "model",
-                 "parts": [{"text": "I understand."}]
-                 }
-                ] +
+                "parts": [{"text": "I understand."}]
+                }
+                ] + \
                 [
                 {"role": m["role"] if m["role"] == "user" else "model", \
-                 "parts": [{"text": m["content"]} if m["role"] == "model" else {"text": m["content"] + promp_suffix}]}
+                    "parts": [{"text": m["content"]} if m["role"] == "model" else {"text": m["content"] + promp_suffix}]}
                 for m in st.session_state.messages
-                ],
+                ]
+        try:
+            # Create a copy of input_list to avoid modifying the original
+            modified_input_list = input_list.copy()
+            # If there's an image file, append it to our copy
+            if _image_file_path != "":
+                _image_file = PIL.Image.open(_image_file_path)
+                modified_input_list.append(_image_file)
+            
+            for response in  client.models.generate_content_stream(
+                contents=modified_input_list,
                 model=model_id,
                 config=GenerateContentConfig(
                     temperature=temp,
@@ -296,6 +401,7 @@ def gemini(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
                 ):
                 full_response += response.text
                 message_placeholder.markdown(full_response + "▌")
+
             message_placeholder.markdown(full_response)
 
         except Exception as e:
@@ -750,7 +856,7 @@ def save_session_state_messages(conn) -> None:
     """
     for message in st.session_state.messages:
         save_to_mysql_message(conn, st.session_state.session, message["role"],
-                              message["model"], message["content"])
+                              message["model"], message["content"], message["image"])
 
 
 def determine_if_terminate_current_session_and_start_a_new_one(conn) -> None:
@@ -782,7 +888,69 @@ def determine_if_terminate_current_session_and_start_a_new_one(conn) -> None:
             break  # Breaks after handling a state, assuming only one state can be true at a time
 
 
-def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, max_token):
+# def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, max_token):
+#     """
+#     This function processes a given prompt by performing the following steps:
+#     1. Determines if the current session should be terminated and a new one started.
+#     2. Appends the prompt to the session state messages with the role 'user'.
+#     3. Calls the appropriate model (chatgpt, gemini, or mistral) based on the model_name and passes
+#         the prompt, temperature, top_p, and max_token parameters.
+#     4. Appends the model's response to the session state messages with the role 'assistant'.
+#     5. Saves the prompt and response to the MySQL database.
+
+#     Parameters:
+#     conn (object): The connection object to the database.
+#     prompt1 (str): The prompt to be processed.
+#     model_name (str): The name of the model to be used for processing the prompt.
+#     temperature (float): The temperature parameter for the model.
+#     top_p (float): The top_p parameter for the model.
+#     max_token (int): The maximum number of tokens for the model's response.
+
+#     Returns:
+#         None
+#     """
+#     determine_if_terminate_current_session_and_start_a_new_one(conn)
+#     st.session_state.messages.append({"role": "user", "model": "", "content": prompt1})
+#     try:
+#         if model_name == "gpt-4o-2024-11-20":
+#             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token))
+#         elif model_name == "claude-3-5-sonnet-20241022":
+#             responses = claude(prompt1, model_role, temperature, top_p, int(max_token))
+#         elif model_name == "gemini-2.0-flash-exp":
+#             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
+#         elif model_name == "gemini-2.0-flash-thinking-exp":
+#             responses = gemini_thinking(prompt1, model_role, temperature, top_p, int(max_token))
+#         elif model_name == "mistral-large-latest":
+#             responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))
+#         elif model_name == "perplexity-llama-3.1-sonar-huge-128k-online":
+#             responses = perplexity(prompt1, model_role, temperature, top_p, int(max_token))
+#         elif model_name == "nvidia-llama-3.1-nemotron-70b-instruct":
+#             responses = nvidia(prompt1, model_role, temperature, top_p, int(max_token))
+#         elif model_name == "Qwen2.5-Coder-32B-Instruct":
+#             responses = together(prompt1, model_role, temperature, top_p, int(max_token))
+#         else:
+#             raise ValueError('Model is not in the list.')
+
+#         st.session_state.messages.append({"role": "assistant", "model": model_name,
+#                                       "content": responses})
+
+#         save_to_mysql_message(conn, st.session_state.session, "user", "", prompt1)
+#         save_to_mysql_message(conn, st.session_state.session, "assistant", model_name, responses)
+
+#     except ValueError as error:
+#         st.error(f"Not recognized model name: {error}")
+#         raise
+
+
+def process_prompt(
+        conn, 
+        prompt1, 
+        model_name, 
+        model_role, 
+        temperature, 
+        top_p, 
+        max_token,
+        _image_file_path: str = None):
     """
     This function processes a given prompt by performing the following steps:
     1. Determines if the current session should be terminated and a new one started.
@@ -799,19 +967,20 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
     temperature (float): The temperature parameter for the model.
     top_p (float): The top_p parameter for the model.
     max_token (int): The maximum number of tokens for the model's response.
+    _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
 
     Returns:
         None
     """
     determine_if_terminate_current_session_and_start_a_new_one(conn)
-    st.session_state.messages.append({"role": "user", "model": "", "content": prompt1})
+    st.session_state.messages.append({"role": "user", "model": "", "content": prompt1, "image": _image_file_path})
     try:
         if model_name == "gpt-4o-2024-11-20":
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "claude-3-5-sonnet-20241022":
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "gemini-2.0-flash-exp":
-            responses = gemini(prompt1, model_role, temperature, top_p, int(max_token))
+            responses = gemini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "gemini-2.0-flash-thinking-exp":
             responses = gemini_thinking(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "mistral-large-latest":
@@ -825,62 +994,146 @@ def process_prompt(conn, prompt1, model_name, model_role, temperature, top_p, ma
         else:
             raise ValueError('Model is not in the list.')
 
-        st.session_state.messages.append({"role": "assistant", "model": model_name,
-                                      "content": responses})
-
-        save_to_mysql_message(conn, st.session_state.session, "user", "", prompt1)
-        save_to_mysql_message(conn, st.session_state.session, "assistant", model_name, responses)
-
     except ValueError as error:
         st.error(f"Not recognized model name: {error}")
         raise
 
+    st.session_state.messages.append({"role": "assistant", "model": model_name,
+                "content": responses, "image": _image_file_path})
+    save_to_mysql_message(conn, st.session_state.session, "user", "", prompt1, _image_file_path)
+    save_to_mysql_message(conn, st.session_state.session, "assistant", model_name, responses, _image_file_path)
 
-def convert_clipboard_to_text(_image, ocr_key) -> str:
+
+# def convert_clipboard_to_text(_image, ocr_key) -> str:
+#     """
+#     This function retrieves the text from the clipboard using the OCR API from ocr.space
+#     and returns the text in it. If no text is found in the clipboard, it displays an
+#     error message. Need to have a free account on ocr.space to get the API key.
+
+#     Returns:
+#         str: The text retrieved from the clipboard.
+#     """
+#     # image = ImageGrab.grabclipboard()
+#     if _image is None:
+#         st.error(r"$\textsf{\large No image found in clipboard}$")
+#     else:
+#         col1, col2 = st.columns([1, 1])  # Adjust the ratio as needed
+#         with col1:
+#             st.image(_image, caption='Image from clipboard', use_column_width=True)
+#         ocr_api = ocrspace.API(
+#             api_key=ocr_key,
+#             OCREngine=2
+#             )
+
+#         # Convert PngImageFile to bytes
+#         with io.BytesIO() as output:
+#             _image.save(output, format="PNG")
+#             image_bytes = output.getvalue()
+
+#         # Create a temporary file
+#         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
+#             temp_file.write(image_bytes)
+#             temp_file_path = temp_file.name
+
+#         # Use the OCR API to extract text from the image
+#         try:
+#             extracted_text = ocr_api.ocr_file(temp_file_path)
+#         except Exception as e:
+#             st.error(f"Error occurred while processing the image in ocr API: {e}")
+
+#         extracted_text =f"```\n{extracted_text}\n```"   # Wrap the text in triple backticks as coded text to
+#                                                         # prevent "#" be interpreted as header in markdown.
+#         # st.markdown(extracted_text)
+
+#         # Remove the temporary file
+#         os.remove(temp_file_path)
+
+#         return extracted_text
+
+
+# def convert_clipboard_to_image_file(_image) -> str:
+#     """
+#     Convert an image from clipboard to a temporary file path and display the image.
+
+#     Args:
+#         _image (PngImageFile): The image to be saved as a temporary file.
+
+#     Returns:
+#         str: The file path of the temporary image file.
+#     """
+
+#     if _image is None:
+#         st.error(r"$\textsf{\large No image found in clipboard}$")
+#     else:
+#         col1, col2 = st.columns([1, 1])  # Adjust the ratio as needed
+#         with col1:
+#             st.image(_image, caption='Image from clipboard', use_column_width=True)
+
+#         # Convert PngImageFile to bytes
+#         with io.BytesIO() as output:
+#             _image.save(output, format="PNG")
+#             image_bytes = output.getvalue()
+
+#         # Create a temporary file
+#         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
+#             temp_file.write(image_bytes)
+#             temp_file_path = temp_file.name
+#             _image_file = PIL.Image.open(temp_file_path)
+
+#         # Remove the temporary file
+#         os.remove(temp_file_path)
+
+#         return _image_file
+    
+
+def convert_clipboard_to_image_file_path(_image):
     """
-    This function retrieves the text from the clipboard using the OCR API from ocr.space
-    and returns the text in it. If no text is found in the clipboard, it displays an
-    error message. Need to have a free account on ocr.space to get the API key.
+    Convert an image from clipboard to a file path and display the image.
+
+    Args:
+        _image (PngImageFile): The image to be saved as a temporary file.
 
     Returns:
-        str: The text retrieved from the clipboard.
+        None
     """
-    # image = ImageGrab.grabclipboard()
+
     if _image is None:
         st.error(r"$\textsf{\large No image found in clipboard}$")
     else:
-        col1, col2 = st.columns([1, 1])  # Adjust the ratio as needed
+        col1, col2 = st.columns([2, 1])  # Adjust the ratio as needed
         with col1:
             st.image(_image, caption='Image from clipboard', use_column_width=True)
-        ocr_api = ocrspace.API(
-            api_key=ocr_key,
-            OCREngine=2
-            )
 
         # Convert PngImageFile to bytes
         with io.BytesIO() as output:
-            _image.save(output, format="PNG")
+            _image.save(output, format="png")
             image_bytes = output.getvalue()
 
-        # Create a temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
-            temp_file.write(image_bytes)
-            temp_file_path = temp_file.name
+        # Create a file path in the images folder
+        save_folder = "./images"  # relative to current working directory
+        os.makedirs(save_folder, exist_ok=True)  # Create the folder if it doesn't exist
 
-        # Use the OCR API to extract text from the image
-        try:
-            extracted_text = ocr_api.ocr_file(temp_file_path)
-        except Exception as e:
-            st.error(f"Error occurred while processing the image in ocr API: {e}")
+        # Check the files in the folder and get the next available file name
+        existing_files = os.listdir(save_folder)
+        image_number = 1
+        while True:
+            file_name = f"image-{image_number}.png"
+            if file_name not in existing_files:
+                break
+            image_number += 1
 
-        extracted_text =f"```\n{extracted_text}\n```"   # Wrap the text in triple backticks as coded text to
-                                                        # prevent "#" be interpreted as header in markdown.
-        # st.markdown(extracted_text)
+        file_path = os.path.join(save_folder, file_name)  # Create the file path
+        st.session_state.image_file_path = file_path  # Save the file path to session state
 
-        # Remove the temporary file
-        os.remove(temp_file_path)
-
-        return extracted_text
+        # Save the image to the file path
+        if os.path.exists(file_path):
+            print(f"File {file_path} already exists. Skipping save.")
+        else:
+            try:
+                with open(file_path, "wb") as f:
+                    f.write(image_bytes)
+            except Exception as e:
+                print(f"An error occurred: {e}")
 
 
 # Get app keys
@@ -944,6 +1197,9 @@ modify_content_column_data_type_if_different(connection)
 add_column_model_to_message_table(connection)  # Add model column to message table if not exist
 add_column_model_to_message_search_table(connection) # Add model column to message_search table if not exist
 index_column_content_in_table_message(connection)  # index column content in table message if not yet indexed
+
+add_column_image_to_message_table(connection)  # Add image column to message table if not exist
+add_column_image_to_message_search_table(connection) # Add image column to message_search table if not exist
 
 init_session_states()  # Initialize all streamlit session states if there is no value
 
@@ -1217,6 +1473,9 @@ drop_clip = st.sidebar.button \
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         if message["role"] == "user":
+            if message["image"] != "":
+                image_file = PIL.Image.open(message["image"])
+                st.image(image_file, width=500)
             st.markdown(message["content"])
 
         else:
@@ -1302,6 +1561,22 @@ if empty_database:
             st.session_state.empty_data = False
 
 
+# # The following code handles dropping an text image from the clipboard. The code needs to be
+# # after messages printing in order to show confirmation at end of messages.
+# if drop_clip:
+#     st.session_state.drop_clip = True
+
+# if st.session_state.drop_clip:
+#     paste_result = pasteButton(
+#         label="📋 Paste an image",
+#         errors="raise",
+#         )
+
+#     if paste_result.image_data is not None:
+#         prompt_c = convert_clipboard_to_text(paste_result.image_data, OCR_API_KEY)
+#         st.session_state.drop_clip_loaded = True
+
+
 # The following code handles dropping an text image from the clipboard. The code needs to be
 # after messages printing in order to show confirmation at end of messages.
 if drop_clip:
@@ -1314,9 +1589,9 @@ if st.session_state.drop_clip:
         )
 
     if paste_result.image_data is not None:
-        prompt_c = convert_clipboard_to_text(paste_result.image_data, OCR_API_KEY)
+        convert_clipboard_to_image_file_path(paste_result.image_data)
+        # image_file = PIL.Image.open(image_file_path)
         st.session_state.drop_clip_loaded = True
-
 
 # The following code handles previous session deletion after uploading. The code needs to be
 # after messages printing in order to show confirmation at end of messages.
@@ -1372,20 +1647,36 @@ model_role = (
     "---------- \n"
     )
 
+# if prompt := st.chat_input("What is up?"):
+#     if st.session_state.drop_clip is True and st.session_state.drop_clip_loaded is True:
+#         prompt = f"{prompt}\n\n{prompt_c}"
+#         process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
+#         st.session_state.drop_clip = False
+#         st.session_state.drop_clip_loaded = False
+#         st.rerun()
+#     elif st.session_state.drop_file is True:
+#         prompt = change_to_prompt_text(prompt_f, prompt)
+#         increment_file_uploader_key()  # so that a new file_uploader shows up whithout the files
+#         process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
+#         st.session_state.drop_file = False
+#         st.rerun()
+#     else:
+#         process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
+
 if prompt := st.chat_input("What is up?"):
     if st.session_state.drop_clip is True and st.session_state.drop_clip_loaded is True:
-        prompt = f"{prompt}\n\n{prompt_c}"
-        process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
+        process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token, st.session_state.image_file_path)
         st.session_state.drop_clip = False
         st.session_state.drop_clip_loaded = False
+        st.session_state.image_file_path = ""
         st.rerun()
     elif st.session_state.drop_file is True:
         prompt = change_to_prompt_text(prompt_f, prompt)
         increment_file_uploader_key()  # so that a new file_uploader shows up whithout the files
-        process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
+        process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token, st.session_state.image_file_path)
         st.session_state.drop_file = False
         st.rerun()
     else:
-        process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
+        process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token, st.session_state.image_file_path)
 
 connection.close()

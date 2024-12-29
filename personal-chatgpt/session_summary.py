@@ -1,10 +1,46 @@
 from mysql.connector import Error
+import ocrspace
 from openai import OpenAIError
 import streamlit as st
 import tiktoken
 
 
-def load_previous_chat_session_all_questions_for_summary_only_users(conn, session1: str) -> str:
+# def load_previous_chat_session_all_questions_for_summary_only_users(conn, session1: str) -> str:
+#     """
+#     Loads and concatenates the content of all messages sent by the user in a given chat session.
+
+#     Args:
+#         conn: A MySQL database connection object.
+#         session_id: The unique identifier for the chat session.
+
+#     Returns:
+#         A string containing all user messages concatenated together, or None if an error occurs.
+
+#     Raises:
+#         Raises an error and logs it with Streamlit if the database operation fails.
+#     """
+#     try:
+#         with conn.cursor() as cursor:
+#             sql = "SELECT role, content FROM message WHERE session_id = %s"
+#             val = (session1,)
+#             cursor.execute(sql, val)
+
+#             chat_user = ""
+#             for (role, content) in cursor:
+#                 if role == 'user':
+#                     if content is not None:
+#                         chat_user += content + " "
+#                     else:
+#                         chat_user += ""
+#             chat_user = shorten_prompt_to_tokens(chat_user)
+#             return chat_user
+
+#     except Error as error:
+#         st.error(f"Failed to load previous chat sessions for summary (user only): {error}")
+#         raise
+
+
+def load_previous_chat_session_all_questions_for_summary_only_users_image(conn, session1: str) -> str:
     """
     Loads and concatenates the content of all messages sent by the user in a given chat session.
 
@@ -18,19 +54,33 @@ def load_previous_chat_session_all_questions_for_summary_only_users(conn, sessio
     Raises:
         Raises an error and logs it with Streamlit if the database operation fails.
     """
+    OCR_API_KEY = st.secrets["OCR_API_KEY"]
+    ocr_api = ocrspace.API(
+    api_key=OCR_API_KEY,
+    OCREngine=2
+    )
+
     try:
         with conn.cursor() as cursor:
-            sql = "SELECT role, content FROM message WHERE session_id = %s"
+            sql = "SELECT role, image, content FROM message WHERE session_id = %s"
             val = (session1,)
             cursor.execute(sql, val)
 
             chat_user = ""
-            for (role, content) in cursor:
+            for (role, image, content) in cursor:
                 if role == 'user':
                     if content is not None:
                         chat_user += content + " "
                     else:
                         chat_user += ""
+                    if image != "":
+                        # Use the OCR API to extract text from the image
+                        try:
+                            extracted_text = ocr_api.ocr_file(image)
+                        except Exception as e:
+                            st.error(f"Error occurred while processing the image in ocr API: {e}")
+                        chat_user += " " + extracted_text + " "
+            # Shorten the prompt to 3800 tokens or less
             chat_user = shorten_prompt_to_tokens(chat_user)
             return chat_user
 
@@ -134,7 +184,7 @@ def get_session_summary_and_save_to_session_table(conn, client, session_id1: int
     - session_id1 (str): The unique identifier of the chat session.
 
     """
-    chat_session_text_user_only = load_previous_chat_session_all_questions_for_summary_only_users(conn, session_id1)
+    chat_session_text_user_only = load_previous_chat_session_all_questions_for_summary_only_users_image(conn, session_id1)
     try:
         session_summary = chatgpt_summary_user_only(client, chat_session_text_user_only)
     except Error as error:

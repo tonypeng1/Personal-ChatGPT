@@ -95,3 +95,6 @@ def init_session_states():
 
     if "zip_file" not in st.session_state:
         st.session_state.zip_file = False
+
+    if "image_file_path" not in st.session_state:
+        st.session_state.image_file_path = ""

@@ -45,13 +45,13 @@ def load_previous_chat_session(conn, session1: int) -> None:
     """
     try:
         with conn.cursor() as cursor:
-            sql = "SELECT role, model, content FROM message WHERE session_id = %s"
+            sql = "SELECT role, image, model, content FROM message WHERE session_id = %s"
             val = (session1,)
             cursor.execute(sql, val)
 
             st.session_state.messages = []
-            for (role, model, content) in cursor:
-                st.session_state.messages.append({"role": role, "model": model, 
+            for (role, image, model, content) in cursor:
+                st.session_state.messages.append({"role": role, "image": image, "model": model, 
                                                   "content": content})
 
     except Error as error:
@@ -75,26 +75,26 @@ def set_only_current_session_state_to_true(current_state: str) -> None:
         st.session_state[state] = (state == current_state)
 
 
-if __name__ == "__main__":
-    # This code displays the messages of the current active session (most recent session) 
-    # in the database.
+# if __name__ == "__main__":
+#     # This code displays the messages of the current active session (most recent session) 
+#     # in the database.
     
-    connection = connect(**st.secrets["mysql"])  # Get LOCAL database credentials from .streamlit/secrets.toml for development.
+#     connection = connect(**st.secrets["mysql"])  # Get LOCAL database credentials from .streamlit/secrets.toml for development.
 
-    if "new_table" not in st.session_state:
-        st.session_state.new_table = False
+#     if "new_table" not in st.session_state:
+#         st.session_state.new_table = False
 
-    if "session" not in st.session_state:
-        get_and_set_current_session_id(connection)
+#     if "session" not in st.session_state:
+#         get_and_set_current_session_id(connection)
 
-        if st.session_state.session is not None:
-            load_previous_chat_session(connection, st.session_state.session)
-        else:
-            set_only_current_session_state_to_true("new_table")
+#         if st.session_state.session is not None:
+#             load_previous_chat_session(connection, st.session_state.session)
+#         else:
+#             set_only_current_session_state_to_true("new_table")
 
-    # Print meassages on page
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+#     # Print meassages on page
+#     for message in st.session_state.messages:
+#         with st.chat_message(message["role"]):
+#             st.markdown(message["content"])
 
-    connection.close()
+#     connection.close()

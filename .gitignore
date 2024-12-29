@@ -8,3 +8,4 @@ secrets_backup.toml
 personal-chatgpt/__pycache__/
 personal_chatgpt.egg-info/
 requirements_backup.txt
+personal_chatgpt/images/

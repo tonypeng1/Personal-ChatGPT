@@ -14,7 +14,40 @@ from striprtf.striprtf import rtf_to_text
 import zipfile
 
 
-def save_to_mysql_message(conn, session_id1: int, role1: str, model1: str, content1: str) -> None:
+# def save_to_mysql_message(conn, session_id1: int, role1: str, model1: str, content1: str) -> None:
+#     """
+#     Inserts a new message into the "message" table in a MySQL database table.
+
+#     Parameters:
+#     - conn (MySQLConnection): A connection object to the MySQL database.
+#     - session_id1 (int): The session ID associated with the message.
+#     - role1 (str): The role of the user sending the message.
+#     - model1 (str): The mdoel used.
+#     - content1 (str): The content of the message.
+
+#     Raises:
+#     - Error: If the message could not be saved.
+#     """
+#     try:
+#         with conn.cursor() as cursor:
+#             sql = "INSERT INTO message (session_id, role, model, content) VALUES (%s, %s, %s, %s)"
+#             val = (session_id1, role1, model1, content1)
+#             cursor.execute(sql, val)
+#             conn.commit()
+
+#     except Error as error:
+#         st.error(f"Failed to save new message: {error}")
+#         raise
+
+
+def save_to_mysql_message(
+        conn, 
+        session_id1: int, 
+        role1: str, 
+        model1: str, 
+        content1: str,
+        _image_file_path: str = None,
+        ) -> None:
     """
     Inserts a new message into the "message" table in a MySQL database table.
 
@@ -30,82 +63,88 @@ def save_to_mysql_message(conn, session_id1: int, role1: str, model1: str, conte
     """
     try:
         with conn.cursor() as cursor:
-            sql = "INSERT INTO message (session_id, role, model, content) VALUES (%s, %s, %s, %s)"
-            val = (session_id1, role1, model1, content1)
-            cursor.execute(sql, val)
-            conn.commit()
+            if _image_file_path is not None:
+                sql = "INSERT INTO message (session_id, role, model, content, image) VALUES (%s, %s, %s, %s, %s)"
+                val = (session_id1, role1, model1, content1, _image_file_path)
+                cursor.execute(sql, val)
+                conn.commit()
+            else:
+                sql = "INSERT INTO message (session_id, role, model, content) VALUES (%s, %s, %s, %s)"
+                val = (session_id1, role1, model1, content1)
+                cursor.execute(sql, val)
+                conn.commit()
 
     except Error as error:
         st.error(f"Failed to save new message: {error}")
         raise
 
 
-def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
-    """
-    Processes a chat prompt using OpenAI's ChatCompletion and updates the chat session.
+# def chatgpt(conn, prompt1: str, temp: float, p: float, max_tok: int) -> None:
+#     """
+#     Processes a chat prompt using OpenAI's ChatCompletion and updates the chat session.
 
-    This function determines if the current chat session should be terminated and a new one started,
-    appends the user's prompt to the session state, sends the prompt to OpenAI's ChatCompletion,
-    and then appends the assistant's response to the session state. It also handles saving messages
-    to the MySQL database.
+#     This function determines if the current chat session should be terminated and a new one started,
+#     appends the user's prompt to the session state, sends the prompt to OpenAI's ChatCompletion,
+#     and then appends the assistant's response to the session state. It also handles saving messages
+#     to the MySQL database.
 
-    Args:
-        conn: A connection object to the MySQL database.
-        prompt (str): The user's input prompt to the chatbot.
-        temp (float): The temperature parameter for OpenAI's ChatCompletion.
-        p (float): The top_p parameter for OpenAI's ChatCompletion.
-        max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
+#     Args:
+#         conn: A connection object to the MySQL database.
+#         prompt (str): The user's input prompt to the chatbot.
+#         temp (float): The temperature parameter for OpenAI's ChatCompletion.
+#         p (float): The top_p parameter for OpenAI's ChatCompletion.
+#         max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
 
-    Raises:
-        Raises an exception if there is a failure in database operations or OpenAI's API call.
-    """
-    # determine_if_terminate_current_session_and_start_a_new_one(conn)
-    st.session_state.messages.append({"role": "user", "content": prompt1})
+#     Raises:
+#         Raises an exception if there is a failure in database operations or OpenAI's API call.
+#     """
+#     # determine_if_terminate_current_session_and_start_a_new_one(conn)
+#     st.session_state.messages.append({"role": "user", "content": prompt1})
 
-    with st.chat_message("user"):
-        st.markdown(prompt1)
+#     with st.chat_message("user"):
+#         st.markdown(prompt1)
 
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        full_response = ""
-        try:
-            for response in openai.ChatCompletion.create(
-                model="gpt-4-1106-preview",
-                messages=[{"role": "system", "content": "You are based out of Austin, Texas. You are a software engineer " +
-                        "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
-                        "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
-                        "You always prefer quick explanations unless specifically asked for. When rendering code samples " +
-                        "always include the import statements. When giving required code solutions include complete code " +
-                        "with no omission. When giving long responses add the source of the information as URLs. " +
-                        "Assume the role of experienced Software Engineer and You are fine with strong opinion as long as " +
-                        "the source of the information can be pointed out and always question my understanding. " +
-                        "When rephrasing paragraphs, use lightly casual, straight-to-the-point language."}] +
-                    [
-                    {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages
-                    ],
-                temperature=temp,
-                top_p=p,
-                max_tokens=max_tok,
-                stream=True,
-                ):
-                full_response += response.choices[0].delta.get("content", "")
-                message_placeholder.markdown(full_response + "▌")
-            message_placeholder.markdown(full_response)
+#     with st.chat_message("assistant"):
+#         message_placeholder = st.empty()
+#         full_response = ""
+#         try:
+#             for response in openai.ChatCompletion.create(
+#                 model="gpt-4-1106-preview",
+#                 messages=[{"role": "system", "content": "You are based out of Austin, Texas. You are a software engineer " +
+#                         "predominantly working with Kafka, java, flink, Kafka-connect, ververica-platform. " +
+#                         "You also work on machine learning projects using python, interested in generative AI and LLMs. " +
+#                         "You always prefer quick explanations unless specifically asked for. When rendering code samples " +
+#                         "always include the import statements. When giving required code solutions include complete code " +
+#                         "with no omission. When giving long responses add the source of the information as URLs. " +
+#                         "Assume the role of experienced Software Engineer and You are fine with strong opinion as long as " +
+#                         "the source of the information can be pointed out and always question my understanding. " +
+#                         "When rephrasing paragraphs, use lightly casual, straight-to-the-point language."}] +
+#                     [
+#                     {"role": m["role"], "content": m["content"]}
+#                     for m in st.session_state.messages
+#                     ],
+#                 temperature=temp,
+#                 top_p=p,
+#                 max_tokens=max_tok,
+#                 stream=True,
+#                 ):
+#                 full_response += response.choices[0].delta.get("content", "")
+#                 message_placeholder.markdown(full_response + "▌")
+#             message_placeholder.markdown(full_response)
 
-        except OpenAIError as e:
-            error_response = f"An error occurred with OpenAI in getting chat response: {e}"
-            st.write(error_response)
-            full_response = error_response
-        except Exception as e:
-            error_response = f"An unexpected error occurred in OpenAI API call: {e}"
-            st.write(error_response)
-            full_response = error_response
+#         except OpenAIError as e:
+#             error_response = f"An error occurred with OpenAI in getting chat response: {e}"
+#             st.write(error_response)
+#             full_response = error_response
+#         except Exception as e:
+#             error_response = f"An unexpected error occurred in OpenAI API call: {e}"
+#             st.write(error_response)
+#             full_response = error_response
 
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
+#     st.session_state.messages.append({"role": "assistant", "content": full_response})
 
-    save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
-    save_to_mysql_message(conn, st.session_state.session, "assistant", full_response)
+#     save_to_mysql_message(conn, st.session_state.session, "user", prompt1)
+#     save_to_mysql_message(conn, st.session_state.session, "assistant", full_response)
 
 
 def extract_text_from_pdf(pdf) -> str: 
