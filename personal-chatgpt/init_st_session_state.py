@@ -88,10 +88,10 @@ def init_session_states():
         st.session_state.file_uploader_key = 0
 
     if "drop_clip" not in st.session_state:
-        st.session_state["drop_clip"] = False
+        st.session_state.drop_clip = False
 
     if "drop_clip_loaded" not in st.session_state:
-        st.session_state["drop_clip_loaded"] = False
+        st.session_state.drop_clip_loaded = False
 
     if "zip_file" not in st.session_state:
         st.session_state.zip_file = False

@@ -71,6 +71,8 @@ def Load_the_last_saved_model_type(conn) -> None:
                                  "o1-preview",
                                  "gpt-4o"):
                     result = ("gpt-4o-2024-11-20", )
+                if result[0] in ("mistral-large-latest", ):
+                    result = ("pixtral-large-latest", )
                 st.session_state.type = result[0]
             else:
                 st.session_state.type = None
@@ -99,11 +101,10 @@ def return_type_index(type1: str) -> int:
     type_dic = {
         "gpt-4o-2024-11-20": 0,
         "claude-3-5-sonnet-20241022": 1, 
-        "mistral-large-latest": 2,
-        # "CodeLlama-70b-Instruct-hf": 3,
-        "perplexity-llama-3.1-sonar-huge-128k-online": 3,
-        "gemini-2.0-flash-exp":4,
-        "gemini-2.0-flash-thinking-exp":5,
+        "pixtral-large-latest": 2,
+        "gemini-2.0-flash-exp":3,
+        "gemini-2.0-flash-thinking-exp":4,
+        "perplexity-llama-3.1-sonar-huge-128k-online": 5,
         "nvidia-llama-3.1-nemotron-70b-instruct":6,
         "Qwen2.5-Coder-32B-Instruct":7,
     }

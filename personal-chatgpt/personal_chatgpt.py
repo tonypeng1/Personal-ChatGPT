@@ -1,9 +1,9 @@
+import base64
 import io
 import os
 import PIL.Image
 
 import anthropic
-
 from google import genai
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 from mistralai.client import MistralClient
@@ -115,7 +115,19 @@ def end_session_save_to_mysql_and_save_summary(conn) -> None:
     get_session_summary_and_save_to_session_table(conn, chatgpt_client, st.session_state.session)  # Save session summary after ending session
 
 
-def chatgpt(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
+def encode_image(_image_path):
+    with open(_image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
+
+
+def chatgpt(
+        prompt1: str, 
+        model_role: str, 
+        temp: float, 
+        p: float, 
+        max_tok: int,
+        _image_file_path: str = "",
+        ) -> str:
     """
     Processes a chat prompt using OpenAI's ChatCompletion and updates the chat session.
 
@@ -125,11 +137,15 @@ def chatgpt(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
         temp (float): The temperature parameter for OpenAI's ChatCompletion.
         p (float): The top_p parameter for OpenAI's ChatCompletion.
         max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
+        _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
 
     Raises:
         Raises an exception if there is a failure in database operations or OpenAI's API call.
     """
     with st.chat_message("user"):
+        if _image_file_path != "":
+            image_file = PIL.Image.open(_image_file_path)
+            st.image(image_file, width=500)
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
@@ -138,15 +154,49 @@ def chatgpt(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
 
         message_placeholder = st.empty()
         full_response = ""
+
+        # NOT WORKING!
+        # math_instruction = (
+        # "\nYour instructions on writing math formulas: \n"
+        # "You have a MathJax render environment. \n"
+        # "Any LaTeX text between squre braket sign '[]' or paranthesis '()' will be rendered as a TeX formula; \n"
+        # "For example, [x^2 + 3x] is output for 'x² + 3x' to appear as TeX. \n"
+        # )
+        
+        # system_list = [{"role": "system", "content": model_role + math_instruction}]
+        system_list = [{"role": "system", "content": model_role}]
+
+        context_list = []
+        for m in st.session_state.messages:
+            if m["role"] == "user":
+                if m["image"] != "":
+                    base64_image = encode_image(m["image"])
+                    dic = {"role": "user", 
+                           "content": [
+                                {
+                                    "type": "text",
+                                    "text": m["content"],
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": f"data:image/png;base64,{base64_image}"},
+                                },
+                           ],
+                        }
+                    context_list.append(dic)
+                else:
+                    dic = {"role": "user", "content": m["content"]}
+                    context_list.append(dic)
+            else:
+                dic = {"role": "assistant", "content": m["content"]}
+                context_list.append(dic)
+
+        input_list = system_list + context_list
+
         try:
             for response in chatgpt_client.chat.completions.create(
                 model="gpt-4o-2024-11-20",
-                messages=
-                    [{"role": "system", "content": model_role}] +
-                    [
-                    {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages
-                    ],
+                messages=input_list,
                 temperature=temp,
                 top_p=p,
                 max_tokens=max_tok,
@@ -315,7 +365,7 @@ def gemini(
         temp: float, 
         p: float, 
         max_tok: int,
-        _image_file_path: str = None,
+        _image_file_path: str = "",
         ) -> str:
     """
     Generates a response using the Gemini API.
@@ -326,14 +376,16 @@ def gemini(
         temp: The temperature parameter for the Gemini API.
         p: The top-p parameter for the Gemini API.
         max_tok: The maximum number of tokens for the Gemini API.
+        _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
+
     """
     google_search_tool = Tool(
         google_search = GoogleSearch()
         )
 
     with st.chat_message("user"):
-        if st.session_state.image_file_path != "":
-            image_file = PIL.Image.open(st.session_state.image_file_path)
+        if _image_file_path != "":
+            image_file = PIL.Image.open(_image_file_path)
             st.image(image_file, width=500)
         st.markdown(prompt1)
 
@@ -363,9 +415,7 @@ def gemini(
         "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://vertexaisearch.cloud.google.com/grounding-api-redirect/* \n"
         )
         
-        promp_suffix = " USE THE GOOGLESEARCH TOOL TO SEARCH THE INTERNET FOR THE LATEST INFORMATION IF NEEDED. Only cite an online source with a VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/."
-
-        input_list = \
+        system_list = \
                 [{"role": "user",
                 "parts": [{
                         "text": model_role + additional_model_role +  "If you understand your role, please response 'I understand.'"
@@ -374,22 +424,25 @@ def gemini(
                 {"role": "model",
                 "parts": [{"text": "I understand."}]
                 }
-                ] + \
-                [
-                {"role": m["role"] if m["role"] == "user" else "model", \
-                    "parts": [{"text": m["content"]} if m["role"] == "model" else {"text": m["content"] + promp_suffix}]}
-                for m in st.session_state.messages
-                ]
+                ] 
+         
+        context_list = []
+        for m in st.session_state.messages:
+            if m["role"] == "user":
+                dic = {"role": "user", "parts": [{"text": m["content"]}]}
+                context_list.append(dic)
+                if m["image"] != "":
+                    _context_image_file = PIL.Image.open(m["image"])
+                    context_list.append(_context_image_file)
+            else:
+                dic = {"role": "model", "parts": [{"text": m["content"]}]}
+                context_list.append(dic)
+
+        input_list = system_list + context_list
+
         try:
-            # Create a copy of input_list to avoid modifying the original
-            modified_input_list = input_list.copy()
-            # If there's an image file, append it to our copy
-            if _image_file_path != "":
-                _image_file = PIL.Image.open(_image_file_path)
-                modified_input_list.append(_image_file)
-            
             for response in  client.models.generate_content_stream(
-                contents=modified_input_list,
+                contents=input_list,
                 model=model_id,
                 config=GenerateContentConfig(
                     temperature=temp,
@@ -412,7 +465,14 @@ def gemini(
     return full_response
 
 
-def gemini_thinking(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
+def gemini_thinking(
+        prompt1: str, 
+        model_role: str, 
+        temp: float, 
+        p: float, 
+        max_tok: int,
+        _image_file_path: str = "",
+        ) -> str:
     """
     Generates a response using the Gemini thinking API.
 
@@ -422,9 +482,13 @@ def gemini_thinking(prompt1: str, model_role: str, temp: float, p: float, max_to
         temp: The temperature parameter for the Gemini API.
         p: The top-p parameter for the Gemini API.
         max_tok: The maximum number of tokens for the Gemini API.
+        _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
     """
 
     with st.chat_message("user"):
+        if _image_file_path != "":
+            image_file = PIL.Image.open(_image_file_path)
+            st.image(image_file, width=500)
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
@@ -434,22 +498,34 @@ def gemini_thinking(prompt1: str, model_role: str, temp: float, p: float, max_to
         message_placeholder = st.empty()
         full_response = ""
 
+        system_list = \
+                    [{"role": "user",
+                    "parts": [{
+                            "text": model_role +  "If you understand your role, please response 'I understand.'"
+                            }]
+                    },
+                    {"role": "model",
+                    "parts": [{"text": "I understand."}]
+                    }
+                    ] 
+         
+        context_list = []
+        for m in st.session_state.messages:
+            if m["role"] == "user":
+                dic = {"role": "user", "parts": [{"text": m["content"]}]}
+                context_list.append(dic)
+                if m["image"] != "":
+                    _context_image_file = PIL.Image.open(m["image"])
+                    context_list.append(_context_image_file)
+            else:
+                dic = {"role": "model", "parts": [{"text": m["content"]}]}
+                context_list.append(dic)
+
+        input_list = system_list + context_list
+
         try:
             for response in  client_thinking.models.generate_content_stream(
-                contents=[{"role": "user",
-                  "parts": [{
-                      "text": model_role +  "If you understand your role, please response 'I understand.'"
-                      }]
-                      },
-                {"role": "model",
-                 "parts": [{"text": "I understand."}]
-                 }
-                ] +
-                [
-                {"role": m["role"] if m["role"] == "user" else "model", \
-                 "parts": [{"text": m["content"]} if m["role"] == "model" else {"text": m["content"]}]}
-                for m in st.session_state.messages
-                ],
+                contents=input_list,
                 model=model_id_thinking,
                 config=GenerateContentConfig(
                     temperature=temp,
@@ -474,7 +550,14 @@ def gemini_thinking(prompt1: str, model_role: str, temp: float, p: float, max_to
     return full_response
 
 
-def mistral(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
+def mistral(
+        prompt1: str, 
+        model_role: str, 
+        temp: float, 
+        p: float, 
+        max_tok: int,
+        _image_file_path: str = "",
+        ) -> str:
     """
     Generates a response using the mistral API.
 
@@ -487,6 +570,9 @@ def mistral(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
         max_tok: The maximum number of tokens for the mistral API.
     """
     with st.chat_message("user"):
+        if _image_file_path != "":
+            image_file = PIL.Image.open(_image_file_path)
+            st.image(image_file, width=500)
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
@@ -495,17 +581,40 @@ def mistral(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
 
         message_placeholder = st.empty()
         full_response = ""
+        
+        system_list = [{"role": "system", "content": model_role}]
 
-        messages = [{
-        "role": "user", "content": model_role
-        }]
+        context_list = []
         for m in st.session_state.messages:
-            messages.append({"role": m["role"], "content": m["content"]})
+            if m["role"] == "user":
+                if m["image"] != "":
+                    base64_image = encode_image(m["image"])
+                    dic = {"role": "user", 
+                           "content": [
+                                {
+                                    "type": "text",
+                                    "text": m["content"],
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": f"data:image/png;base64,{base64_image}",
+                                },
+                           ],
+                        }
+                    context_list.append(dic)
+                else:
+                    dic = {"role": "user", "content": m["content"]}
+                    context_list.append(dic)
+            else:
+                dic = {"role": "assistant", "content": m["content"]}
+                context_list.append(dic)
+
+        input_list = system_list + context_list
 
         try:
             for response in mistral_client.chat_stream(
                 model=mistral_model,
-                messages=messages,
+                messages=input_list,
                 temperature=temp,
                 # top_p=p,
                 max_tokens=max_tok
@@ -523,7 +632,14 @@ def mistral(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) 
     return full_response
 
 
-def claude(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
+def claude(
+        prompt1: str, 
+        model_role: str, 
+        temp: float, 
+        p: float, 
+        max_tok: int,
+        _image_file_path: str = "",
+        ) -> str:
     """
     Processes a chat prompt using Anthropic's Claude 3.5 model and updates the chat session.
 
@@ -533,11 +649,16 @@ def claude(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
         temp (float): The temperature parameter for OpenAI's ChatCompletion.
         p (float): The top_p parameter for OpenAI's ChatCompletion.
         max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
+        _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
 
     Raises:
         Raises an exception if there is a failure in database operations or OpenAI's API call.
     """
     with st.chat_message("user"):
+        # print("_image_file_path: ", _image_file_path)
+        if _image_file_path != "":
+            image_file = PIL.Image.open(_image_file_path)
+            st.image(image_file, width=500)
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
@@ -546,15 +667,41 @@ def claude(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
 
         message_placeholder = st.empty()
         full_response = ""
+
+        context_list = []
+        for m in st.session_state.messages:
+            if m["role"] == "user":
+                if m["image"] != "":
+                    base64_image = encode_image(m["image"])
+                    dic = {"role": "user", 
+                           "content": [
+                                {
+                                    "type": "image",
+                                    "source": {
+                                        "type": "base64",
+                                        "media_type": "image/png",
+                                        "data": base64_image,
+                                    },
+                                },
+                                {
+                                    "type": "text",
+                                    "text": m["content"],
+                                },
+                           ],
+                    }
+                    context_list.append(dic)
+                else:
+                    dic = {"role": "user", "content": m["content"]}
+                    context_list.append(dic)
+            else:
+                dic = {"role": "assistant", "content": m["content"]}
+                context_list.append(dic)
+
         try:
             with claude_client.messages.stream(
                 model=claude_model,
                 system=model_role,
-                messages=
-                    [
-                    {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages
-                    ],
+                messages=context_list,
                 temperature=temp,
                 top_p=p,
                 max_tokens=max_tok,
@@ -866,6 +1013,7 @@ def determine_if_terminate_current_session_and_start_a_new_one(conn) -> None:
     Args:
     conn: The database connection object.
     """
+    print(f"load_history_level_2: {st.session_state.load_history_level_2}")
     state_actions = {
         'new_table': lambda: start_session_save_to_mysql_and_increment_session_id(conn),
         'new_session': lambda: (end_session_save_to_mysql_and_save_summary(conn),
@@ -950,7 +1098,8 @@ def process_prompt(
         temperature, 
         top_p, 
         max_token,
-        _image_file_path: str = None):
+        _image_file_path: str = "",
+        ):
     """
     This function processes a given prompt by performing the following steps:
     1. Determines if the current session should be terminated and a new one started.
@@ -976,15 +1125,15 @@ def process_prompt(
     st.session_state.messages.append({"role": "user", "model": "", "content": prompt1, "image": _image_file_path})
     try:
         if model_name == "gpt-4o-2024-11-20":
-            responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token))
+            responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "claude-3-5-sonnet-20241022":
-            responses = claude(prompt1, model_role, temperature, top_p, int(max_token))
+            responses = claude(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "gemini-2.0-flash-exp":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "gemini-2.0-flash-thinking-exp":
-            responses = gemini_thinking(prompt1, model_role, temperature, top_p, int(max_token))
-        elif model_name == "mistral-large-latest":
-            responses = mistral(prompt1, model_role, temperature, top_p, int(max_token))
+            responses = gemini_thinking(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
+        elif model_name == "pixtral-large-latest":
+            responses = mistral(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "perplexity-llama-3.1-sonar-huge-128k-online":
             responses = perplexity(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "nvidia-llama-3.1-nemotron-70b-instruct":
@@ -1000,8 +1149,9 @@ def process_prompt(
 
     st.session_state.messages.append({"role": "assistant", "model": model_name,
                 "content": responses, "image": _image_file_path})
+    
     save_to_mysql_message(conn, st.session_state.session, "user", "", prompt1, _image_file_path)
-    save_to_mysql_message(conn, st.session_state.session, "assistant", model_name, responses, _image_file_path)
+    save_to_mysql_message(conn, st.session_state.session, "assistant", model_name, responses)
 
 
 # def convert_clipboard_to_text(_image, ocr_key) -> str:
@@ -1087,53 +1237,46 @@ def process_prompt(
     
 
 def convert_clipboard_to_image_file_path(_image):
-    """
-    Convert an image from clipboard to a file path and display the image.
 
-    Args:
-        _image (PngImageFile): The image to be saved as a temporary file.
+    col1, col2 = st.columns([2, 1])  # Adjust the ratio as needed
+    with col1:
+        st.image(_image, caption='Image from clipboard', use_column_width=True)
 
-    Returns:
-        None
-    """
+    # Convert PngImageFile to bytes
+    with io.BytesIO() as output:
+        _image.save(output, format="png")
+        image_bytes = output.getvalue()
 
-    if _image is None:
-        st.error(r"$\textsf{\large No image found in clipboard}$")
+    # Create a file path in the images folder
+    save_folder = "./images"  # relative to current working directory
+    os.makedirs(save_folder, exist_ok=True)  # Create the folder if it doesn't exist
+
+    # Check the files in the folder and get the next available file name
+    existing_files = os.listdir(save_folder)
+    image_number = 1
+    while True:
+        file_name = f"image-{image_number}.png"
+        if file_name not in existing_files:
+            break
+        image_number += 1
+
+    file_path = os.path.join(save_folder, file_name)  # Create the file path
+    st.session_state.image_file_path = file_path  # Save the file path to session state
+
+    return image_bytes
+
+
+def save_image_to_file(image_bytes):
+
+    file_path = st.session_state.image_file_path
+    if os.path.exists(file_path):
+        print(f"File {file_path} already exists. Skipping save.")
     else:
-        col1, col2 = st.columns([2, 1])  # Adjust the ratio as needed
-        with col1:
-            st.image(_image, caption='Image from clipboard', use_column_width=True)
-
-        # Convert PngImageFile to bytes
-        with io.BytesIO() as output:
-            _image.save(output, format="png")
-            image_bytes = output.getvalue()
-
-        # Create a file path in the images folder
-        save_folder = "./images"  # relative to current working directory
-        os.makedirs(save_folder, exist_ok=True)  # Create the folder if it doesn't exist
-
-        # Check the files in the folder and get the next available file name
-        existing_files = os.listdir(save_folder)
-        image_number = 1
-        while True:
-            file_name = f"image-{image_number}.png"
-            if file_name not in existing_files:
-                break
-            image_number += 1
-
-        file_path = os.path.join(save_folder, file_name)  # Create the file path
-        st.session_state.image_file_path = file_path  # Save the file path to session state
-
-        # Save the image to the file path
-        if os.path.exists(file_path):
-            print(f"File {file_path} already exists. Skipping save.")
-        else:
-            try:
-                with open(file_path, "wb") as f:
-                    f.write(image_bytes)
-            except Exception as e:
-                print(f"An error occurred: {e}")
+        try:
+            with open(file_path, "wb") as f:
+                f.write(image_bytes)
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
 
 # Get app keys
@@ -1161,7 +1304,7 @@ model_id_thinking = "gemini-2.0-flash-thinking-exp"
 # gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
 # Set mastral api configuration
-mistral_model = "mistral-large-latest"
+mistral_model = "pixtral-large-latest"
 mistral_client = MistralClient(api_key=MISTRAL_API_KEY)
 
 # Set Claude api configuration
@@ -1220,6 +1363,8 @@ if new_chat_button:
     st.session_state.search_session = False
     st.session_state.drop_file = False
     st.session_state.drop_clip = False
+    st.session_state.drop_clip_loaded = False
+    # st.session_state.image_file_path = ""
 
 
 # The following code handles the search and retreival of the messages of a chat session
@@ -1306,11 +1451,10 @@ model_name = st.sidebar.radio(
                                 options=(
                                     "gpt-4o-2024-11-20",
                                     "claude-3-5-sonnet-20241022",
-                                    "mistral-large-latest",
-                                    "perplexity-llama-3.1-sonar-huge-128k-online",
-                                    # "CodeLlama-70b-Instruct-hf",
+                                    "pixtral-large-latest",
                                     "gemini-2.0-flash-exp",
                                     "gemini-2.0-flash-thinking-exp",
+                                    "perplexity-llama-3.1-sonar-huge-128k-online",
                                     "nvidia-llama-3.1-nemotron-70b-instruct",
                                     "Qwen2.5-Coder-32B-Instruct"
                                  ),
@@ -1534,6 +1678,8 @@ empty_database = st.sidebar.button(
 if empty_database:
     st.session_state.messages = []
     st.session_state.empty_data = True
+    st.session_state.drop_clip = False
+    st.session_state.drop_clip_loaded = False
     st.error(r"$\textsf{\large Do you really wanna DELETE THE ENTIRE CHAT HISTORY?}$", \
              icon="🔥")
 
@@ -1584,14 +1730,15 @@ if drop_clip:
 
 if st.session_state.drop_clip:
     paste_result = pasteButton(
-        label="📋 Paste an image",
+        label='Paste an image',
         errors="raise",
         )
 
     if paste_result.image_data is not None:
-        convert_clipboard_to_image_file_path(paste_result.image_data)
+        image = convert_clipboard_to_image_file_path(paste_result.image_data)
         # image_file = PIL.Image.open(image_file_path)
         st.session_state.drop_clip_loaded = True
+
 
 # The following code handles previous session deletion after uploading. The code needs to be
 # after messages printing in order to show confirmation at end of messages.
@@ -1665,6 +1812,7 @@ model_role = (
 
 if prompt := st.chat_input("What is up?"):
     if st.session_state.drop_clip is True and st.session_state.drop_clip_loaded is True:
+        save_image_to_file(image)
         process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token, st.session_state.image_file_path)
         st.session_state.drop_clip = False
         st.session_state.drop_clip_loaded = False
@@ -1673,10 +1821,11 @@ if prompt := st.chat_input("What is up?"):
     elif st.session_state.drop_file is True:
         prompt = change_to_prompt_text(prompt_f, prompt)
         increment_file_uploader_key()  # so that a new file_uploader shows up whithout the files
-        process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token, st.session_state.image_file_path)
+        process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
         st.session_state.drop_file = False
         st.rerun()
     else:
-        process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token, st.session_state.image_file_path)
+        process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token)
+        st.rerun()
 
 connection.close()

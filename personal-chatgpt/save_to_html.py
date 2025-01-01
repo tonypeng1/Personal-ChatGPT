@@ -1,3 +1,4 @@
+import os
 import re
 from typing import List, Dict
 
@@ -27,7 +28,14 @@ def convert_messages_to_markdown(messages: List[Dict[str, str]], code_block_inde
         role = message['role']
         content = message['content']
         indented_content = _indent_content(content, code_block_indent)
-        markdown_lines.append(f"###*{role.capitalize()}*:\n{indented_content}\n")
+
+        if message["image"] != "":
+            image_path = os.path.abspath(message['image'])
+            image_url = f"file://{image_path}"
+            markdown_lines.append(f"###*{role.capitalize()}*:\n![Image]({image_url})\n{indented_content}\n")
+        else:
+            markdown_lines.append(f"###*{role.capitalize()}*:\n{indented_content}\n")
+    
     return '\n\n'.join(markdown_lines)
 
 

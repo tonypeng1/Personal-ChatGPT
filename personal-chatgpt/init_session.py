@@ -71,8 +71,25 @@ def set_only_current_session_state_to_true(current_state: str) -> None:
     Returns:
     None
     """
-    for state in ["new_table", "new_session", "load_history_level_2", "session_different_date"]:
+    for state in ["new_table", 
+                  "new_session", 
+                  "load_history_level_2", 
+                  "session_different_date"]:
         st.session_state[state] = (state == current_state)
+    
+    # DO NOT CHANGE TO THE FOLLOWING CODE. IT WILL BREAK THE "load_history_level_2" value!
+    # for state in [
+    #     "drop_clip",
+    #     "drop_clip_loaded",
+    #     "drop_file",
+    #     "load_history_level_2", 
+    #     "load_session",
+    #     "new_table", 
+    #     "new_session", 
+    #     "search_session",
+    #     "session_different_date",
+    #     ]:
+    #     st.session_state[state] = (state == current_state)
 
 
 # if __name__ == "__main__":

@@ -16,37 +16,42 @@ def delete_all_rows_in_message_serach(conn) -> None:
         raise
 
 
-def search_keyword_and_save_to_message_search_table(conn, words: str):
-    """
-    Searches for messages containing the given keywords and saves the results to the message_search table.
+# def search_keyword_and_save_to_message_search_table(conn, words: str):
+#     """
+#     Searches for messages containing the given keywords and saves the results to the message_search table.
 
-    Parameters:
-    conn (MySQLConnection): A connection object to the MySQL database.
-    words (str): A string containing keywords separated by spaces.
+#     Parameters:
+#     conn (MySQLConnection): A connection object to the MySQL database.
+#     words (str): A string containing keywords separated by spaces.
 
-    Raises:
-    Raises an exception if the search or saving to the message_search table fails.
-    """
-    try:
-        with conn.cursor() as cursor:
-            keywords1 = words.split()
-            sql_conditions, filtered_word_list = filter_word_list_and_get_sql_conditions(keywords1)
+#     Raises:
+#     Raises an exception if the search or saving to the message_search table fails.
+#     """
+#     try:
+#         with conn.cursor() as cursor:
+#             keywords1 = words.split()
+#             sql_conditions, filtered_word_list = filter_word_list_and_get_sql_conditions(keywords1)
             
-            sql = f"SELECT * FROM message WHERE {sql_conditions}"
-            val = tuple(f"%{keyword}%" for keyword in filtered_word_list)
-            cursor.execute(sql, val)
+#             sql = f"SELECT * FROM message WHERE {sql_conditions}"
+#             val = tuple(f"%{keyword}%" for keyword in filtered_word_list)
+#             cursor.execute(sql, val)
 
-            for mess_id, sess_id, time, user, model, content in cursor.fetchall():
-                save_to_mysql_message_search(conn, mess_id, sess_id, time, user, model, \
-                                             content)
+#             for mess_id, sess_id, time, user, model, content in cursor.fetchall():
+#                 save_to_mysql_message_search(conn, mess_id, sess_id, time, user, model, \
+#                                              content)
 
-    except Error as error:
-        st.error(f"Failed to search keyword: {error}")
-        raise
+#     except Error as error:
+#         st.error(f"Failed to search keyword: {error}")
+#         raise
 
 
-def save_to_mysql_message_search(conn, message_id1: int, session_id1: int, 
-                                 timestamp1: datetime, role1: str, model1: str, 
+def save_to_mysql_message_search(conn, 
+                                 message_id1: int, 
+                                 session_id1: int, 
+                                 timestamp1: datetime, 
+                                 role1: str,
+                                 image1: str, 
+                                 model1: str, 
                                  content1: str) -> None:
     """
     Inserts a new message into the message_search table in the MySQL database.
@@ -57,6 +62,7 @@ def save_to_mysql_message_search(conn, message_id1: int, session_id1: int,
     session_id1 (int): The ID of the session.
     timestamp1 (datetime): The timestamp when the message was sent.
     role1 (str): The role of the user who sent the message.
+    image1 (str): The path to the image file.
     model1 (str): The mdoel used.
     content1 (str): The content of the message.
 
@@ -67,10 +73,10 @@ def save_to_mysql_message_search(conn, message_id1: int, session_id1: int,
         with conn.cursor() as cursor:
             sql = """
             INSERT INTO message_search 
-            (message_id, session_id, timestamp, role, model, content) 
-            VALUES (%s, %s, %s, %s, %s, %s)
+            (message_id, session_id, timestamp, role, image, model, content) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             """
-            val = (message_id1, session_id1, timestamp1, role1, model1, content1)
+            val = (message_id1, session_id1, timestamp1, role1, image1, model1, content1)
             cursor.execute(sql, val)
             conn.commit()
 
@@ -119,8 +125,8 @@ def search_full_text_and_save_to_message_search_table(conn, words: str):
             val = (words,)
             cursor.execute(sql, val)
 
-            for mess_id, sess_id, time, user, model, content in cursor.fetchall():
-                save_to_mysql_message_search(conn, mess_id, sess_id, time, user, model, \
+            for mess_id, sess_id, time, role, image, model, content in cursor.fetchall():
+                save_to_mysql_message_search(conn, mess_id, sess_id, time, role, image, model, \
                                              content)
 
     except Error as error:
