@@ -13,7 +13,8 @@ import openai
 from openai import OpenAI
 from openai import OpenAIError
 import streamlit as st
-from streamlit_paste_button import paste_image_button as pasteButton
+from st_img_pastebutton import paste
+# from streamlit_paste_button import paste_image_button as pasteButton
 import tempfile
 
 from delete_message import delete_the_messages_of_a_chat_session, \
@@ -1013,7 +1014,7 @@ def determine_if_terminate_current_session_and_start_a_new_one(conn) -> None:
     Args:
     conn: The database connection object.
     """
-    print(f"load_history_level_2: {st.session_state.load_history_level_2}")
+    # print(f"load_history_level_2: {st.session_state.load_history_level_2}")
     state_actions = {
         'new_table': lambda: start_session_save_to_mysql_and_increment_session_id(conn),
         'new_session': lambda: (end_session_save_to_mysql_and_save_summary(conn),
@@ -1236,16 +1237,45 @@ def process_prompt(
 #         return _image_file
     
 
-def convert_clipboard_to_image_file_path(_image):
+# def convert_clipboard_to_image_file_path(_image):
+
+#     col1, col2 = st.columns([2, 1])  # Adjust the ratio as needed
+#     with col1:
+#         st.image(_image, caption='Image from clipboard', use_column_width=True)
+
+#     # Convert PngImageFile to bytes
+#     with io.BytesIO() as output:
+#         _image.save(output, format="png")
+#         image_bytes = output.getvalue()
+
+#     # Create a file path in the images folder
+#     save_folder = "./images"  # relative to current working directory
+#     os.makedirs(save_folder, exist_ok=True)  # Create the folder if it doesn't exist
+
+#     # Check the files in the folder and get the next available file name
+#     existing_files = os.listdir(save_folder)
+#     image_number = 1
+#     while True:
+#         file_name = f"image-{image_number}.png"
+#         if file_name not in existing_files:
+#             break
+#         image_number += 1
+
+#     file_path = os.path.join(save_folder, file_name)  # Create the file path
+#     st.session_state.image_file_path = file_path  # Save the file path to session state
+
+#     return image_bytes
+
+
+def convert_clipboard_to_image_file_path_image(_image):
+
+    header, encoded = _image.split(",", 1)
+    binary_data = base64.b64decode(encoded)
+    bytes_data = io.BytesIO(binary_data)
 
     col1, col2 = st.columns([2, 1])  # Adjust the ratio as needed
     with col1:
-        st.image(_image, caption='Image from clipboard', use_column_width=True)
-
-    # Convert PngImageFile to bytes
-    with io.BytesIO() as output:
-        _image.save(output, format="png")
-        image_bytes = output.getvalue()
+        st.image(bytes_data, caption='Image from clipboard', use_column_width=True)
 
     # Create a file path in the images folder
     save_folder = "./images"  # relative to current working directory
@@ -1263,10 +1293,10 @@ def convert_clipboard_to_image_file_path(_image):
     file_path = os.path.join(save_folder, file_name)  # Create the file path
     st.session_state.image_file_path = file_path  # Save the file path to session state
 
-    return image_bytes
+    return binary_data
 
 
-def save_image_to_file(image_bytes):
+def save_image_to_file(_image_binary):
 
     file_path = st.session_state.image_file_path
     if os.path.exists(file_path):
@@ -1274,7 +1304,7 @@ def save_image_to_file(image_bytes):
     else:
         try:
             with open(file_path, "wb") as f:
-                f.write(image_bytes)
+                f.write(_image_binary)
         except Exception as e:
             print(f"An error occurred: {e}")
 
@@ -1729,13 +1759,13 @@ if drop_clip:
     st.session_state.drop_clip = True
 
 if st.session_state.drop_clip:
-    paste_result = pasteButton(
-        label='Paste an image',
-        errors="raise",
+    image_data = paste(
+        label="Click to Paste From Clipboard",
+        key="image_clipboard",
         )
 
-    if paste_result.image_data is not None:
-        image = convert_clipboard_to_image_file_path(paste_result.image_data)
+    if image_data is not None:
+        image_binary = convert_clipboard_to_image_file_path_image(image_data)
         # image_file = PIL.Image.open(image_file_path)
         st.session_state.drop_clip_loaded = True
 
@@ -1812,7 +1842,7 @@ model_role = (
 
 if prompt := st.chat_input("What is up?"):
     if st.session_state.drop_clip is True and st.session_state.drop_clip_loaded is True:
-        save_image_to_file(image)
+        save_image_to_file(image_binary)
         process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token, st.session_state.image_file_path)
         st.session_state.drop_clip = False
         st.session_state.drop_clip_loaded = False
