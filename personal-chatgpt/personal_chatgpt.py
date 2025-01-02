@@ -163,9 +163,15 @@ def chatgpt(
         # "Any LaTeX text between squre braket sign '[]' or paranthesis '()' will be rendered as a TeX formula; \n"
         # "For example, [x^2 + 3x] is output for 'x² + 3x' to appear as TeX. \n"
         # )
-        
-        # system_list = [{"role": "system", "content": model_role + math_instruction}]
-        system_list = [{"role": "system", "content": model_role}]
+
+        math_instruction = (
+        "\nWhen writing an mathematic formula, RENDER IT! \n"
+        "Do NOT just output the LaTeX code. \n"
+        "For example, output 'x² + 3x' instead of [x^2 + 3x]. \n"
+        )  # NOT WORKING TOO!
+
+        system_list = [{"role": "system", "content": model_role + math_instruction}]
+        # system_list = [{"role": "system", "content": model_role}]
 
         context_list = []
         for m in st.session_state.messages:
@@ -1278,7 +1284,8 @@ def convert_clipboard_to_image_file_path_image(_image):
         st.image(bytes_data, caption='Image from clipboard', use_column_width=True)
 
     # Create a file path in the images folder
-    save_folder = "./images"  # relative to current working directory
+    # save_folder = "./images"  # relative to current working directory
+    save_folder = os.getenv('IMAGE_SAVE_PATH', './images')
     os.makedirs(save_folder, exist_ok=True)  # Create the folder if it doesn't exist
 
     # Check the files in the folder and get the next available file name

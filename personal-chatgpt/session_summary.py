@@ -1,3 +1,5 @@
+import concurrent.futures
+
 from mysql.connector import Error
 import ocrspace
 from openai import OpenAIError
@@ -54,11 +56,9 @@ def load_previous_chat_session_all_questions_for_summary_only_users_image(conn, 
     Raises:
         Raises an error and logs it with Streamlit if the database operation fails.
     """
-    OCR_API_KEY = st.secrets["OCR_API_KEY"]
-    ocr_api = ocrspace.API(
-    api_key=OCR_API_KEY,
-    OCREngine=2
-    )
+
+    # Set a timeout duration in seconds
+    TIMEOUT_DURATION = 10
 
     try:
         with conn.cursor() as cursor:
@@ -76,9 +76,16 @@ def load_previous_chat_session_all_questions_for_summary_only_users_image(conn, 
                     if image != "":
                         # Use the OCR API to extract text from the image
                         try:
-                            extracted_text = ocr_api.ocr_file(image)
+                            with concurrent.futures.ThreadPoolExecutor() as executor:
+                                # Submit the API call as a future
+                                future = executor.submit(ocr_api_call, image)
+                                # Wait for the result with a timeout
+                                extracted_text = future.result(timeout=TIMEOUT_DURATION)
+                        except concurrent.futures.TimeoutError:
+                            st.error(f"The OCR API call timed out after {TIMEOUT_DURATION} seconds.")
                         except Exception as e:
-                            st.error(f"Error occurred while processing the image in ocr API: {e}")
+                            st.error(f"Error occurred while processing the image in OCR API: {e}")
+                        
                         chat_user += " " + extracted_text + " "
             # Shorten the prompt to 3800 tokens or less
             chat_user = shorten_prompt_to_tokens(chat_user)
@@ -87,6 +94,28 @@ def load_previous_chat_session_all_questions_for_summary_only_users_image(conn, 
     except Error as error:
         st.error(f"Failed to load previous chat sessions for summary (user only): {error}")
         raise
+
+
+def ocr_api_call(image):
+
+    OCR_API_KEY = st.secrets["OCR_API_KEY"]
+    ocr_api = ocrspace.API(
+        api_key=OCR_API_KEY,
+        OCREngine=2,
+    )
+
+    extracted_text = ""
+    try:
+        extracted_text = ocr_api.ocr_file(image)
+    except Exception as e:
+        st.error(f"Error occurred while processing the image in ocr API: {e}")
+        return extracted_text
+
+    return extracted_text
+
+
+
+
 
 
 def shorten_prompt_to_tokens(prompt: str, encoding_name: str="cl100k_base" , max_tokens: int=3800) -> str:

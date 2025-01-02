@@ -1,9 +1,13 @@
 services:
   app:
     container_name: chat_gpt
-    image: streamlit-mysql:1.10.0
+    image: streamlit-mysql:2.1.0
     ports:
       - 8501:8501
+    environment:
+      - IMAGE_SAVE_PATH=/images
+    volumes:
+      - image-data:/app/images  # Mounts the Docker-managed volume to /app/images 
 
   mysql:
     container_name: mysql_db
@@ -17,4 +21,5 @@ services:
 
 volumes:
   mysql-data:
+  image-data:  # Define the Docker-managed volume
   
