@@ -1273,32 +1273,70 @@ def process_prompt(
 #     return image_bytes
 
 
-def convert_clipboard_to_image_file_path_image(_image):
+def convert_clipboard_to_image_file_path_image(_image: str) -> bytes:
+    """
+    Convert a base64 encoded image from clipboard to bytes and display it in Streamlit.
+    
+    This function performs the following operations:
+    1. Decodes the base64 image data
+    2. Displays the image in a Streamlit UI
+    3. Generates a unique file path for saving the image
+    4. Stores the file path in Streamlit session state
+    
+    Args:
+        _image (str): Base64 encoded image string with format "header,encoded_data"
+        
+    Returns:
+        bytes: The decoded binary image data
+        
+    Raises:
+        ValueError: If the image data format is invalid
+        OSError: If there are issues accessing the save directory
+    """
+    try:
+        header, encoded = _image.split(",", 1)
+        binary_data = base64.b64decode(encoded)
+        bytes_data = io.BytesIO(binary_data)
+    except ValueError as e:
+        st.error("Invalid image data format")
+        raise
 
-    header, encoded = _image.split(",", 1)
-    binary_data = base64.b64decode(encoded)
-    bytes_data = io.BytesIO(binary_data)
-
+    # Displays the image from the clipboard 
     col1, col2 = st.columns([2, 1])  # Adjust the ratio as needed
     with col1:
         st.image(bytes_data, caption='Image from clipboard', use_column_width=True)
 
-    # Create a file path in the images folder
-    # save_folder = "./images"  # relative to current working directory
-    save_folder = os.getenv('IMAGE_SAVE_PATH', './images')
-    os.makedirs(save_folder, exist_ok=True)  # Create the folder if it doesn't exist
+    try:
+        # Create the bind-mounded folder path to save image file to
+        save_folder = os.getenv('IMAGE_SAVE_PATH', '/app/images')  # Use the environment variable or a default path
+        os.makedirs(save_folder, exist_ok=True)  # Create the folder if it doesn't exist
 
-    # Check the files in the folder and get the next available file name
-    existing_files = os.listdir(save_folder)
-    image_number = 1
-    while True:
+        # # Check the files in the folder and get the next available file name
+        # existing_files = os.listdir(save_folder)
+
+        # Find next available file name
+        image_number = 1
+        while os.path.exists(os.path.join(save_folder, f"image-{image_number}.png")):
+            image_number += 1
+
+        # image_number = 1
+        # while True:
+        #     file_name = f"image-{image_number}.png"
+        #     if file_name not in existing_files:
+        #         break
+        #     image_number += 1
+
+    # file_path = os.path.join(save_folder, file_name)  # Create the file path
+    # st.session_state.image_file_path = file_path  # Save the file path to session state
+
         file_name = f"image-{image_number}.png"
-        if file_name not in existing_files:
-            break
-        image_number += 1
-
-    file_path = os.path.join(save_folder, file_name)  # Create the file path
-    st.session_state.image_file_path = file_path  # Save the file path to session state
+        file_path = os.path.join(save_folder, file_name)       
+        # Store file path in session state
+        st.session_state.image_file_path = file_path
+        
+    except OSError as e:
+        st.error(f"Error accessing save directory: {str(e)}")
+        raise
 
     return binary_data
 
@@ -1627,7 +1665,7 @@ if st.session_state.load_session:
             label="Save it to a .html file",
             data=session_html,
             file_name=file_name,
-            mime="text/markdown",
+            mime="text/html",
         )
         if download_chat_session:
             if is_valid_file_name(file_name):

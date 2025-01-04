@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 from typing import List, Dict
 
 import markdown
@@ -8,21 +9,57 @@ from pygments.formatters import HtmlFormatter
 import streamlit as st
 
 
-def convert_messages_to_markdown(messages: List[Dict[str, str]], code_block_indent='                 ') -> str:
+def copy_image_to_export_dir_in_docker(image_path: str):
     """
-    Converts a list of message dictionaries to a markdown-formatted string.
+    Copy an image file to a Docker-mounted export directory.
 
-    Each message is formatted with the sender's role as a header and the message content as a blockquote.
-    Code blocks within the message content are detected and indented accordingly.
+    This function copies the specified image file to a directory that is mounted between
+    the Docker container and the host system, making the image accessible from the host.
 
     Args:
-        messages (List[Dict[str, str]]): A list of message dictionaries, where each dictionary contains
-                                         'role' and 'content' keys.
-        code_block_indent (str): The string used to indent lines within code blocks.
+        image_path (str): The source path of the image file to copy
 
     Returns:
-        A markdown-formatted string representing the messages.
+        This function has no return.
+
+    Raises:
+        OSError: If there are permission issues creating the export directory
+        shutil.Error: If the file copy operation fails
     """
+    # Retrieve EXPORT_DIR value from environment variable, with a fallback
+    export_dir = os.getenv('EXPORT_DIR', '/app/exported-images')
+
+    # Ensure the exported directory exists (inside Docker)
+    if not os.path.exists(export_dir):
+        os.makedirs(export_dir)
+        
+    # Determine the exported path inside Docker (which is bind-mounted to host)
+    exported_path = os.path.join(export_dir, os.path.basename(image_path))
+    # Copy the image to the host-accessible directory
+    shutil.copy(image_path, exported_path)
+
+
+def convert_messages_to_markdown(messages: List[Dict[str, str]], code_block_indent='                 ') -> str:
+    """
+    Convert chat messages to markdown format with proper styling and image handling.
+
+    Args:
+        messages: List of message dictionaries containing 'role', 'content' and 'image' fields
+        code_block_indent: String to use for indenting code blocks, defaults to 17 spaces
+
+    Returns:
+        str: Formatted markdown string with messages and images
+
+    Example message format:
+        {
+            'role': 'user',
+            'content': 'Hello!', 
+            'image': '/path/to/image.jpg'
+        }
+    """
+    # Check if running in Docker by checking for common Docker environment indicators
+    is_docker = os.path.exists('/.dockerenv') or os.path.exists('/app')
+
     markdown_lines = []
     for message in messages:
         role = message['role']
@@ -30,9 +67,21 @@ def convert_messages_to_markdown(messages: List[Dict[str, str]], code_block_inde
         indented_content = _indent_content(content, code_block_indent)
 
         if message["image"] != "":
-            image_path = os.path.abspath(message['image'])
-            image_url = f"file://{image_path}"
+            if is_docker:
+                # Copy image to exported-images directory
+                copy_image_to_export_dir_in_docker(message['image'])
+                # Construct the path to use in local host machine by .html file
+                host_path = os.getenv('HOST_DESINATION_DIR', 'images')
+                file_name = os.path.basename(message['image'])
+                host_path_file_name = os.path.join(host_path, file_name)
+                image_url = host_path_file_name
+            else:
+                # Locally, use file:// protocol with absolute path
+                image_path = os.path.abspath(message['image'])
+                image_url = f"file://{image_path}"
+
             markdown_lines.append(f"###*{role.capitalize()}*:\n![Image]({image_url})\n{indented_content}\n")
+
         else:
             markdown_lines.append(f"###*{role.capitalize()}*:\n{indented_content}\n")
     

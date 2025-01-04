@@ -5,21 +5,42 @@ services:
     ports:
       - 8501:8501
     environment:
-      - IMAGE_SAVE_PATH=/images
+      - IMAGE_SAVE_PATH=/app/images
+      - PYTHONUNBUFFERED=1  # Enable unbuffered output for Python scripts
+      - EXPORT_DIR=/app/exported-images  # Needed if a .HTML file is saved
+      - HOST_DESINATION_DIR=images  # An folder named "images" will be created in the host "Downloads" folder
     volumes:
-      - image-data:/app/images  # Mounts the Docker-managed volume to /app/images 
+      - type: volume  # Use a Docker-managed volume named "image-data" at '/app/images' in docker
+        source: image-data
+        target: /app/images
+      - type: bind  # Bind-mount from host '~/Downloads/images' to container '/app/exported-images'
+        source: ${HOME:-${USERPROFILE}}/Downloads/images  # Automatically determine the home directory path based on the operating system
+        target: /app/exported-images
+    depends_on:
+      mysql:
+        condition: service_healthy
+        restart: true
 
   mysql:
     container_name: mysql_db
     image: mysql:8.2.0
     volumes:
-      - mysql-data:/var/lib/mysql
-      - ./mysql-init:/docker-entrypoint-initdb.d  # Mount the initialization scripts directory
+      - type: volume  # Use a Docker-managed volume named "mysql-data" at '/var/lib/mysql' in docker
+        source: mysql-data
+        target: /var/lib/mysql
+      - type: bind  # Bind-mount from host './mysql-init' to container '/docker-entrypoint-initdb.d'
+        source: ./mysql-init
+        target: /docker-entrypoint-initdb.d
     environment:
       - MYSQL_ROOT_PASSWORD=my_password
       - MYSQL_DATABASE=chat
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 3s
+      retries: 5
+      interval: 5s  # Time between healthcheck attempts
 
 volumes:
-  mysql-data:
-  image-data:  # Define the Docker-managed volume
+  mysql-data:  # Name of the Docker-managed database volume
+  image-data:  # Named of the Docker-managed image volume
   
