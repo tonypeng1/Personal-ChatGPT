@@ -1,6 +1,7 @@
 FROM python:3.11-slim-bullseye
 
-LABEL project="personal-chatgpt"  # Add metadata labels
+ # Add metadata labels
+LABEL project="personal-chatgpt" 
 
 WORKDIR /app
 
