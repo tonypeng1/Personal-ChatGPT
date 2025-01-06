@@ -1308,7 +1308,7 @@ def convert_clipboard_to_image_file_path_image(_image: str) -> bytes:
 
     try:
         # Create the bind-mounded folder path to save image file to
-        save_folder = os.getenv('IMAGE_SAVE_PATH', '/app/images')  # Use the environment variable or a default path
+        save_folder = os.getenv('IMAGE_SAVE_PATH', './images')  # Use the environment variable or a default path
         os.makedirs(save_folder, exist_ok=True)  # Create the folder if it doesn't exist
 
         # # Check the files in the folder and get the next available file name
@@ -1318,16 +1318,6 @@ def convert_clipboard_to_image_file_path_image(_image: str) -> bytes:
         image_number = 1
         while os.path.exists(os.path.join(save_folder, f"image-{image_number}.png")):
             image_number += 1
-
-        # image_number = 1
-        # while True:
-        #     file_name = f"image-{image_number}.png"
-        #     if file_name not in existing_files:
-        #         break
-        #     image_number += 1
-
-    # file_path = os.path.join(save_folder, file_name)  # Create the file path
-    # st.session_state.image_file_path = file_path  # Save the file path to session state
 
         file_name = f"image-{image_number}.png"
         file_path = os.path.join(save_folder, file_name)       

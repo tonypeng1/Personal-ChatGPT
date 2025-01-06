@@ -1,5 +1,7 @@
 FROM python:3.11-slim-bullseye
 
+LABEL project="personal-chatgpt"  # Add metadata labels
+
 WORKDIR /app
 
 # RUN apt-get update && apt-get install -y git

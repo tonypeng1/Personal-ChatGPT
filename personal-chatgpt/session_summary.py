@@ -1,5 +1,6 @@
-import concurrent.futures
+import base64
 
+from mistralai.client import MistralClient
 from mysql.connector import Error
 import ocrspace
 from openai import OpenAIError
@@ -67,26 +68,19 @@ def load_previous_chat_session_all_questions_for_summary_only_users_image(conn, 
             val = (session1,)
             cursor.execute(sql, val)
 
-            # for (role, image, content) in cursor:
             for (role, image, content) in cursor.fetchall():  # Fetch all rows at once
                 if role == 'user':
                     chat_user += (content or "") + " "
                     if image != "":
                         # Use the OCR API to extract text from the image
                         try:
-                            with concurrent.futures.ThreadPoolExecutor() as executor:
-                                # Submit the API call as a future
-                                future = executor.submit(ocr_api_call, image)
-                                # Wait for the result with a timeout
-                                extracted_text = future.result(timeout=TIMEOUT_DURATION)
+                            extracted_text = mistral_ocr_api_call(image)
                             chat_user += " " + (extracted_text or "") + " "
-                        except concurrent.futures.TimeoutError:
-                            st.error(f"The OCR API call timed out after {TIMEOUT_DURATION} seconds.")
                         except Exception as e:
-                            st.error(f"Error occurred while processing the image in OCR API: {e}")
+                            st.error(f"Error occurred while processing the image in Mistral OCR API: {e}")
                         
             # Shorten the prompt to 3800 tokens or less
-            print(f"chat_user: {chat_user}")
+            # print(f"chat_user: {chat_user}")
             chat_user = shorten_prompt_to_tokens(chat_user)
             return chat_user
 
@@ -95,22 +89,84 @@ def load_previous_chat_session_all_questions_for_summary_only_users_image(conn, 
         raise
 
 
-def ocr_api_call(image):
+def encode_image(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
 
-    OCR_API_KEY = st.secrets["OCR_API_KEY"]
-    ocr_api = ocrspace.API(
-        api_key=OCR_API_KEY,
-        OCREngine=2,
+
+def mistral_ocr_api_call(
+        image_file_path,
+        ) -> str:
+    
+    # Set mastral api configuration
+    MISTRAL_API_KEY = st.secrets["MISTRAL_API_KEY"]
+    mistral_model = "pixtral-large-latest"
+    mistral_client = MistralClient(api_key=MISTRAL_API_KEY)
+
+    ocr_model_role = (
+        "You are an expert Optical Character Recognition (OCR) system. Your primary function \n" 
+        "is to accurately extract text from images provided by the user. You will receive images \n"
+        "as input and must return the text content present in the image. Focus on accuracy and \n"
+        "completeness. If the image contains multiple text blocks, extract all of them. If the image \n" 
+        "contains no text, respond with an empty string. \n"
+    )
+    ocr_prompt = (
+        "Extract the text elements from the picture. DO NOT REPLY WITH ANY ADDITIONAL WORDS."
     )
 
-    extracted_text = ""
-    try:
-        extracted_text = ocr_api.ocr_file(image)
-    except Exception as e:
-        st.error(f"Error occurred while processing the image in ocr API: {e}")
-        return extracted_text
+    system_list = [{"role": "system", "content": ocr_model_role}]
 
-    return extracted_text
+    base64_image = encode_image(image_file_path)
+    context_list = []
+    context_list = [{"role": "user", 
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": ocr_prompt,
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": f"data:image/png;base64,{base64_image}",
+                        },
+                    ],
+                }]
+    input_list = system_list + context_list
+
+    full_response = ""
+    try:
+        for response in mistral_client.chat_stream(
+            model=mistral_model,
+            messages=input_list,
+            temperature=0.0,
+            max_tokens=3000,
+            ):
+            if response.choices[0].delta.content is not None:
+                full_response += response.choices[0].delta.content
+
+    except Exception as e:
+        error_response = f"An unexpected error occurred in Mistral OCR API call: {e}"
+        full_response = error_response
+        st.markdown(full_response)
+
+    return full_response
+
+
+# def ocr_api_call(image):
+
+#     OCR_API_KEY = st.secrets["OCR_API_KEY"]
+#     ocr_api = ocrspace.API(
+#         api_key=OCR_API_KEY,
+#         OCREngine=2,
+#     )
+
+#     extracted_text = ""
+#     try:
+#         extracted_text = ocr_api.ocr_file(image)
+#     except Exception as e:
+#         st.error(f"Error occurred while processing the image in ocr API: {e}")
+#         return extracted_text
+
+#     return extracted_text
 
 
 def shorten_prompt_to_tokens(prompt: str, encoding_name: str="cl100k_base" , max_tokens: int=3800) -> str:
