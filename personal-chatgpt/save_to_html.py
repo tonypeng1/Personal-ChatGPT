@@ -70,11 +70,9 @@ def convert_messages_to_markdown(messages: List[Dict[str, str]], code_block_inde
             if is_docker:
                 # Copy image to exported-images directory
                 copy_image_to_export_dir_in_docker(message['image'])
-                # Construct the path to use in local host machine by .html file
-                host_path = os.getenv('HOST_DESINATION_DIR', 'images')
                 file_name = os.path.basename(message['image'])
-                host_path_file_name = os.path.join(host_path, file_name)
-                image_url = host_path_file_name
+                image_url = file_name  # Use the file name directly as the URL in the .html file (in Downloads folder)
+                # print(f"Image URL: {image_url}")
             else:
                 # Locally, use file:// protocol with absolute path
                 image_path = os.path.abspath(message['image'])

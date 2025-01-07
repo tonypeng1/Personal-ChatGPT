@@ -1308,7 +1308,8 @@ def convert_clipboard_to_image_file_path_image(_image: str) -> bytes:
 
     try:
         # Create the bind-mounded folder path to save image file to
-        save_folder = os.getenv('IMAGE_SAVE_PATH', './images')  # Use the environment variable or a default path
+        save_folder = os.getenv('IMAGE_SAVE_PATH', './images')  
+        # Use the environment variable (only set in docker-compose.yml) or a default path in Python project
         os.makedirs(save_folder, exist_ok=True)  # Create the folder if it doesn't exist
 
         # # Check the files in the folder and get the next available file name
@@ -1316,10 +1317,10 @@ def convert_clipboard_to_image_file_path_image(_image: str) -> bytes:
 
         # Find next available file name
         image_number = 1
-        while os.path.exists(os.path.join(save_folder, f"image-{image_number}.png")):
+        while os.path.exists(os.path.join(save_folder, f"image-chat-{image_number}.png")):
             image_number += 1
 
-        file_name = f"image-{image_number}.png"
+        file_name = f"image-chat-{image_number}.png"
         file_path = os.path.join(save_folder, file_name)       
         # Store file path in session state
         st.session_state.image_file_path = file_path
@@ -1332,7 +1333,21 @@ def convert_clipboard_to_image_file_path_image(_image: str) -> bytes:
 
 
 def save_image_to_file(_image_binary):
+    """
+    Save binary image data to a file if it doesn't already exist.
 
+    Args:
+        _image_binary: Binary image data to be saved to file
+
+    Returns:
+        None
+
+    Notes:
+        - Uses file path stored in st.session_state.image_file_path
+        - Skips saving if file already exists at the path
+        - Prints error message if exception occurs during save
+    """
+    
     file_path = st.session_state.image_file_path
     if os.path.exists(file_path):
         print(f"File {file_path} already exists. Skipping save.")

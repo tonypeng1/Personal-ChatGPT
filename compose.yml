@@ -1,20 +1,20 @@
 services:
   app:
     container_name: chat_gpt
-    image: streamlit-mysql:2.1.0
+    image: streamlit-mysql:2.1.1
     ports:
       - 8501:8501
     environment:
       - IMAGE_SAVE_PATH=/app/images
       - PYTHONUNBUFFERED=1  # Enable unbuffered output for Python scripts
       - EXPORT_DIR=/app/exported-images  # Needed if a .HTML file is saved
-      - HOST_DESINATION_DIR=images  # An folder named "images" will be created in the host "Downloads" folder
+      # - HOST_DESINATION_DIR=images  # An folder named "images" will be created in the host "Downloads" folder
     volumes:
       - type: volume  # Use a Docker-managed volume named "image-data" at '/app/images' in docker
         source: image-data
         target: /app/images
       - type: bind  # Bind-mount from host '~/Downloads/images' to container '/app/exported-images'
-        source: ${HOME:-${USERPROFILE}}/Downloads/images  # Automatically determine the home directory path based on the operating system
+        source: ${HOME:-${USERPROFILE}}/Downloads  # Automatically determine the home directory path based on the operating system
         target: /app/exported-images
     depends_on:
       mysql:
