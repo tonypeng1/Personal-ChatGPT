@@ -90,28 +90,3 @@ def set_only_current_session_state_to_true(current_state: str) -> None:
     #     "session_different_date",
     #     ]:
     #     st.session_state[state] = (state == current_state)
-
-
-# if __name__ == "__main__":
-#     # This code displays the messages of the current active session (most recent session) 
-#     # in the database.
-    
-#     connection = connect(**st.secrets["mysql"])  # Get LOCAL database credentials from .streamlit/secrets.toml for development.
-
-#     if "new_table" not in st.session_state:
-#         st.session_state.new_table = False
-
-#     if "session" not in st.session_state:
-#         get_and_set_current_session_id(connection)
-
-#         if st.session_state.session is not None:
-#             load_previous_chat_session(connection, st.session_state.session)
-#         else:
-#             set_only_current_session_state_to_true("new_table")
-
-#     # Print meassages on page
-#     for message in st.session_state.messages:
-#         with st.chat_message(message["role"]):
-#             st.markdown(message["content"])
-
-#     connection.close()

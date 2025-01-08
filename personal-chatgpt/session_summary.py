@@ -8,41 +8,6 @@ import streamlit as st
 import tiktoken
 
 
-# def load_previous_chat_session_all_questions_for_summary_only_users(conn, session1: str) -> str:
-#     """
-#     Loads and concatenates the content of all messages sent by the user in a given chat session.
-
-#     Args:
-#         conn: A MySQL database connection object.
-#         session_id: The unique identifier for the chat session.
-
-#     Returns:
-#         A string containing all user messages concatenated together, or None if an error occurs.
-
-#     Raises:
-#         Raises an error and logs it with Streamlit if the database operation fails.
-#     """
-#     try:
-#         with conn.cursor() as cursor:
-#             sql = "SELECT role, content FROM message WHERE session_id = %s"
-#             val = (session1,)
-#             cursor.execute(sql, val)
-
-#             chat_user = ""
-#             for (role, content) in cursor:
-#                 if role == 'user':
-#                     if content is not None:
-#                         chat_user += content + " "
-#                     else:
-#                         chat_user += ""
-#             chat_user = shorten_prompt_to_tokens(chat_user)
-#             return chat_user
-
-#     except Error as error:
-#         st.error(f"Failed to load previous chat sessions for summary (user only): {error}")
-#         raise
-
-
 def load_previous_chat_session_all_questions_for_summary_only_users_image(conn, session1: str) -> str:
     """
     Loads and concatenates the content of all messages sent by the user in a given chat session.
