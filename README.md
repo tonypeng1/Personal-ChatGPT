@@ -9,7 +9,7 @@ Version 2.1.1 of this APP has added the cabability to prompt the following 5 mul
 4. gemini-2.0-flash-exp
 5. gemini-2.0-flash-thinking-exp
 
-To input an image to a prompt, follow the steps below:
+To include an image in a prompt, follow the steps below:
 1. Click the `From Clipboard` button in the left pane to show the `Click to Paste from Clipboard` button in the central pane.
 2. Use the screen captioning tool of your computer to capture an image from your screen.
 3. Click the `Click to Paste from Clipboard` button in the central pane to paste the image into the chat window.
@@ -20,7 +20,11 @@ the `Save it to a .html file`. If this APP is run in the `personal_chatgpt` fold
 the asscociated images will be saved to a newly created folder `images` in the `personal_chatgpt` folder. If this APP is run in Docker,
 the images will be saved to the `Downloads` folder of your computer.
 
-To get the summary title of a session, an image is first sent to the pixtral-large-latest model (as an OCR model) to obtain its text content. Starting from this version the free API of OCRSpace's OCR engine2 is no more used as the OCR model.
+To get the summary title of a session, an image is first sent to the pixtral-large-latest model (as an OCR model) to extract its text content. Starting from this version the free API of OCRSpace's OCR engine2 is no longer used as the OCR model.
+
+At present, this APP has two models that support web-search result citations:
+1. gemini-2.0-flash-exp
+2. perplexity-llama-3.1-sonar-huge-128k-online
 
 Version 1.10.0 of this APP has made two changes:
 - Add a new model `gemini-2.0-flash-thinking-exp` that's trained to generate the "thinking process" the model goes through as part of its response. As a result, Thinking Mode is capable of stronger reasoning capabilities in its responses than the Gemini 2.0 Flash 
