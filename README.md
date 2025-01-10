@@ -2,9 +2,32 @@
 Personal LLM chat APP is an open-source app developed using Streamlit. It is powered by a variety of LLM APIs with extra features to customize the user experience.
 
 ## APP Features
+Version 2.1.1 of this APP has added the cabability to prompt the following 5 multimodal LLM models with both image and text:
+1. gpt-4o-2024-11-20
+2. claude-3-5-sonnet-20241022
+3. pixtral-large-latest
+4. gemini-2.0-flash-exp
+5. gemini-2.0-flash-thinking-exp
+
+To input an image, follow the steps below:
+1. Click the `From Clipboard` button in the left pane to show the `Click to Paste from Cliipboard` button in the central pane.
+2. Use the screen captioning tool of your computer to capture an image from your screen.
+3. Click the `Click to Paste from Cliipboard` button in the central pane to paste the image into the chat window.
+4. Type your question and click the `Send` button to submit the question.
+
+A session that contains both image and text can be saved to a local .HTML file after first loading the session by clicking
+the `Save it to a .html file`. If this APP is run in the `personal_chatgpt` folder by the command `streamlit run personal_chatgpt.py`,
+the asscociated images will be saved to a newly created folder `images` in the `personal_chatgpt` folder. If this APP is run in Docker,
+the images will be saved to the `Downloads` folder of your computer.
+
+Starting from this version the free API of OCRSpace's OCR engine2 is no more used to extract the text from an image after clicking the
+`From Clipboard` button.
+
 Version 1.10.0 of this APP has made two changes:
-- Add a new model `gemini-2.0-flash-thinking-exp` that's trained to generate the "thinking process" the model goes through as part of its response. As a result, Thinking Mode is capable of stronger reasoning capabilities in its responses than the Gemini 2.0 Flash Experimental model. This model currenlty does not support tool usage like Google Search (from the Gemini 2.0 Flash web site).
-- Prompt the `gemini-2.0-flash-exp` model to provide web-link citations of its Google Search results. Citation format is similar to that from the `perplexity-llama-3.1-sonar-huge-128k-online` model. 
+- Add a new model `gemini-2.0-flash-thinking-exp` that's trained to generate the "thinking process" the model goes through as part of its response. As a result, Thinking Mode is capable of stronger reasoning capabilities in its responses than the Gemini 2.0 Flash 
+Experimental model. This model currenlty does not support tool usage like Google Search (from the Gemini 2.0 Flash web site).
+- Prompt the `gemini-2.0-flash-exp` model to provide web-link citations of its Google Search results. Citation format 
+is similar to that from the `perplexity-llama-3.1-sonar-huge-128k-online` model. 
 
 Version 1.9.0 of this APP has made one change:
 - Leverage the `GoogleSearch` tool of `gemini-2.0-flash-exp` to improve the accuracy and recency of responses from the model. The model can decide when to use Google Search. Install a new `google-genai` package from Pypi.
@@ -55,7 +78,6 @@ MISTRAL_API_KEY = "my_mistral_key"
 ANTHROPIC_API_KEY = "my_claude_key"
 TOGETHER_API_KEY = "my_together_key"
 PERPLEXITY_API_KEY = "my_perplexity_key"
-OCR_API_KEY = "my_ocrspace_key"
 NVIDIA_API_KEY = "my_nvidia_key"
 
 [mysql]
@@ -74,18 +96,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 1.10.0 of this APP, and install the project,
+To create a Python virtual environment, check out version 2.1.1 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v1.10.0
+git checkout v2.1.1
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:1.10.0 .
+docker build -t streamlit-mysql:2.1.1 .
 docker compose up
 ```
 ## Medium Article
