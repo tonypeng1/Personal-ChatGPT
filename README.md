@@ -9,19 +9,18 @@ Version 2.1.1 of this APP has added the cabability to prompt the following 5 mul
 4. gemini-2.0-flash-exp
 5. gemini-2.0-flash-thinking-exp
 
-To input an image, follow the steps below:
-1. Click the `From Clipboard` button in the left pane to show the `Click to Paste from Cliipboard` button in the central pane.
+To input an image to a prompt, follow the steps below:
+1. Click the `From Clipboard` button in the left pane to show the `Click to Paste from Clipboard` button in the central pane.
 2. Use the screen captioning tool of your computer to capture an image from your screen.
-3. Click the `Click to Paste from Cliipboard` button in the central pane to paste the image into the chat window.
+3. Click the `Click to Paste from Clipboard` button in the central pane to paste the image into the chat window.
 4. Type your question and click the `Send` button to submit the question.
 
-A session that contains both image and text can be saved to a local .HTML file after first loading the session by clicking
+A session that contains both image and text can be saved to a local .HTML file (after first loading the session) by clicking
 the `Save it to a .html file`. If this APP is run in the `personal_chatgpt` folder by the command `streamlit run personal_chatgpt.py`,
 the asscociated images will be saved to a newly created folder `images` in the `personal_chatgpt` folder. If this APP is run in Docker,
 the images will be saved to the `Downloads` folder of your computer.
 
-Starting from this version the free API of OCRSpace's OCR engine2 is no more used to extract the text from an image after clicking the
-`From Clipboard` button.
+To get the summary title of a session, an image is first sent to the pixtral-large-latest model (as an OCR model) to obtain its text content. Starting from this version the free API of OCRSpace's OCR engine2 is no more used as the OCR model.
 
 Version 1.10.0 of this APP has made two changes:
 - Add a new model `gemini-2.0-flash-thinking-exp` that's trained to generate the "thinking process" the model goes through as part of its response. As a result, Thinking Mode is capable of stronger reasoning capabilities in its responses than the Gemini 2.0 Flash 
