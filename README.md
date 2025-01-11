@@ -12,7 +12,8 @@ Version 2.1.1 of this APP has added the cabability to prompt the following 5 mul
 To include an image in a prompt, follow the steps below:
 1. Click the `From Clipboard` button in the left pane to show the `Click to Paste from Clipboard` button in the central pane.
 2. Use the screen captioning tool of your computer to capture an image from your screen.
-3. Click the `Click to Paste from Clipboard` button in the central pane to paste the image into the chat window.
+3. Click the `Click to Paste from Clipboard` button in the central pane to paste the image into the chat window (after browser permision is granted).
+   This function is tested in Chrome and Edge.
 4. Type your question and click the `Send` button to submit the question.
 
 A session that contains both image and text can be saved to a local .HTML file (after first loading the session) by clicking
