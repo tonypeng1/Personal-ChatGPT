@@ -1,5 +1,5 @@
 ## Personal LLM Chat APP
-Personal LLM chat APP is an open-source app developed using Streamlit. It is powered by a variety of LLM APIs with extra features to customize the user experience.
+This LLM chat app is an open-source app developed using Streamlit and Docker. It is powered by various LLM APIs and has extra features to customize the user experience. It supports prompts with both image and text and online search citations with URL links. A chat session is persistent in a MySQL database with a date stamp for retrieval and search.
 
 The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
