@@ -1,6 +1,9 @@
 ## Personal LLM Chat APP
 Personal LLM chat APP is an open-source app developed using Streamlit. It is powered by a variety of LLM APIs with extra features to customize the user experience.
 
+The short video below demonstrates some of the features.
+https://youtu.be/cHsequP0Wsw
+
 ## APP Features
 Version 2.1.1 of this APP has added the capability to prompt the following 5 multimodal LLM models with both image and text:
 1. `gpt-4o-2024-11-20`
@@ -66,9 +69,6 @@ This version currently also has the following features:
 10. Upload a file (or multiple files) from the local computer with a question (optional) and send it to an API call.
 11. Delete the messages of a loaded chat session from the database, and
 12. Finally, delete the contents in all tables in the database, if that is what you want to do.
-
-The short video below demonstrates some of the features.
-https://youtu.be/7oRQQifHHxc
 
 ## API Keys and Database Credentials
 
