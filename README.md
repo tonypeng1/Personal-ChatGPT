@@ -9,21 +9,21 @@ Version 2.1.1 of this APP has added the cabability to prompt the following 5 mul
 4. gemini-2.0-flash-exp
 5. gemini-2.0-flash-thinking-exp
 
-To include an image in a prompt, follow the steps below:
+- To include an image in a prompt, follow the steps below:
 1. Click the `From Clipboard` button in the left pane to show the `Click to Paste from Clipboard` button in the central pane.
 2. Use the screen captioning tool of your computer to capture an image from your screen.
 3. Click the `Click to Paste from Clipboard` button in the central pane to paste the image into the chat window (after browser permision is granted).
    This function is tested in Chrome and Edge.
 4. Type your question and click the `Send` button to submit the question.
 
-A session that contains both image and text can be saved to a local .HTML file (after first loading the session) by clicking
+- A session that contains both image and text can be saved to a local .HTML file (after first loading the session) by clicking
 the `Save it to a .html file`. If this APP is run in the `personal_chatgpt` folder by the command `streamlit run personal_chatgpt.py`,
 the asscociated images will be saved to a newly created folder `images` in the `personal_chatgpt` folder. If this APP is run in Docker,
 the images will be saved to the `Downloads` folder of your computer.
 
-To get the summary title of a session, an image is first sent to the pixtral-large-latest model (as an OCR model) to extract its text content. Starting from this version the free API of OCRSpace's OCR engine2 is no longer used as the OCR model.
+- To get the summary title of a session, an image is first sent to the pixtral-large-latest model (as an OCR model) to extract its text content. Starting from this version the free API of OCRSpace's OCR engine2 is no longer used as the OCR model.
 
-At present, this APP has two models that support web-search result citations:
+- At present, this APP has two models that support web-search result citations:
 1. gemini-2.0-flash-exp
 2. perplexity-llama-3.1-sonar-huge-128k-online
 
