@@ -64,6 +64,7 @@ def convert_messages_to_markdown(messages: List[Dict[str, str]], code_block_inde
     for message in messages:
         role = message['role']
         content = message['content']
+        model = message['model']
         indented_content = _indent_content(content, code_block_indent)
 
         if message["image"] != "":
@@ -78,11 +79,19 @@ def convert_messages_to_markdown(messages: List[Dict[str, str]], code_block_inde
                 image_path = os.path.abspath(message['image'])
                 image_url = f"file://{image_path}"
 
-            markdown_lines.append(f"###*{role.capitalize()}*:\n![Image]({image_url})\n{indented_content}\n")
+            if role == "user":
+                markdown_lines.append(f"###*{role.capitalize()}* :\n![Image]({image_url})\n{indented_content}\n")
+            else:
+                # markdown_lines.append(f"###*{role.capitalize()} ####{model}* :\n![Image]({image_url})\n{indented_content}\n")
+                markdown_lines.append(f"###*{model.capitalize()}* :\n![Image]({image_url})\n{indented_content}\n")
 
         else:
-            markdown_lines.append(f"###*{role.capitalize()}*:\n{indented_content}\n")
-    
+            if role == "user":
+                markdown_lines.append(f"###*{role.capitalize()}* :\n{indented_content}\n")
+            else:
+                # markdown_lines.append(f"###*{role.capitalize()} ####{model}* :\n{indented_content}\n")
+                markdown_lines.append(f"###*{model.capitalize()}* :\n{indented_content}\n")
+
     return '\n\n'.join(markdown_lines)
 
 

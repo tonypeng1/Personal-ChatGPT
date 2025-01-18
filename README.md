@@ -5,6 +5,9 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
+Version 2.2 of this APP has made one change:
+- Show the model name of an assistant when saving a chat session to an .HTML file.
+
 Version 2.1.1 of this APP has added the capability to prompt the following 5 multimodal LLM models with both image and text:
 1. `gpt-4o-2024-11-20`
 2. `claude-3-5-sonnet-20241022`
@@ -100,18 +103,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 2.1.1 of this APP, and install the project,
+To create a Python virtual environment, check out version 2.2 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v2.1.1
+git checkout v2.2
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:2.1.1 .
+docker build -t streamlit-mysql:2.2 .
 docker compose up
 ```
 ## Medium Article
