@@ -5,7 +5,7 @@ import PIL.Image
 
 import anthropic
 from google import genai
-from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
+from google.genai.types import Tool, GenerateContentConfig, GoogleSearchRetrieval
 from mistralai.client import MistralClient
 from mysql.connector import connect, Error
 import ocrspace
@@ -279,6 +279,61 @@ def nvidia(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
     return full_response
 
 
+def together_deepseek(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
+    """
+    Processes a chat prompt using OpenAI's ChatCompletion and updates the chat session.
+
+    Args:
+        conn: A connection object to the MySQL database.
+        prompt (str): The user's input prompt to the chatbot.
+        temp (float): The temperature parameter for OpenAI's ChatCompletion.
+        p (float): The top_p parameter for OpenAI's ChatCompletion.
+        max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
+
+    Raises:
+        Raises an exception if there is a failure in database operations or OpenAI's API call.
+    """
+
+    with st.chat_message("user"):
+        st.markdown(prompt1)
+
+    with st.chat_message("assistant"):
+        text = f":blue-background[:blue[**{model_name}**]]"
+        st.markdown(text)
+
+        message_placeholder = st.empty()
+        full_response = ""
+        try:
+            for response in together_client.chat.completions.create(
+                # model="nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
+                model="deepseek-ai/DeepSeek-R1",
+                messages=
+                    [{"role": "system", "content": model_role}] +
+                    [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.messages
+                    ],
+                temperature=temp,
+                top_p=p,
+                max_tokens=max_tok,
+                stream=True,
+                ):
+                full_response += response.choices[0].delta.content or ""
+                message_placeholder.markdown(full_response + "▌")
+            message_placeholder.markdown(full_response)
+
+        except OpenAIError as e:
+            error_response = f"An error occurred with Together Nvidia in getting chat response: {e}"
+            full_response = error_response
+            message_placeholder.markdown(full_response)
+        except Exception as e:
+            error_response = f"An unexpected error occurred in Together Nvidia OpenAI API call: {e}"
+            full_response = error_response
+            message_placeholder.markdown(full_response)
+
+    return full_response
+
+
 def gemini(
         prompt1: str, 
         model_role: str, 
@@ -300,7 +355,7 @@ def gemini(
 
     """
     google_search_tool = Tool(
-        google_search = GoogleSearch()
+        google_search = GoogleSearchRetrieval
         )
 
     with st.chat_message("user"):
@@ -316,8 +371,10 @@ def gemini(
         message_placeholder = st.empty()
         full_response = ""
 
+        # additional_model_role = ""
+
         additional_model_role = (
-        "If you have performed a search, you MUST cite the sources from your search in the format described below, \n"
+        "If you have performed a GOOGLE SEARCH, you MUST cite the sources from your search in the format described below, \n"
         "Academic Integrity & Transparency: \n"
         "----------\n"
         "CITATIONS: \n"
@@ -326,13 +383,13 @@ def gemini(
         "SOURCE LISTING: \n"
         "Always conclude your response with a BULLET POINT LIST of cited sources, including: \n"
         "1. Title of a source \n" 
-        "2. URL ONLY FROM an online source with a VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/. \n"
+        "2. URL ONLY FROM an online source with a VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
         "----------\n"
-        "Example Citation & Source Listing: [Response Content Here...] \n"
-        " ---------\n"
-        "SOURCES: " 
-        "* [1] 'Example Title of Source', https://vertexaisearch.cloud.google.com/grounding-api-redirect/* \n"
-        "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://vertexaisearch.cloud.google.com/grounding-api-redirect/* \n"
+        # "Example Citation & Source Listing: [Response Content Here...] \n"
+        # " ---------\n"
+        # "SOURCES: " 
+        # "* [1] 'Example Title of Source',  VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
+        # "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
         )
         
         system_list = \
@@ -639,7 +696,7 @@ def claude(
     return full_response
 
 
-def together(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
+def together_qwen(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
     """
     Processes a chat prompt using Together's ChatCompletion and updates the chat session.
 
@@ -701,52 +758,52 @@ def together(prompt1: str, model_role: str, temp: float, p: float, max_tok: int)
     return full_response
 
 
-def together_python(prompt1: str, temp: float, p: float, max_tok: int) -> str:
-    """
-    Processes a prompt using Together's Completion and updates the chat session. This
-    function is not a chat, only one prompt at a time.
+# def together_python(prompt1: str, temp: float, p: float, max_tok: int) -> str:
+#     """
+#     Processes a prompt using Together's Completion and updates the chat session. This
+#     function is not a chat, only one prompt at a time.
 
-    Args:
-        prompt (str): The user's input prompt to the chatbot.
-        temp (float): The temperature parameter for Together's ChatCompletion.
-        p (float): The top_p parameter for Together's Completion.
-        max_tok (int): The maximum number of tokens for Together's Completion.
+#     Args:
+#         prompt (str): The user's input prompt to the chatbot.
+#         temp (float): The temperature parameter for Together's ChatCompletion.
+#         p (float): The top_p parameter for Together's Completion.
+#         max_tok (int): The maximum number of tokens for Together's Completion.
 
-    Raises:
-        Raises an exception if there is a failure in database operations or Together's API call.
-    """
-    with st.chat_message("user"):
-        st.markdown(prompt1)
+#     Raises:
+#         Raises an exception if there is a failure in database operations or Together's API call.
+#     """
+#     with st.chat_message("user"):
+#         st.markdown(prompt1)
 
-    with st.chat_message("assistant"):
-        text = f":blue-background[:blue[**{model_name}**]]"
-        st.markdown(text)
+#     with st.chat_message("assistant"):
+#         text = f":blue-background[:blue[**{model_name}**]]"
+#         st.markdown(text)
 
-        message_placeholder = st.empty()
-        full_response = ""
-        try:
-            for response in together_client.completions.create(
-                model="codellama/CodeLlama-70b-Python-hf",
-                prompt=prompt1,
-                temperature=temp,
-                top_p=p,
-                max_tokens=max_tok,
-                stream=True,
-                ):
-                full_response += response.choices[0].text or ""
-                message_placeholder.markdown(full_response + "▌")
-            message_placeholder.markdown(full_response)
+#         message_placeholder = st.empty()
+#         full_response = ""
+#         try:
+#             for response in together_client.completions.create(
+#                 model="codellama/CodeLlama-70b-Python-hf",
+#                 prompt=prompt1,
+#                 temperature=temp,
+#                 top_p=p,
+#                 max_tokens=max_tok,
+#                 stream=True,
+#                 ):
+#                 full_response += response.choices[0].text or ""
+#                 message_placeholder.markdown(full_response + "▌")
+#             message_placeholder.markdown(full_response)
 
-        except OpenAIError as e:
-            error_response = f"An error occurred with TogetherAI in getting chat response: {e}"
-            full_response = error_response
-            message_placeholder.markdown(full_response)
-        except Exception as e:
-            error_response = f"An unexpected error occurred in TogetherAI API call: {e}"
-            full_response = error_response
-            message_placeholder.markdown(full_response)
+#         except OpenAIError as e:
+#             error_response = f"An error occurred with TogetherAI in getting chat response: {e}"
+#             full_response = error_response
+#             message_placeholder.markdown(full_response)
+#         except Exception as e:
+#             error_response = f"An unexpected error occurred in TogetherAI API call: {e}"
+#             full_response = error_response
+#             message_placeholder.markdown(full_response)
 
-    return full_response
+#     return full_response
 
 
 # def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
@@ -886,7 +943,7 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
 
         try:
             for response in perplexity_client.chat.completions.create(
-                model="llama-3.1-sonar-huge-128k-online",
+                model="sonar-pro",
                 messages=
                     [{"role": "system", "content": model_role + additional_model_role}] +
                     [
@@ -994,18 +1051,21 @@ def process_prompt(
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "claude-3-5-sonnet-20241022":
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "gemini-2.0-flash-exp":
+        elif model_name == "gemini-2.0-flash":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "gemini-2.0-flash-thinking-exp":
+        elif model_name == "gemini-2.0-flash-thinking-exp-01-21":
             responses = gemini_thinking(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "pixtral-large-latest":
             responses = mistral(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "perplexity-llama-3.1-sonar-huge-128k-online":
+        elif model_name == "perplexity-sonar-pro":
             responses = perplexity(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "nvidia-llama-3.1-nemotron-70b-instruct":
             responses = nvidia(prompt1, model_role, temperature, top_p, int(max_token))
+            # responses = together_nvidia(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "Qwen2.5-Coder-32B-Instruct":
-            responses = together(prompt1, model_role, temperature, top_p, int(max_token))
+            responses = together_qwen(prompt1, model_role, temperature, top_p, int(max_token))
+        elif model_name == "DeepSeek-R1":
+            responses = together_deepseek(prompt1, model_role, temperature, top_p, int(max_token))
         else:
             raise ValueError('Model is not in the list.')
 
@@ -1112,14 +1172,15 @@ NVIDIA_API_KEY = st.secrets["NVIDIA_API_KEY"]
 
 # Set gemini api configuration
 client = genai.Client(api_key=GOOGLE_API_KEY)
-model_id = "gemini-2.0-flash-exp"
+# model_id = "gemini-2.0-pro-exp-02-05"
+model_id = "gemini-2.0-flash"
 
 # Set gemini thinking api configuration
 client_thinking = genai.Client(
     api_key=GOOGLE_API_KEY,
     http_options={'api_version':'v1alpha'},
     )
-model_id_thinking = "gemini-2.0-flash-thinking-exp"
+model_id_thinking = "gemini-2.0-flash-thinking-exp-01-21"
 
 # genai.configure(api_key=GOOGLE_API_KEY)
 # gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
@@ -1262,7 +1323,7 @@ st.sidebar.title("Options")
 
 # Handle model type. The type chosen will be reused rather than using a default value.
 # If the type table is empty, set the initial type to "Deterministic".
-insert_initial_default_model_type(connection, 'gemini-2.0-flash-exp')
+insert_initial_default_model_type(connection, 'gemini-2.0-flash')
 
 Load_the_last_saved_model_type(connection)  # load from database and save to session_state
 type_index = return_type_index(st.session_state.type)  # from string to int (0 to 4)
@@ -1273,9 +1334,10 @@ model_name = st.sidebar.radio(
                                     "gpt-4o-2024-11-20",
                                     "claude-3-5-sonnet-20241022",
                                     "pixtral-large-latest",
-                                    "gemini-2.0-flash-exp",
-                                    "gemini-2.0-flash-thinking-exp",
-                                    "perplexity-llama-3.1-sonar-huge-128k-online",
+                                    "gemini-2.0-flash",
+                                    "gemini-2.0-flash-thinking-exp-01-21",
+                                    "DeepSeek-R1",
+                                    "perplexity-sonar-pro",
                                     "nvidia-llama-3.1-nemotron-70b-instruct",
                                     "Qwen2.5-Coder-32B-Instruct"
                                  ),
@@ -1311,7 +1373,7 @@ max_token = st.sidebar.number_input(
     label="Select the max number of tokens the model can generate",
     min_value=500,
     max_value=6000,
-    value=4000,
+    value=6000,
     step=500
     )
 

@@ -57,13 +57,18 @@ def Load_the_last_saved_model_type(conn) -> None:
             if result is not None and result[0] is not None:
                 if result[0] in ("perplexity-llama-3-sonar-large-32k-chat", 
                                  "perplexity-llama-3-sonar-large-32k-online",
-                                 "perplexity-llama-3.1-sonar-large-128k-online"):  # for v0.7.0 and v0.8.0
-                    result = ("perplexity-llama-3.1-sonar-huge-128k-online", )
+                                 "perplexity-llama-3.1-sonar-large-128k-online",
+                                 "perplexity-llama-3.1-sonar-huge-128k-online"):  # for v0.7.0 and v0.8.0
+                    result = ("perplexity-sonar-pro", )
                 if result[0] in ("gemini-1.5-pro-latest",
                                  "gemini-1.5-pro-exp-0801",
                                  "gemini-1.5-pro-002",
-                                 "gemini-exp-1121"):
-                    result = ("gemini-2.0-flash-exp", )
+                                 "gemini-exp-1121",
+                                 "gemini-2.0-flash-exp",
+                                 ):
+                    result = ("gemini-2.0-flash", )
+                if result[0] in ("gemini-2.0-flash-thinking-exp", ):
+                    result = ("gemini-2.0-flash-thinking-exp-01-21", )
                 if result[0] in ("claude-3-opus-20240229", 
                                  "claude-3-5-sonnet-20240620"):
                     result = ("claude-3-5-sonnet-20241022", )                
@@ -102,11 +107,12 @@ def return_type_index(type1: str) -> int:
         "gpt-4o-2024-11-20": 0,
         "claude-3-5-sonnet-20241022": 1, 
         "pixtral-large-latest": 2,
-        "gemini-2.0-flash-exp":3,
-        "gemini-2.0-flash-thinking-exp":4,
-        "perplexity-llama-3.1-sonar-huge-128k-online": 5,
-        "nvidia-llama-3.1-nemotron-70b-instruct":6,
-        "Qwen2.5-Coder-32B-Instruct":7,
+        "gemini-2.0-flash":3,
+        "gemini-2.0-flash-thinking-exp-01-21":4,
+        "DeepSeek-R1": 5,
+        "perplexity-sonar-pro": 6,
+        "nvidia-llama-3.1-nemotron-70b-instruct":7,
+        "Qwen2.5-Coder-32B-Instruct": 8
     }
     if type1 not in type_dic:
         raise KeyError(f"Type '{type1}' not found in the type dictionary.")

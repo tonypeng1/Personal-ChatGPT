@@ -5,6 +5,13 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
+Version 2.3 of this APP has made the following changes:
+
+- Add the reasoning model `Deepseek-R1`, which is hosted by Together.ai. DeepSeek-R1 achieves performance comparable to OpenAI-o1 across math, code, and reasoning tasks.
+- Upgrade the `gemini-2.0-flash-exp` to the latest production ready `gemini-2.0-flash`, which delivers next-gen features and improved capabilities, including superior speed, native tool use, multimodal generation, and a 1M token context window.
+- upgrade the `gemini-2.0-flash-thinking-exp` to the latest `gemini-2.0-flash-thinking-exp-01-21`, which delivers enhanced abilities across math, science, and multimodal reasoning.
+- Upgrde the `perplexity-llama-3.1-sonar-huge-128k-online` to `perplexity-sonar-pro`, which offers premier search offering with search grounding that supports advanced queries and follow-ups. The legacy model `llama-3.1-sonar-huge-128k-online` will be deprecated and will no longer be available to use after 2/22/2025. 
+
 Version 2.2 of this APP has made one change:
 - Show the model name of an assistant when saving a chat session to an .HTML file.
 
@@ -103,18 +110,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 2.2 of this APP, and install the project,
+To create a Python virtual environment, check out version 2.3 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v2.2
+git checkout v2.3
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:2.2 .
+docker build -t streamlit-mysql:2.3 .
 docker compose up
 ```
 ## Medium Article
