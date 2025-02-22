@@ -11,6 +11,7 @@ Version 2.3 of this APP has made the following changes:
 - Upgrade the `gemini-2.0-flash-exp` to the latest production ready `gemini-2.0-flash`, which delivers next-gen features and improved capabilities, including superior speed, native tool use, multimodal generation, and a 1M token context window.
 - upgrade the `gemini-2.0-flash-thinking-exp` to the latest `gemini-2.0-flash-thinking-exp-01-21`, which delivers enhanced abilities across math, science, and multimodal reasoning.
 - Upgrde the `perplexity-llama-3.1-sonar-huge-128k-online` to `perplexity-sonar-pro`, which offers premier search offering with search grounding that supports advanced queries and follow-ups. The legacy model `llama-3.1-sonar-huge-128k-online` will be deprecated and will no longer be available to use after 2/22/2025. 
+- Increase the default max number of tokens a model can generate from 4000 to 6000.
 
 Version 2.2 of this APP has made one change:
 - Show the model name of an assistant when saving a chat session to an .HTML file.
