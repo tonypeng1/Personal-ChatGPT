@@ -70,14 +70,17 @@ def Load_the_last_saved_model_type(conn) -> None:
                 if result[0] in ("gemini-2.0-flash-thinking-exp", ):
                     result = ("gemini-2.0-flash-thinking-exp-01-21", )
                 if result[0] in ("claude-3-opus-20240229", 
-                                 "claude-3-5-sonnet-20240620"):
-                    result = ("claude-3-5-sonnet-20241022", )                
+                                 "claude-3-5-sonnet-20240620",
+                                 "claude-3-5-sonnet-20241022"):
+                    result = ("claude-3-7-sonnet-20250219", )                
                 if result[0] in ("gpt-4-turbo-2024-04-09", 
                                  "o1-preview",
                                  "gpt-4o"):
                     result = ("gpt-4o-2024-11-20", )
                 if result[0] in ("mistral-large-latest", ):
                     result = ("pixtral-large-latest", )
+                if result[0] in ("Qwen2.5-Coder-32B-Instruct", ):
+                    result = ("Qwen2.5-Max", )
                 st.session_state.type = result[0]
             else:
                 st.session_state.type = None
@@ -105,14 +108,16 @@ def return_type_index(type1: str) -> int:
     """
     type_dic = {
         "gpt-4o-2024-11-20": 0,
-        "claude-3-5-sonnet-20241022": 1, 
-        "pixtral-large-latest": 2,
-        "gemini-2.0-flash":3,
-        "gemini-2.0-flash-thinking-exp-01-21":4,
-        "DeepSeek-R1": 5,
-        "perplexity-sonar-pro": 6,
-        "nvidia-llama-3.1-nemotron-70b-instruct":7,
-        "Qwen2.5-Coder-32B-Instruct": 8
+        "o3-mini-high": 1,
+        "claude-3-7-sonnet-20250219": 2, 
+        "claude-3-7-sonnet-20250219-thinking": 3, 
+        "pixtral-large-latest": 4,
+        "gemini-2.0-flash":5,
+        "gemini-2.0-flash-thinking-exp-01-21":6,
+        "DeepSeek-R1": 7,
+        "perplexity-sonar-pro": 8,
+        "nvidia-llama-3.1-nemotron-70b-instruct": 9,
+        "Qwen2.5-Max": 10
     }
     if type1 not in type_dic:
         raise KeyError(f"Type '{type1}' not found in the type dictionary.")

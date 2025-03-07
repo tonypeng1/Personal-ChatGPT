@@ -5,6 +5,25 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
+Version 2.4 of this APP has made the following changes:
+
+- Add the OpenAI reasoning model  `o3-mini-high`, which is hosted by OpenRouter.ai. With its reasoning effort set to high, this model delivers exceptional STEM capabilities - with particular strength in science, math, and coding. 
+
+- Add the Anthropic thinking model `claude-3-7-sonnet-20250219-thinking`. Extended thinking gives Claude 3.7 Sonnet enhanced reasoning capabilities for complex tasks, while also providing transparency into its step-by-step thought process. The maximum token limit for this model is 20,000, with a thinking token budget of 16,000.
+
+- Upgrade the Antropic model `claude-3-5-sonnet-20241022` to `claude-3-7-sonnet-20250219`, which shows particularly strong improvements in coding and front-end web development.
+
+- Upgrade the Alibaba model `Qwen2.5-Coder-32B-Instruct` to `Qwen2.5-Max`, a large-scale Mixture-of-Expert (MoE) model that outperforms DeepSeek V3 in benchmarks such as Arena-Hard, LiveBench, LiveCodeBench, and GPQA-Diamond. This model is hosted by OpenRouter.ai.
+
+In version 2.4 of this APP, you can use the following 6 multimodal LLM models with both image and text input:
+
+1. `gpt-4o-2024-11-20`
+2. `claude-3-7-sonnet-20250219`
+3. `claude-3-7-sonnet-20250219-thinking`
+4. `pixtral-large-latest`
+5. `gemini-2.0-flash`
+6. `gemini-2.0-flash-thinking-exp-01-21`
+
 Version 2.3 of this APP has made the following changes:
 
 - Add the reasoning model `Deepseek-R1`, which is hosted by Together.ai. DeepSeek-R1 achieves performance comparable to OpenAI-o1 across math, code, and reasoning tasks.
@@ -94,6 +113,7 @@ ANTHROPIC_API_KEY = "my_claude_key"
 TOGETHER_API_KEY = "my_together_key"
 PERPLEXITY_API_KEY = "my_perplexity_key"
 NVIDIA_API_KEY = "my_nvidia_key"
+OPENROUTER_API_KEY = "my_openrouter_key"
 
 [mysql]
 host = "mysql"
@@ -111,18 +131,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 2.3 of this APP, and install the project,
+To create a Python virtual environment, check out version 2.4 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v2.3
+git checkout v2.4
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:2.3 .
+docker build -t streamlit-mysql:2.4 .
 docker compose up
 ```
 ## Medium Article

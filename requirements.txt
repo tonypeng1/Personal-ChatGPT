@@ -8,7 +8,7 @@ tiktoken==0.5.2
 Pygments==2.17.2
 striprtf==0.0.26
 mistralai==0.1.3
-anthropic==0.19.1
+anthropic==0.49.0
 ocrspace==2.3.0
 google-genai==0.3.0
 st-img-pastebutton==0.0.6

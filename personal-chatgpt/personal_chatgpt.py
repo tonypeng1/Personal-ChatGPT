@@ -225,6 +225,110 @@ def chatgpt(
     return full_response
 
 
+def openrouter_o3_mini(
+        prompt1: str, 
+        model_role: str, 
+        temp: float, 
+        p: float, 
+        max_tok: int,
+        _image_file_path: str = "",
+        ) -> str:
+    """
+    Processes a chat prompt using OpenAI's ChatCompletion and updates the chat session.
+
+    Args:
+        conn: A connection object to the MySQL database.
+        prompt (str): The user's input prompt to the chatbot.
+        temp (float): The temperature parameter for OpenAI's ChatCompletion.
+        p (float): The top_p parameter for OpenAI's ChatCompletion.
+        max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
+        _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
+
+    Raises:
+        Raises an exception if there is a failure in database operations or OpenAI's API call.
+    """
+    with st.chat_message("user"):
+        if _image_file_path != "":
+            image_file = PIL.Image.open(_image_file_path)
+            st.image(image_file, width=None)
+        st.markdown(prompt1)
+
+    with st.chat_message("assistant"):
+        text = f":blue-background[:blue[**{model_name}**]]"
+        st.markdown(text)
+
+        message_placeholder = st.empty()
+        full_response = ""
+
+        # NOT WORKING!
+        # math_instruction = (
+        # "\nYour instructions on writing math formulas: \n"
+        # "You have a MathJax render environment. \n"
+        # "Any LaTeX text between squre braket sign '[]' or paranthesis '()' will be rendered as a TeX formula; \n"
+        # "For example, [x^2 + 3x] is output for 'x² + 3x' to appear as TeX. \n"
+        # )
+
+        # math_instruction = (
+        # "\nWhen writing an mathematic formula, RENDER IT! \n"
+        # "Do NOT just output the LaTeX code. \n"
+        # "For example, output 'x² + 3x' instead of [x^2 + 3x]. \n"
+        # )  # NOT WORKING TOO!
+
+        # system_list = [{"role": "system", "content": model_role + math_instruction}]
+        system_list = [{"role": "system", "content": model_role}]
+
+        context_list = []
+        for m in st.session_state.messages:
+            if m["role"] == "user":
+                if m["image"] != "":
+                    base64_image = encode_image(m["image"])
+                    dic = {"role": "user", 
+                           "content": [
+                                {
+                                    "type": "text",
+                                    "text": m["content"],
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": f"data:image/png;base64,{base64_image}"},
+                                },
+                           ],
+                        }
+                    context_list.append(dic)
+                else:
+                    dic = {"role": "user", "content": m["content"]}
+                    context_list.append(dic)
+            else:
+                dic = {"role": "assistant", "content": m["content"]}
+                context_list.append(dic)
+
+        input_list = system_list + context_list
+
+        try:
+            for response in openrouter_client.chat.completions.create(
+                model="openai/o3-mini-high",
+                messages=input_list,
+                temperature=temp,
+                top_p=p,
+                max_tokens=max_tok,
+                stream=True,
+                ):
+                full_response += response.choices[0].delta.content or ""
+                message_placeholder.markdown(full_response + "▌")
+            message_placeholder.markdown(full_response)
+
+        except OpenAIError as e:
+            error_response = f"An error occurred with OpenAI in getting chat response: {e}"
+            full_response = error_response
+            message_placeholder.markdown(full_response)
+        except Exception as e:
+            error_response = f"An unexpected error occurred in OpenAI API call: {e}"
+            full_response = error_response
+            message_placeholder.markdown(full_response)
+
+    return full_response
+
+
 def nvidia(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
     """
     Processes a chat prompt using OpenAI's ChatCompletion and updates the chat session.
@@ -323,11 +427,11 @@ def together_deepseek(prompt1: str, model_role: str, temp: float, p: float, max_
             message_placeholder.markdown(full_response)
 
         except OpenAIError as e:
-            error_response = f"An error occurred with Together Nvidia in getting chat response: {e}"
+            error_response = f"An error occurred with Together DeepSeek in getting chat response: {e}"
             full_response = error_response
             message_placeholder.markdown(full_response)
         except Exception as e:
-            error_response = f"An unexpected error occurred in Together Nvidia OpenAI API call: {e}"
+            error_response = f"An unexpected error occurred in Together DeepSeek OpenAI API call: {e}"
             full_response = error_response
             message_placeholder.markdown(full_response)
 
@@ -382,14 +486,14 @@ def gemini(
         "----------\n"
         "SOURCE LISTING: \n"
         "Always conclude your response with a BULLET POINT LIST of cited sources, including: \n"
-        "1. Title of a source \n" 
+        "1 Title of a source \n" 
         "2. URL ONLY FROM an online source with a VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
         "----------\n"
         # "Example Citation & Source Listing: [Response Content Here...] \n"
-        # " ---------\n"
-        # "SOURCES: " 
-        # "* [1] 'Example Title of Source',  VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
-        # "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
+        "Example Citation & Source Listing: \n"
+        "SOURCES: " 
+        "[1] 'Example Title of Source', VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
+        "[2] Doe, J. (2022). Example Title of Publication. Example Publisher. VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
         )
         
         system_list = \
@@ -418,7 +522,7 @@ def gemini(
         input_list = system_list + context_list
 
         try:
-            for response in  client.models.generate_content_stream(
+            for response in  gemini_client.models.generate_content_stream(
                 contents=input_list,
                 model=model_id,
                 config=GenerateContentConfig(
@@ -696,82 +800,186 @@ def claude(
     return full_response
 
 
-def together_qwen(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
+def claude_3_7_thinking(
+        prompt1: str, 
+        model_role: str, 
+        _image_file_path: str = "",
+        ) -> str:
     """
-    Processes a chat prompt using Together's ChatCompletion and updates the chat session.
+    Processes a chat prompt using Anthropic's Claude 3.7 model and updates the chat session. Change
+    the max_tokens to 20000 to use Claude 3.7 model's extended thinking.
 
     Args:
         conn: A connection object to the MySQL database.
         prompt (str): The user's input prompt to the chatbot.
-        temp (float): The temperature parameter for Together's ChatCompletion.
-        p (float): The top_p parameter for Together's ChatCompletion.
-        max_tok (int): The maximum number of tokens for Together's ChatCompletion.
+        temp (float): The temperature parameter for OpenAI's ChatCompletion.
+        p (float): The top_p parameter for OpenAI's ChatCompletion.
+        max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
+        _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
 
     Raises:
-        Raises an exception if there is a failure in database operations or Together's API call.
+        Raises an exception if there is a failure in database operations or OpenAI's API call.
     """
-    role = "You are an expert programmer who helps to write and debug code based on \
-            the user's request with concise explanations. \
-            When rendering code samples always include the import statements if applicable. \
-            When giving required code solutions include complete code with no omission. \
-            When rephrasing paragraphs, use lightly casual, straight-to-the-point language."
-
     with st.chat_message("user"):
+        # print("_image_file_path: ", _image_file_path)
+        if _image_file_path != "":
+            image_file = PIL.Image.open(_image_file_path)
+            st.image(image_file, width=None)
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
+        model_name = claude_model + "-thinking"
         text = f":blue-background[:blue[**{model_name}**]]"
         st.markdown(text)
 
+        thinking_text = "Thinking.... Please wait...."
+        displayed_text = f"""
+        <div style="color: green; font-style: italic;">
+        {thinking_text}
+        </div>
+        """
+        # # <div style="background-color: lightyellow; color: green; font-weight: bold; padding: 5px; border-radius: 5px;">
+        st.markdown(displayed_text, unsafe_allow_html=True)
+
+
         message_placeholder = st.empty()
         full_response = ""
+
+        messages = []
+        for m in st.session_state.messages:
+            if m["role"] == "user":
+                if m["image"] != "":
+                    base64_image = encode_image(m["image"])
+                    dic = {"role": "user", 
+                           "content": [
+                                {
+                                    "type": "image",
+                                    "source": {
+                                        "type": "base64",
+                                        "media_type": "image/png",
+                                        "data": base64_image,
+                                    },
+                                },
+                                {
+                                    "type": "text",
+                                    "text": m["content"],
+                                },
+                           ],
+                    }
+                    messages.append(dic)
+                else:
+                    dic = {"role": "user", 
+                           "content": m["content"],
+                           }
+                    messages.append(dic)
+            else:
+                dic = {"role": "assistant", "content": m["content"]}
+                messages.append(dic)
+
+            # print(messages)
+
         try:
-            for response in together_client.chat.completions.create(
-                # model="codellama/CodeLlama-70b-Instruct-hf",
-                model="Qwen/Qwen2.5-Coder-32B-Instruct",
-                messages=
-                    [{"role": "system", "content": role}] +
-                    [
-                    {"role": m["role"],
-                     "content": f'[INST]{m["content"]}[/INST]' if m["role"] == "user" \
-                     else m["content"]}
-                    for m in st.session_state.messages
-                    ],
-                temperature=temp,
-                top_p=p,
-                max_tokens=max_tok,
-                stream=True,
-                ):
-                full_response += response.choices[0].delta.content or ""
-                message_placeholder.markdown(full_response + "▌")
+            response = claude_client.messages.create(
+            model=claude_model,
+            system=model_role,
+            max_tokens=20000,
+            thinking={
+                "type": "enabled",
+                "budget_tokens": 16000
+            },
+            messages=messages,
+            )
+
+            # Extract thinking and text from a Claude API response.
+            thinking = None  # This initialization is actually useful for the function
+            answer = None      # to handle cases where blocks might be missing
+
+            # Loop through content blocks to find thinking and text
+            for block in response.content:
+                if hasattr(block, 'type'):
+                    if block.type == 'thinking':
+                        thinking = block.thinking
+                    elif block.type == 'text':
+                        answer = block.text
+
+            full_response = f"========== THINKING ==========\n\n{thinking}\n\n========== ANSWER ==========\n\n{answer}"
+
+            # with claude_client.messages.stream(
+            #     model=claude_model,
+            #     system=model_role,
+            #     max_tokens=20000,
+            #     thinking={
+            #         "type": "enabled",
+            #         "budget_tokens": 16000
+            #     },
+            #     messages=messages,
+            #     ) as stream:
+
+                
+            #     for event in stream.text_stream:
+            #         # if event.type == "content_block_start":
+            #         #     full_response += f"\nStarting {event.content_block.type} block..."
+            #         # elif event.type == "content_block_delta":
+            #         #     if event.delta.type == "thinking_delta":
+            #         #         full_response += f"Thinking: {event.delta.thinking}"
+            #         #     elif event.delta.type == "text_delta":
+            #         #         full_response += f"Response: {event.delta.text}"
+            #         # elif event.type == "content_block_stop":
+            #         #     full_response += "\nBlock complete."
+            #         # elif event.type == "error":
+            #         #     full_response += f"Error: {event.error}"
+            #         # elif event.type == "complete":
+            #         #     full_response += "\nStream complete."
+            #         # else:
+            #         #     full_response += "\nBlock complete."
+            #         full_response += event
+            #         message_placeholder.markdown(full_response + "▌")
+
             message_placeholder.markdown(full_response)
 
-        except OpenAIError as e:
-            error_response = f"An error occurred with TogetherAI in getting chat response: {e}"
-            full_response = error_response
-            message_placeholder.markdown(full_response)
+        # try:
+        #     with claude_client.messages.stream(
+        #         model=claude_model,
+        #         system=model_role,
+        #         messages=messages,
+        #         temperature=temp,
+        #         top_p=p,
+        #         max_tokens=max_tok,
+        #         ) as stream:
+        #         for response in stream.text_stream:
+        #             full_response += response
+        #             message_placeholder.markdown(full_response + "▌")
+
+        #     message_placeholder.markdown(full_response)
+
         except Exception as e:
-            error_response = f"An unexpected error occurred in TogetherAI API call: {e}"
+            error_response = f"An unexpected error occurred in Claude 3.7 API call: {e}"
             full_response = error_response
             message_placeholder.markdown(full_response)
 
     return full_response
 
 
-# def together_python(prompt1: str, temp: float, p: float, max_tok: int) -> str:
+# def together_qwen(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
 #     """
-#     Processes a prompt using Together's Completion and updates the chat session. This
-#     function is not a chat, only one prompt at a time.
+#     Processes a chat prompt using Together's ChatCompletion and updates the chat session.
 
 #     Args:
+#         conn: A connection object to the MySQL database.
 #         prompt (str): The user's input prompt to the chatbot.
 #         temp (float): The temperature parameter for Together's ChatCompletion.
-#         p (float): The top_p parameter for Together's Completion.
-#         max_tok (int): The maximum number of tokens for Together's Completion.
+#         p (float): The top_p parameter for Together's ChatCompletion.
+#         max_tok (int): The maximum number of tokens for Together's ChatCompletion.
 
 #     Raises:
 #         Raises an exception if there is a failure in database operations or Together's API call.
 #     """
+#     role = "You are an expert programmer who helps to write and debug code based on \
+#             the user's request with concise explanations. \
+#             When rendering code samples always include the import statements if applicable. \
+#             When giving required code solutions include complete code with no omission. \
+#             When rephrasing paragraphs, use lightly casual, straight-to-the-point language."
+
 #     with st.chat_message("user"):
 #         st.markdown(prompt1)
 
@@ -782,15 +990,23 @@ def together_qwen(prompt1: str, model_role: str, temp: float, p: float, max_tok:
 #         message_placeholder = st.empty()
 #         full_response = ""
 #         try:
-#             for response in together_client.completions.create(
-#                 model="codellama/CodeLlama-70b-Python-hf",
-#                 prompt=prompt1,
+#             for response in together_client.chat.completions.create(
+#                 # model="codellama/CodeLlama-70b-Instruct-hf",
+#                 model="Qwen/Qwen2.5-Coder-32B-Instruct",
+#                 messages=
+#                     [{"role": "system", "content": role}] +
+#                     [
+#                     {"role": m["role"],
+#                      "content": f'[INST]{m["content"]}[/INST]' if m["role"] == "user" \
+#                      else m["content"]}
+#                     for m in st.session_state.messages
+#                     ],
 #                 temperature=temp,
 #                 top_p=p,
 #                 max_tokens=max_tok,
 #                 stream=True,
 #                 ):
-#                 full_response += response.choices[0].text or ""
+#                 full_response += response.choices[0].delta.content or ""
 #                 message_placeholder.markdown(full_response + "▌")
 #             message_placeholder.markdown(full_response)
 
@@ -804,6 +1020,68 @@ def together_qwen(prompt1: str, model_role: str, temp: float, p: float, max_tok:
 #             message_placeholder.markdown(full_response)
 
 #     return full_response
+
+
+def openrouter_qwen(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
+    """
+    Processes a chat prompt using OpenRouter's ChatCompletion and updates the chat session.
+
+    Args:
+        conn: A connection object to the MySQL database.
+        prompt (str): The user's input prompt to the chatbot.
+        temp (float): The temperature parameter for Together's ChatCompletion.
+        p (float): The top_p parameter for Together's ChatCompletion.
+        max_tok (int): The maximum number of tokens for Together's ChatCompletion.
+
+    Raises:
+        Raises an exception if there is a failure in database operations or Together's API call.
+    """
+    # role = "You are an expert programmer who helps to write and debug code based on \
+    #         the user's request with concise explanations. \
+    #         When rendering code samples always include the import statements if applicable. \
+    #         When giving required code solutions include complete code with no omission. \
+    #         When rephrasing paragraphs, use lightly casual, straight-to-the-point language."
+
+    with st.chat_message("user"):
+        st.markdown(prompt1)
+
+    with st.chat_message("assistant"):
+        text = f":blue-background[:blue[**{model_name}**]]"
+        st.markdown(text)
+
+        message_placeholder = st.empty()
+        full_response = ""
+        try:
+            for response in openrouter_client.chat.completions.create(
+                model="qwen/qwen-max",
+                messages=
+                    [{"role": "system", "content": model_role}] +
+                    [
+                    {"role": m["role"],
+                    #  "content": f'[INST]{m["content"]}[/INST]' if m["role"] == "user" \
+                    #  else m["content"]}
+                    "content": m["content"]}
+                    for m in st.session_state.messages
+                    ],
+                temperature=temp,
+                top_p=p,
+                max_tokens=max_tok,
+                stream=True,
+                ):
+                full_response += response.choices[0].delta.content or ""
+                message_placeholder.markdown(full_response + "▌")
+            message_placeholder.markdown(full_response)
+
+        except OpenAIError as e:
+            error_response = f"An error occurred with OpenrouterAI in getting chat response: {e}"
+            full_response = error_response
+            message_placeholder.markdown(full_response)
+        except Exception as e:
+            error_response = f"An unexpected error occurred in OpenrouterAI API call: {e}"
+            full_response = error_response
+            message_placeholder.markdown(full_response)
+
+    return full_response
 
 
 # def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
@@ -1049,8 +1327,12 @@ def process_prompt(
     try:
         if model_name == "gpt-4o-2024-11-20":
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "claude-3-5-sonnet-20241022":
+        elif model_name == "o3-mini-high":
+            responses = openrouter_o3_mini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
+        elif model_name == "claude-3-7-sonnet-20250219":
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
+        elif model_name == "claude-3-7-sonnet-20250219-thinking":
+            responses = claude_3_7_thinking(prompt1, model_role, _image_file_path)
         elif model_name == "gemini-2.0-flash":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "gemini-2.0-flash-thinking-exp-01-21":
@@ -1062,8 +1344,8 @@ def process_prompt(
         elif model_name == "nvidia-llama-3.1-nemotron-70b-instruct":
             responses = nvidia(prompt1, model_role, temperature, top_p, int(max_token))
             # responses = together_nvidia(prompt1, model_role, temperature, top_p, int(max_token))
-        elif model_name == "Qwen2.5-Coder-32B-Instruct":
-            responses = together_qwen(prompt1, model_role, temperature, top_p, int(max_token))
+        elif model_name == "Qwen2.5-Max":
+            responses = openrouter_qwen(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "DeepSeek-R1":
             responses = together_deepseek(prompt1, model_role, temperature, top_p, int(max_token))
         else:
@@ -1167,11 +1449,12 @@ MISTRAL_API_KEY = st.secrets["MISTRAL_API_KEY"]
 CLAUDE_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
 TOGETHER_API_KEY = st.secrets["TOGETHER_API_KEY"]
 PERPLEXITY_API_KEY = st.secrets["PERPLEXITY_API_KEY"]
-OCR_API_KEY = st.secrets["OCR_API_KEY"]
+# OCR_API_KEY = st.secrets["OCR_API_KEY"]
 NVIDIA_API_KEY = st.secrets["NVIDIA_API_KEY"]
+OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
 
 # Set gemini api configuration
-client = genai.Client(api_key=GOOGLE_API_KEY)
+gemini_client = genai.Client(api_key=GOOGLE_API_KEY)
 # model_id = "gemini-2.0-pro-exp-02-05"
 model_id = "gemini-2.0-flash"
 
@@ -1190,7 +1473,7 @@ mistral_model = "pixtral-large-latest"
 mistral_client = MistralClient(api_key=MISTRAL_API_KEY)
 
 # Set Claude api configuration
-claude_model = "claude-3-5-sonnet-20241022"
+claude_model = "claude-3-7-sonnet-20250219"
 claude_client = anthropic.Anthropic(api_key=CLAUDE_API_KEY,)
 
 # Set chatgpt api configuration
@@ -1200,6 +1483,12 @@ chatgpt_client = openai.OpenAI(api_key=OPENAI_API_KEY)
 together_client = openai.OpenAI(
   api_key=TOGETHER_API_KEY,
   base_url='https://api.together.xyz/v1'
+)
+
+# Set openrouter api configuration
+openrouter_client = OpenAI(
+  api_key=OPENROUTER_API_KEY,
+  base_url="https://openrouter.ai/api/v1",
 )
 
 # Set perplexity api configuration
@@ -1332,14 +1621,16 @@ model_name = st.sidebar.radio(
                                 label="Choose model:",
                                 options=(
                                     "gpt-4o-2024-11-20",
-                                    "claude-3-5-sonnet-20241022",
+                                    "o3-mini-high",
+                                    "claude-3-7-sonnet-20250219",
+                                    "claude-3-7-sonnet-20250219-thinking",
                                     "pixtral-large-latest",
                                     "gemini-2.0-flash",
                                     "gemini-2.0-flash-thinking-exp-01-21",
                                     "DeepSeek-R1",
                                     "perplexity-sonar-pro",
                                     "nvidia-llama-3.1-nemotron-70b-instruct",
-                                    "Qwen2.5-Coder-32B-Instruct"
+                                    "Qwen2.5-Max"
                                  ),
                                 index=type_index,
                                 key="type1"
@@ -1372,7 +1663,7 @@ if behavior != st.session_state.behavior:  # only save to database if behavior i
 max_token = st.sidebar.number_input(
     label="Select the max number of tokens the model can generate",
     min_value=500,
-    max_value=6000,
+    max_value=8000,
     value=6000,
     step=500
     )
