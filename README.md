@@ -7,7 +7,7 @@ https://youtu.be/cHsequP0Wsw
 ## APP Features
 Version 2.5 of this APP has made the following changes:
 
-- Add web search capability to the OpenAI model `gpt-4o-2024-11-20`. Need to upgrade the openai package to enable this feature.
+- Add web search capability to the OpenAI model `gpt-4o-2024-11-20`. The `search_context_size` is set to `high` to provide the most comprehensive context retrieved from the web to help the tool formulate a response. Need to upgrade the openai package to enable this feature.
 - Change the prompts to the model `gemini-2.0-flash` and `perplexity-sonar-pro` to improve the format of web-search result citation.
 - Add a MIT license file.
 
