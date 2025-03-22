@@ -5,6 +5,17 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
+Version 2.5 of this APP has made the following changes:
+
+- Add web search capability to the OpenAI model `gpt-4o-2024-11-20`. Need to upgrade the openai package to enable this feature.
+- Change the prompts to the model `gemini-2.0-flash` and `perplexity-sonar-pro` to improve the format of web-search result citation.
+- Add a MIT license file.
+
+- At present, this APP has three models that support web-search result citations:
+1. `gpt-4o-2024-11-20`
+2. `gemini-2.0-flash`
+3. `perplexity-sonar-pro`
+
 Version 2.4 of this APP has made the following changes:
 
 - Add the OpenAI reasoning model  `o3-mini-high`, which is hosted by OpenRouter.ai. With its reasoning effort set to high, this model delivers exceptional STEM capabilities - with particular strength in science, math, and coding. 

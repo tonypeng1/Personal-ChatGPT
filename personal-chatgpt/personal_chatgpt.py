@@ -1,6 +1,8 @@
 import base64
+import inspect
 import io
 import os
+import pdb
 import PIL.Image
 
 import anthropic
@@ -181,12 +183,12 @@ def chatgpt(
                     dic = {"role": "user", 
                            "content": [
                                 {
-                                    "type": "text",
+                                    "type": "input_text",
                                     "text": m["content"],
                                 },
                                 {
-                                    "type": "image_url",
-                                    "image_url": {"url": f"data:image/png;base64,{base64_image}"},
+                                    "type": "input_image",
+                                    "image_url": f"data:image/png;base64,{base64_image}",
                                 },
                            ],
                         }
@@ -201,16 +203,30 @@ def chatgpt(
         input_list = system_list + context_list
 
         try:
-            for response in chatgpt_client.chat.completions.create(
+            for response in chatgpt_client.responses.create(
+                # response = chatgpt_client.responses.create(
                 model="gpt-4o-2024-11-20",
-                messages=input_list,
+                tools=[{
+                    "type": "web_search_preview",
+                    "search_context_size": "high",
+                    }],
+                input=input_list,
                 temperature=temp,
                 top_p=p,
-                max_tokens=max_tok,
+                # max_output_tokens=max_tok,  # If added will have error
                 stream=True,
                 ):
-                full_response += response.choices[0].delta.content or ""
-                message_placeholder.markdown(full_response + "▌")
+                # structure = inspect_object_structure(response)
+                # print(structure)
+                # try:
+                # print(f"Original response: {response}\n\n")
+                # Access the response attribute of the event object
+                #     pdb.set_trace() # Set a break point here
+
+                if hasattr(response, 'delta'):
+                    full_response += response.delta or ""
+                    message_placeholder.markdown(full_response + "▌")
+
             message_placeholder.markdown(full_response)
 
         except OpenAIError as e:
@@ -223,6 +239,25 @@ def chatgpt(
             message_placeholder.markdown(full_response)
 
     return full_response
+
+
+def inspect_object_structure(obj, max_depth=3, current_depth=0):
+    """Print the structure of an object for debugging."""
+    if current_depth > max_depth:
+        return "..."
+
+    if hasattr(obj, '__dict__'):
+        result = {}
+        for key, value in obj.__dict__.items():
+            result[key] = inspect_object_structure(value, max_depth, current_depth + 1)
+        return result
+    elif isinstance(obj, list):
+        if len(obj) > 0:
+            return [inspect_object_structure(obj[0], max_depth, current_depth + 1), "..."]
+        else:
+            return []
+    else:
+        return type(obj).__name__
 
 
 def openrouter_o3_mini(
@@ -256,6 +291,15 @@ def openrouter_o3_mini(
     with st.chat_message("assistant"):
         text = f":blue-background[:blue[**{model_name}**]]"
         st.markdown(text)
+
+        thinking_text = "Reasoning.... Please wait...."
+        displayed_text = f"""
+        <div style="color: green; font-style: italic;">
+        {thinking_text}
+        </div>
+        """
+        # # <div style="background-color: lightyellow; color: green; font-weight: bold; padding: 5px; border-radius: 5px;">
+        st.markdown(displayed_text, unsafe_allow_html=True)
 
         message_placeholder = st.empty()
         full_response = ""
@@ -476,30 +520,34 @@ def gemini(
         full_response = ""
 
         # additional_model_role = ""
+        # additional_model_role = "Provide INLINE citations from the search results in a format that includes CLICKABLE URLs."
 
         additional_model_role = (
-        "If you have performed a GOOGLE SEARCH, you MUST cite the sources from your search in the format described below, \n"
-        "Academic Integrity & Transparency: \n"
         "----------\n"
-        "CITATIONS: \n"
+        "IF YOU HAVE DONE a GOOGLE SEARCH, you MUST cite the sources from your search in the format described below. \n"
+        "On the other hand, IF YOU HAVE NOT DONE SEARCH QUERIES, There is NO NEED to list sources. \n"
+        # "Academic Integrity & Transparency: \n"
+        "----------\n"
+        # "CITATIONS: \n"
         "When referencing the sources from your serach results, use NUMERIC CITATIONS in the format [1], [2], etc., within your answer."
-        "----------\n"
-        "SOURCE LISTING: \n"
+        # "----------\n"
+        # "SOURCE LISTING: \n"
         "Always conclude your response with a BULLET POINT LIST of cited sources, including: \n"
         "1 Title of a source \n" 
         "2. URL ONLY FROM an online source with a VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
         "----------\n"
         # "Example Citation & Source Listing: [Response Content Here...] \n"
-        "Example Citation & Source Listing: \n"
-        "SOURCES: " 
-        "[1] 'Example Title of Source', VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
-        "[2] Doe, J. (2022). Example Title of Publication. Example Publisher. VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
+        "Example Citation & Source Listing: (EACH SOURCE ON A NEW LINE)\n"
+        "SOURCES:" 
+        "[1] 'Example Title of Source', https://vertexaisearch.cloud.google.com/grounding-api-redirect/... \n"
+        "[2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://vertexaisearch.cloud.google.com/grounding-api-redirect/... \n"
         )
         
         system_list = \
                 [{"role": "user",
                 "parts": [{
-                        "text": model_role + additional_model_role +  "If you understand your role, please response 'I understand.'"
+                        # "text": model_role + additional_model_role +  "If you understand your role, please response 'I understand.'"
+                        "text": model_role +  "If you understand your role, please response 'I understand.'"
                         }]
                 },
                 {"role": "model",
@@ -510,7 +558,7 @@ def gemini(
         context_list = []
         for m in st.session_state.messages:
             if m["role"] == "user":
-                dic = {"role": "user", "parts": [{"text": m["content"]}]}
+                dic = {"role": "user", "parts": [{"text": m["content"] + additional_model_role}]}
                 context_list.append(dic)
                 if m["image"] != "":
                     _context_image_file = PIL.Image.open(m["image"])
@@ -1203,29 +1251,39 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
         message_placeholder = st.empty()
         full_response = ""
 
+        # additional_model_role = "Provide the relevant information from the search results in a format that includes the source titles and URLs in a LIST AT THE END OF YOUR ANSWER."
         additional_model_role = (
-        "Academic Integrity & Transparency: \n"
-        "CITATIONS: \n"
-        "When referencing external sources, use NUMERIC CITATIONS in the format [1], [2], etc., within your answer."
         "----------\n"
-        "SOURCE LISTING: \n"
-        "Always conclude your response with a BULLET POINT LIST of cited sources, including: \n"
-        "1. URLs for online resources \n"
-        "2. Full Citation (e.g., author, title, publication, date) for academic online sources \n"
+        "Provide INLINE citations from the search results in the format of hyperlink.\n"
         "----------\n"
-        "Example Citation & Source Listing: [Response Content Here...] \n"
-        "Sources: List each citation EACH IN A NEW LINE using the format: \n"
-        "* [1] 'Example Title of Source' https://example.com/resource \n"
-        "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://example.com/publication \n"
+        "EXAMPLE: \n"
+        "[Google](https://www.google.com)"
         )
+        # additional_model_role = "Provide inline citations for the relevant information from the search results."
+        # additional_model_role = (
+        # "Academic Integrity & Transparency: \n"
+        # "CITATIONS: \n"
+        # "When referencing external sources, use NUMERIC CITATIONS in the format [1], [2], etc., within your answer."
+        # "----------\n"
+        # "SOURCE LISTING: \n"
+        # "ALWAYS CONCLUDE your response with a BULLET POINT LIST of cited sources, including: \n"
+        # "1. URLs for online resources \n"
+        # "2. Full Citation (e.g., author, title, publication, date) for academic online sources \n"
+        # "----------\n"
+        # "Example Citation & Source Listing: [Response Content Here...] \n"
+        # "Sources: List each citation in your answer, EACH IN A NEW LINE using the format: \n"
+        # "* [1] 'Example Title of Source' https://example.com/resource \n"
+        # "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://example.com/publication \n"
+        # )
 
         try:
             for response in perplexity_client.chat.completions.create(
                 model="sonar-pro",
                 messages=
-                    [{"role": "system", "content": model_role + additional_model_role}] +
+                    # [{"role": "system", "content": model_role + additional_model_role}] +
+                    [{"role": "system", "content": model_role}] +
                     [
-                    {"role": m["role"], "content": m["content"]}
+                    {"role": m["role"], "content": m["content"] + additional_model_role}
                     for m in st.session_state.messages
                     ],
                 temperature=temp,
