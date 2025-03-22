@@ -11,7 +11,8 @@ Version 2.5 of this APP has made the following changes:
 - Change the prompts to the model `gemini-2.0-flash` and `perplexity-sonar-pro` to improve the format of web-search result citation.
 - Add a MIT license file.
 
-- At present, this APP has three models that support web-search result citations:
+At present, this APP has three models that support web-search result citations:
+
 1. `gpt-4o-2024-11-20`
 2. `gemini-2.0-flash`
 3. `perplexity-sonar-pro`
