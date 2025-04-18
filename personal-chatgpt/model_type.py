@@ -67,16 +67,19 @@ def Load_the_last_saved_model_type(conn) -> None:
                                  "gemini-2.0-flash-exp",
                                  ):
                     result = ("gemini-2.0-flash", )
-                if result[0] in ("gemini-2.0-flash-thinking-exp", ):
-                    result = ("gemini-2.0-flash-thinking-exp-01-21", )
+                if result[0] in ("gemini-2.0-flash-thinking-exp", 
+                                 "gemini-2.0-flash-thinking-exp-01-21",
+                                 ):
+                    result = ("gemini-2.5-pro-preview-03-25", )
                 if result[0] in ("claude-3-opus-20240229", 
                                  "claude-3-5-sonnet-20240620",
                                  "claude-3-5-sonnet-20241022"):
                     result = ("claude-3-7-sonnet-20250219", )                
                 if result[0] in ("gpt-4-turbo-2024-04-09", 
+                                 "gpt-4o-2024-11-20",
                                  "o1-preview",
                                  "gpt-4o"):
-                    result = ("gpt-4o-2024-11-20", )
+                    result = ("gpt-4.1-2025-04-14", )
                 if result[0] in ("mistral-large-latest", ):
                     result = ("pixtral-large-latest", )
                 if result[0] in ("Qwen2.5-Coder-32B-Instruct", ):
@@ -107,13 +110,13 @@ def return_type_index(type1: str) -> int:
         KeyError: If the type description is not found in the predefined dictionary.
     """
     type_dic = {
-        "gpt-4o-2024-11-20": 0,
+        "gpt-4.1-2025-04-14": 0,
         "o3-mini-high": 1,
         "claude-3-7-sonnet-20250219": 2, 
         "claude-3-7-sonnet-20250219-thinking": 3, 
         "pixtral-large-latest": 4,
         "gemini-2.0-flash":5,
-        "gemini-2.0-flash-thinking-exp-01-21":6,
+        "gemini-2.5-pro-preview-03-25":6,
         "DeepSeek-R1": 7,
         "perplexity-sonar-pro": 8,
         "nvidia-llama-3.1-nemotron-70b-instruct": 9,

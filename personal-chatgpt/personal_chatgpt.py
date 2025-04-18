@@ -205,7 +205,7 @@ def chatgpt(
         try:
             for response in chatgpt_client.responses.create(
                 # response = chatgpt_client.responses.create(
-                model="gpt-4o-2024-11-20",
+                model="gpt-4.1-2025-04-14",
                 tools=[{
                     "type": "web_search_preview",
                     "search_context_size": "high",
@@ -1383,7 +1383,7 @@ def process_prompt(
     determine_if_terminate_current_session_and_start_a_new_one(conn)
     st.session_state.messages.append({"role": "user", "model": "", "content": prompt1, "image": _image_file_path})
     try:
-        if model_name == "gpt-4o-2024-11-20":
+        if model_name == "gpt-4.1-2025-04-14":
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "o3-mini-high":
             responses = openrouter_o3_mini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
@@ -1393,7 +1393,7 @@ def process_prompt(
             responses = claude_3_7_thinking(prompt1, model_role, _image_file_path)
         elif model_name == "gemini-2.0-flash":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "gemini-2.0-flash-thinking-exp-01-21":
+        elif model_name == "gemini-2.5-pro-preview-03-25":
             responses = gemini_thinking(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "pixtral-large-latest":
             responses = mistral(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
@@ -1521,7 +1521,8 @@ client_thinking = genai.Client(
     api_key=GOOGLE_API_KEY,
     http_options={'api_version':'v1alpha'},
     )
-model_id_thinking = "gemini-2.0-flash-thinking-exp-01-21"
+model_id_thinking = "gemini-2.5-pro-preview-03-25"
+# model_id_thinking = "gemini-2.0-flash-thinking-exp-01-21"
 
 # genai.configure(api_key=GOOGLE_API_KEY)
 # gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
@@ -1678,13 +1679,13 @@ type_index = return_type_index(st.session_state.type)  # from string to int (0 t
 model_name = st.sidebar.radio(
                                 label="Choose model:",
                                 options=(
-                                    "gpt-4o-2024-11-20",
+                                    "gpt-4.1-2025-04-14",
                                     "o3-mini-high",
                                     "claude-3-7-sonnet-20250219",
                                     "claude-3-7-sonnet-20250219-thinking",
                                     "pixtral-large-latest",
                                     "gemini-2.0-flash",
-                                    "gemini-2.0-flash-thinking-exp-01-21",
+                                    "gemini-2.5-pro-preview-03-25",
                                     "DeepSeek-R1",
                                     "perplexity-sonar-pro",
                                     "nvidia-llama-3.1-nemotron-70b-instruct",
