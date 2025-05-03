@@ -174,7 +174,8 @@ def chatgpt(
         # )  # NOT WORKING TOO!
 
         math_instruction = (
-        "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
+        "\n\nDO NOT USE THE DEFAULT FORMAT to output math. Instead, output math in LaTeX, \n" 
+        "wrapped in $...$ for inline or $$...$$ for block math."
         )
         
         # math_instruction = (
