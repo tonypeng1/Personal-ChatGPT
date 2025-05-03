@@ -5,7 +5,7 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
-Version 2.7 of this APP has made the following two changes:
+Version 2.7 of this APP has made the following three changes:
 - Improve the rendering of mathematical expressions for all models in chat messages and in saved .HTML files.
 - Improve the rendering of nested lists in saved .HTML files.
 - Upgrade the model `Qwen2.5-Max` to `Qwen3-235b-a22b`, which supports prompt-driven seamless switching between thinking mode (for complex logical reasoning, math, and coding) and non-thinking mode (for efficient, general-purpose dialogue) within a single model. For maximum control, use explicit prompting patterns rather than relying on automatic mode switching.
