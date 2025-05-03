@@ -5,6 +5,11 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
+Version 2.7 of this APP has made the following two changes:
+- Improve the rendering of mathematical expressions for all models in chat messages and in saved .HTML files.
+- Improve the rendering of nested lists in saved .HTML files.
+- Upgrade the model `Qwen2.5-Max` to `Qwen3-235b-a22b`, which supports prompt-driven seamless switching between thinking mode (for complex logical reasoning, math, and coding) and non-thinking mode (for efficient, general-purpose dialogue) within a single model. For maximum control, use explicit prompting patterns rather than relying on automatic mode switching.
+
 Version 2.6 of this APP has made the following two changes:
 - Upgrade the model `gpt-4o-2024-11-20` to `gpt-4.1-2025-04-14`,which makes significant advancements in coding, instruction following, and long-context processing with a 1-million-token context window.
 - Upgrade the thinking model `gemini-2.0-flash-thinking-exp-01-21` to `gemini-2.5-pro-preview-03-25`, which shows advanced coding capability and is state-of-the-art across a range of benchmarks requiring enhanced reasoning.
@@ -153,18 +158,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 2.6 of this APP, and install the project,
+To create a Python virtual environment, check out version 2.7 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v2.6
+git checkout v2.7
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:2.6 .
+docker build -t streamlit-mysql:2.7 .
 docker compose up
 ```
 ## Medium Article

@@ -12,3 +12,4 @@ anthropic==0.49.0
 ocrspace==2.3.0
 google-genai==0.3.0
 st-img-pastebutton==0.0.6
+python-markdown-math==0.9

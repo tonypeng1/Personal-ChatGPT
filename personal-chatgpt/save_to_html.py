@@ -111,55 +111,171 @@ def _indent_content(content: str, code_block_indent: str) -> str:
         indented_lines = []
         in_code_block = False  # Flag to track whether we're inside a code block
 
+    #     for line in lines:
+    #         if line.strip().startswith('```'):
+    #             in_code_block = not in_code_block
+    #             indented_lines.append(line)
+    #         elif not in_code_block:
+    #             line = f"> {line}"
+    #             indented_lines.append(line)
+    #         else:
+    #             indented_line = code_block_indent + line  # Apply indentation
+    #             indented_lines.append(indented_line)
+
+    #     return '\n'.join(indented_lines)
+    
+    # else:
+    #     return ""
+
+    if content is not None:
+        lines = content.split('\n')
+        indented_lines = []
+        in_code_block = False  # Flag to track whether we're inside a code block
+
         for line in lines:
             if line.strip().startswith('```'):
+                # Do NOT indent code block delimiters
+                indented_lines.append(line.strip())
                 in_code_block = not in_code_block
-                indented_lines.append(line)
-            elif not in_code_block:
-                line = f"> {line}"
-                indented_lines.append(line)
+            elif in_code_block:
+                # Indent only inside code blocks
+                indented_lines.append(code_block_indent + line)
             else:
-                indented_line = code_block_indent + line  # Apply indentation
-                indented_lines.append(indented_line)
+                indented_lines.append(f"> {line}")
 
         return '\n'.join(indented_lines)
-    
     else:
         return ""
 
 
+def escape_single_dollar_signs(text):
+    """
+    Escapes single $ signs that are not part of $...$ or $$...$$ math blocks,
+    and are followed by a digit (e.g., $75).
+    """
+    math_blocks = []
+
+    # Protect $$...$$ blocks first
+    def math_block_replacer(match):
+        math_blocks.append(match.group(0))
+        return f"__MATH_BLOCK_{len(math_blocks)-1}__"
+
+    text = re.sub(r"\$\$.*?\$\$", math_block_replacer, text, flags=re.DOTALL)
+    # Now protect $...$ blocks (not $$...$$)
+    text = re.sub(r"(?<!\$)\$(?!\$)(.+?)(?<!\\)\$(?!\$)", math_block_replacer, text, flags=re.DOTALL)
+
+    # Escape $ followed by a digit (not already escaped)
+    text = re.sub(r'(?<!\\)\$(?=\d)', r'\\$', text)
+
+    # Restore math blocks
+    for i, block in enumerate(math_blocks):
+        text = text.replace(f"__MATH_BLOCK_{i}__", block)
+    return text
+
+
 def markdown_to_html(md_content: str) -> str:
     """
-    Converts markdown content to HTML with syntax highlighting and custom styling.
+    Converts markdown content to HTML with syntax highlighting, custom styling, and LaTeX rendering.
 
     This function takes a string containing markdown-formatted text and converts it to HTML.
-    It applies syntax highlighting to code blocks and custom styling to certain HTML elements.
+    It applies syntax highlighting to code blocks, custom styling to certain HTML elements,
+    and includes MathJax for rendering LaTeX equations.
 
     Args:
-        md_content (str): A string containing markdown-formatted text.
+        md_content (str): The markdown-formatted text to convert.
 
     Returns:
-        A string containing the HTML representation of the markdown text, including a style tag
-        with CSS for syntax highlighting and custom styles for the <code> and <em> elements.
+        str: The HTML representation of the markdown text, including a style tag
+             with CSS for syntax highlighting, custom styles for <code> and <h3> elements,
+             and a MathJax script for LaTeX rendering.
     """
 
-    # Convert markdown to HTML with syntax highlighting
-    html_content = markdown.markdown(md_content, extensions=['fenced_code', 'codehilite'])
+    md_content_escaped = escape_single_dollar_signs(md_content)
+
+    html_content = markdown.markdown(
+        md_content_escaped,
+        extensions=[
+            'fenced_code',
+            'codehilite',
+            'extra',
+            'mdx_math'
+        ],
+        extension_configs={
+            'mdx_math': {
+                'enable_dollar_delimiter': True
+            }
+        }
+    )
+    # print(f"md content: {md_content_escaped}")
 
     html_content = re.sub(
-        r'<code>', 
-        '<code style="background-color: #f7f7f7; color: green;">', 
+        r'<code>',
+        '<code style="background-color: #f7f7f7; color: green;">',
         html_content)
-    
     html_content = re.sub(
-        r'<h3>', 
-        '<h3 style="color: blue;">', 
+        r'<h3>',
+        '<h3 style="color: blue;">',
         html_content)
-    
-    # Get CSS for syntax highlighting from Pygments
+
     css = HtmlFormatter(style='tango').get_style_defs('.codehilite')
 
-    return f"<style>{css}</style>{html_content}"
+    mathjax_config = """
+    <script>
+      MathJax = {
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          displayMath: [['$$','$$'], ['\\[', '\\]']],
+          processEscapes: true
+        },
+        chtml: {
+          scale: 1.0,
+          minScaleAdjust: 100,
+        },
+        svg: {
+          scale: 1.0,
+          minScaleAdjust: 100,
+        }
+      };
+    </script>
+    """
+
+    # mathjax_script = """
+    # <script type="text/javascript" id="MathJax-script" async
+    #   src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+    # </script>
+    # """
+
+    mathjax_script = """
+    <script type="text/javascript" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS_HTML">
+    </script>
+    """
+
+    # print(f"""
+    # <html>
+    # <head>
+    # <style>{css}</style>
+    # {mathjax_config}
+    # {mathjax_script}
+    # </head>
+    # <body>
+    # {html_content}
+    # </body>
+    # </html>
+    # """)
+
+    return f"""
+    <html>
+    <head>
+    <style>{css}</style>
+    {mathjax_config}
+    {mathjax_script}
+    </head>
+    <body>
+    {html_content}
+    </body>
+    </html>
+    """
 
 
 def get_summary_and_return_as_file_name(conn, session1: int) -> str:

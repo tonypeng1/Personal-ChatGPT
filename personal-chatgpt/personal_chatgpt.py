@@ -2,6 +2,7 @@ import base64
 import inspect
 import io
 import os
+import re
 import pdb
 import PIL.Image
 
@@ -172,8 +173,16 @@ def chatgpt(
         # "For example, output 'x² + 3x' instead of [x^2 + 3x]. \n"
         # )  # NOT WORKING TOO!
 
-        # system_list = [{"role": "system", "content": model_role + math_instruction}]
-        system_list = [{"role": "system", "content": model_role}]
+        math_instruction = (
+        "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
+        )
+        
+        # math_instruction = (
+        # "\n\nOutput math in LaTeX, wrapped in \\(...\\) for inline or $$...$$ for block math."
+        # )
+
+        system_list = [{"role": "system", "content": model_role + math_instruction}]
+        # system_list = [{"role": "system", "content": model_role}]
 
         context_list = []
         for m in st.session_state.messages:
@@ -318,8 +327,12 @@ def openrouter_o3_mini(
         # "For example, output 'x² + 3x' instead of [x^2 + 3x]. \n"
         # )  # NOT WORKING TOO!
 
+        math_instruction = (
+        "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
+        )
+
         # system_list = [{"role": "system", "content": model_role + math_instruction}]
-        system_list = [{"role": "system", "content": model_role}]
+        system_list = [{"role": "system", "content": model_role + math_instruction}]
 
         context_list = []
         for m in st.session_state.messages:
@@ -396,11 +409,16 @@ def nvidia(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
 
         message_placeholder = st.empty()
         full_response = ""
+
+        math_instruction = (
+        "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
+        )
+
         try:
             for response in nvidia_client.chat.completions.create(
                 model="nvidia/llama-3.1-nemotron-70b-instruct",
                 messages=
-                    [{"role": "system", "content": model_role}] +
+                    [{"role": "system", "content": model_role + math_instruction}] +
                     [
                     {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages
@@ -451,12 +469,17 @@ def together_deepseek(prompt1: str, model_role: str, temp: float, p: float, max_
 
         message_placeholder = st.empty()
         full_response = ""
+
+        math_instruction = (
+        "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
+        )
+
         try:
             for response in together_client.chat.completions.create(
                 # model="nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
                 model="deepseek-ai/DeepSeek-R1",
                 messages=
-                    [{"role": "system", "content": model_role}] +
+                    [{"role": "system", "content": model_role + math_instruction}] +
                     [
                     {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages
@@ -523,7 +546,7 @@ def gemini(
         # additional_model_role = "Provide INLINE citations from the search results in a format that includes CLICKABLE URLs."
 
         additional_model_role = (
-        "----------\n"
+        "\n\n----------\n"
         "IF YOU HAVE DONE a GOOGLE SEARCH, you MUST cite the sources from your search in the format described below. \n"
         "On the other hand, IF YOU HAVE NOT DONE SEARCH QUERIES, There is NO NEED to list sources. \n"
         # "Academic Integrity & Transparency: \n"
@@ -542,6 +565,10 @@ def gemini(
         "[1] 'Example Title of Source', https://vertexaisearch.cloud.google.com/grounding-api-redirect/... \n"
         "[2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://vertexaisearch.cloud.google.com/grounding-api-redirect/... \n"
         )
+
+        math_instruction = (
+        "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
+        )
         
         system_list = \
                 [{"role": "user",
@@ -558,7 +585,7 @@ def gemini(
         context_list = []
         for m in st.session_state.messages:
             if m["role"] == "user":
-                dic = {"role": "user", "parts": [{"text": m["content"] + additional_model_role}]}
+                dic = {"role": "user", "parts": [{"text": m["content"] + additional_model_role + math_instruction}]}
                 context_list.append(dic)
                 if m["image"] != "":
                     _context_image_file = PIL.Image.open(m["image"])
@@ -624,13 +651,25 @@ def gemini_thinking(
         text = f":blue-background[:blue[**{model_name}**]]"
         st.markdown(text)
 
+        thinking_text = "Reasoning.... Please wait...."
+        displayed_text = f"""
+        <div style="color: green; font-style: italic;">
+        {thinking_text}
+        </div>
+        """
+        st.markdown(displayed_text, unsafe_allow_html=True)
+
         message_placeholder = st.empty()
         full_response = ""
+
+        math_instruction = (
+        "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
+        )
 
         system_list = \
                     [{"role": "user",
                     "parts": [{
-                            "text": model_role +  "If you understand your role, please response 'I understand.'"
+                            "text": model_role + math_instruction + "If you understand your role, please response 'I understand.'"
                             }]
                     },
                     {"role": "model",
@@ -711,7 +750,12 @@ def mistral(
         message_placeholder = st.empty()
         full_response = ""
         
-        system_list = [{"role": "system", "content": model_role}]
+        math_instruction = (
+        "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
+        )
+
+        system_list = [{"role": "system", "content": model_role + math_instruction}]
+        # system_list = [{"role": "system", "content": model_role}]
 
         context_list = []
         for m in st.session_state.messages:
@@ -826,10 +870,14 @@ def claude(
                 dic = {"role": "assistant", "content": m["content"]}
                 context_list.append(dic)
 
+        math_instruction = (
+        "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
+        )
+
         try:
             with claude_client.messages.stream(
                 model=claude_model,
-                system=model_role,
+                system=model_role + math_instruction,
                 messages=context_list,
                 temperature=temp,
                 top_p=p,
@@ -926,10 +974,14 @@ def claude_3_7_thinking(
 
             # print(messages)
 
+        math_instruction = (
+        "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
+        )
+
         try:
             response = claude_client.messages.create(
             model=claude_model,
-            system=model_role,
+            system=model_role + math_instruction,
             max_tokens=20000,
             thinking={
                 "type": "enabled",
@@ -1099,11 +1151,16 @@ def openrouter_qwen(prompt1: str, model_role: str, temp: float, p: float, max_to
 
         message_placeholder = st.empty()
         full_response = ""
+
+        math_instruction = (
+        "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
+        )
+
         try:
             for response in openrouter_client.chat.completions.create(
-                model="qwen/qwen-max",
+                model="qwen/qwen3-235b-a22b",
                 messages=
-                    [{"role": "system", "content": model_role}] +
+                    [{"role": "system", "content": model_role + math_instruction}] +
                     [
                     {"role": m["role"],
                     #  "content": f'[INST]{m["content"]}[/INST]' if m["role"] == "user" \
@@ -1251,15 +1308,19 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
         message_placeholder = st.empty()
         full_response = ""
 
+        # additional_model_role = ""
         # additional_model_role = "Provide the relevant information from the search results in a format that includes the source titles and URLs in a LIST AT THE END OF YOUR ANSWER."
+        
         additional_model_role = (
-        "----------\n"
-        "Provide INLINE citations from the search results in the format of hyperlink.\n"
+        "\n\n----------\n"
+        "If you use search, provide INLINE citations from the search results in the format of hyperlink.\n"
         "----------\n"
         "EXAMPLE: \n"
         "[Google](https://www.google.com)"
         )
+        
         # additional_model_role = "Provide inline citations for the relevant information from the search results."
+        
         # additional_model_role = (
         # "Academic Integrity & Transparency: \n"
         # "CITATIONS: \n"
@@ -1276,6 +1337,11 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
         # "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://example.com/publication \n"
         # )
 
+        math_instruction = (
+        "\n\n----------\n"
+        "Output math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
+        )
+
         try:
             for response in perplexity_client.chat.completions.create(
                 model="sonar-pro",
@@ -1283,7 +1349,8 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
                     # [{"role": "system", "content": model_role + additional_model_role}] +
                     [{"role": "system", "content": model_role}] +
                     [
-                    {"role": m["role"], "content": m["content"] + additional_model_role}
+                    {"role": m["role"], "content": m["content"] + additional_model_role + math_instruction if m["role"] == "user" else m["content"]}
+                    # {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages
                     ],
                 temperature=temp,
@@ -1402,7 +1469,7 @@ def process_prompt(
         elif model_name == "nvidia-llama-3.1-nemotron-70b-instruct":
             responses = nvidia(prompt1, model_role, temperature, top_p, int(max_token))
             # responses = together_nvidia(prompt1, model_role, temperature, top_p, int(max_token))
-        elif model_name == "Qwen2.5-Max":
+        elif model_name == "Qwen3-235b-a22b":
             responses = openrouter_qwen(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "DeepSeek-R1":
             responses = together_deepseek(prompt1, model_role, temperature, top_p, int(max_token))
@@ -1689,7 +1756,7 @@ model_name = st.sidebar.radio(
                                     "DeepSeek-R1",
                                     "perplexity-sonar-pro",
                                     "nvidia-llama-3.1-nemotron-70b-instruct",
-                                    "Qwen2.5-Max"
+                                    "Qwen3-235b-a22b"
                                  ),
                                 index=type_index,
                                 key="type1"

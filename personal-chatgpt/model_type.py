@@ -82,8 +82,9 @@ def Load_the_last_saved_model_type(conn) -> None:
                     result = ("gpt-4.1-2025-04-14", )
                 if result[0] in ("mistral-large-latest", ):
                     result = ("pixtral-large-latest", )
-                if result[0] in ("Qwen2.5-Coder-32B-Instruct", ):
-                    result = ("Qwen2.5-Max", )
+                if result[0] in ("Qwen2.5-Coder-32B-Instruct",
+                                 "Qwen2.5-Max"):
+                    result = ("Qwen3-235b-a22b", )
                 st.session_state.type = result[0]
             else:
                 st.session_state.type = None
@@ -120,7 +121,7 @@ def return_type_index(type1: str) -> int:
         "DeepSeek-R1": 7,
         "perplexity-sonar-pro": 8,
         "nvidia-llama-3.1-nemotron-70b-instruct": 9,
-        "Qwen2.5-Max": 10
+        "Qwen3-235b-a22b": 10
     }
     if type1 not in type_dic:
         raise KeyError(f"Type '{type1}' not found in the type dictionary.")
