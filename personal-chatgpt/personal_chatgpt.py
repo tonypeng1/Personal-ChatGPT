@@ -613,7 +613,7 @@ def gemini(
                 full_response += response.text
                 message_placeholder.markdown(full_response + "▌")
 
-                citations = "\n\n#### SOURCES:\n"
+                citations = "\n\n##### SOURCES:\n"
                 citation_title_list = []
 
                 # Access titles and URIs from grounding chunks
@@ -634,7 +634,7 @@ def gemini(
             if citation_title_list:
                 full_response += citations
             else:
-                full_response += "\n\n#### No sources found."
+                full_response += "\n\n##### No sources found."
 
             message_placeholder.markdown(full_response)
 
@@ -915,7 +915,7 @@ def claude(
                 max_tokens=max_tok,
                 ) as stream:
 
-                citations = "\n\n#### SOURCES:\n"
+                citations = "\n\n##### SOURCES:\n"
                 citation_title_list = []
 
                 for response in stream:
@@ -929,7 +929,7 @@ def claude(
                         message_placeholder.markdown(full_response + "▌")
 
             if citation_title_list == []:
-                citations += "\n\n#### No sources found."
+                citations += "\n\n##### No sources found."
             full_response += citations
 
             message_placeholder.markdown(full_response)
@@ -1379,7 +1379,11 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
         "2. Full Citation (e.g., author, title, publication, date) for academic online sources \n"
         "----------\n"
         "Example Citation & Source Listing: [Response Content Here...] \n"
-        "Sources: List each citation in your answer, EACH IN A NEW LINE using the format: \n"
+        "List each citation in your answer, EACH IN A NEW LINE using the format: \n"
+        "##### SOURCES: "
+        # "* [1] [{Example Title of Source}]({https://example.com/resource}) \n"
+        # )
+        # "Sources: List each citation in your answer, EACH IN A NEW LINE using the format: \n"
         "* [1] 'Example Title of Source' https://example.com/resource \n"
         "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://example.com/publication \n"
         )
