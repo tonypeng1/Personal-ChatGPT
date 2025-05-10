@@ -625,8 +625,8 @@ def gemini(
                                     if hasattr(chunk, 'web') and chunk.web:
                                         title = chunk.web.title
                                         uri = chunk.web.uri
-                                        print(f"Title: {title}")
-                                        print(f"URI: {uri}")
+                                        # print(f"Title: {title}")
+                                        # print(f"URI: {uri}")
                                         if title not in citation_title_list:
                                             citation_title_list.append(title)
                                             citations += f"* [{title}]({uri})\n"
@@ -1408,7 +1408,7 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
                 max_tokens=max_tok,
                 stream=True,
                 ):
-                print(f"\n\n{response}")
+                # print(f"\n\n{response}")
                 full_response += response.choices[0].delta.content or ""
                 message_placeholder.markdown(full_response + "▌")
             message_placeholder.markdown(full_response)
