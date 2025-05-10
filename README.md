@@ -5,10 +5,30 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
+Version 2.8 of this APP has made the following four changes:
+- Upgrade the thinking model `gemini-2.5-pro-preview-03-25` to `gemini-2.5-pro-preview-05-06`, which marks best-in-class frontend web developmenta and major leap in video understanding with knowledge cutoff in January 2025 ahd a context window of 1M tokens.
+- Add the web search tool to the model `claude-3-7-sonnet-20250219`, which gives Claude direct access to real-time web content, allowing it to answer questions with up-to-date information.
+- Improve web-search result citation of the model `gemini-2.0-flash` by directly extracting the URLs and titles from model response rather than relying on prompt engineering. Same practice is used in the newly added search tool of the model `claude-3-7-sonnet-20250219`.
+- Improve the rendering of mathematical expressions in the model `gpt-4.1-2025-04-14`.
+
+At present, this APP has four models that support web-search result citations:
+
+1. `gpt-4.1-2025-04-14`
+2. `claude-3-7-sonnet-20250219`
+3. `gemini-2.0-flash`
+4. `perplexity-sonar-pro`
+
 Version 2.7 of this APP has made the following three changes:
 - Improve the rendering of mathematical expressions for all models in chat messages and in saved .HTML files.
 - Improve the rendering of nested lists in saved .HTML files.
 - Upgrade the model `Qwen2.5-Max` to `Qwen3-235b-a22b`, which supports prompt-driven seamless switching between thinking mode (for complex logical reasoning, math, and coding) and non-thinking mode (for efficient, general-purpose dialogue) within a single model. For maximum control, use explicit prompting patterns rather than relying on automatic mode switching.
+- Improve the mathmatical 
+
+At present, this APP has three models that support web-search result citations:
+
+1. `gpt-4o-2024-11-20`
+2. `gemini-2.0-flash`
+3. `perplexity-sonar-pro`
 
 Version 2.6 of this APP has made the following two changes:
 - Upgrade the model `gpt-4o-2024-11-20` to `gpt-4.1-2025-04-14`,which makes significant advancements in coding, instruction following, and long-context processing with a 1-million-token context window.
@@ -158,18 +178,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 2.7 of this APP, and install the project,
+To create a Python virtual environment, check out version 2.8 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v2.7
+git checkout v2.8
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:2.7 .
+docker build -t streamlit-mysql:2.8 .
 docker compose up
 ```
 ## Medium Article

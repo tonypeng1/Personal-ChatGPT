@@ -543,29 +543,30 @@ def gemini(
         message_placeholder = st.empty()
         full_response = ""
 
-        # additional_model_role = ""
+        additional_model_role = ""
         # additional_model_role = "Provide INLINE citations from the search results in a format that includes CLICKABLE URLs."
 
-        additional_model_role = (
-        "\n\n----------\n"
-        "IF YOU HAVE DONE a GOOGLE SEARCH, you MUST cite the sources from your search in the format described below. \n"
-        "On the other hand, IF YOU HAVE NOT DONE SEARCH QUERIES, There is NO NEED to list sources. \n"
-        # "Academic Integrity & Transparency: \n"
-        "----------\n"
-        # "CITATIONS: \n"
-        "When referencing the sources from your serach results, use NUMERIC CITATIONS in the format [1], [2], etc., within your answer."
+        # additional_model_role = (
+        # "\n\n----------\n"
+        # "IF YOU HAVE DONE a GOOGLE SEARCH, you MUST cite the sources from your search in the format described below. \n"
+        # "On the other hand, IF YOU HAVE NOT DONE SEARCH QUERIES, There is NO NEED to list sources. \n"
+        # # "Academic Integrity & Transparency: \n"
         # "----------\n"
-        # "SOURCE LISTING: \n"
-        "Always conclude your response with a BULLET POINT LIST of cited sources, including: \n"
-        "1 Title of a source \n" 
-        "2. URL ONLY FROM an online source with a VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
-        "----------\n"
-        # "Example Citation & Source Listing: [Response Content Here...] \n"
-        "Example Citation & Source Listing: (EACH SOURCE ON A NEW LINE)\n"
-        "SOURCES:" 
-        "[1] 'Example Title of Source', https://vertexaisearch.cloud.google.com/grounding-api-redirect/... \n"
-        "[2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://vertexaisearch.cloud.google.com/grounding-api-redirect/... \n"
-        )
+        # # "CITATIONS: \n"
+        # "When referencing the sources from your serach results, use NUMERIC CITATIONS in the format [1], [2], etc., within your answer."
+        # # "----------\n"
+        # # "SOURCE LISTING: \n"
+        # "Always conclude your response with a BULLET POINT LIST of cited sources, including: \n"
+        # "1 Title of a source \n" 
+        # "2. URL ONLY FROM an online source with a VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
+        # "----------\n"
+        # # "Example Citation & Source Listing: [Response Content Here...] \n"
+        # "Example Citation & Source Listing: (EACH SOURCE ON A NEW LINE)\n"
+        # "SOURCES:" 
+        # # '[1] f"* [{Example Title of Source}]({URL})"\n'
+        # "[1] 'Example Title of Source', https://vertexaisearch.cloud.google.com/grounding-api-redirect/... \n"
+        # "[2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://vertexaisearch.cloud.google.com/grounding-api-redirect/... \n"
+        # )
 
         math_instruction = (
         "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
@@ -611,6 +612,29 @@ def gemini(
                 ):
                 full_response += response.text
                 message_placeholder.markdown(full_response + "▌")
+
+                citations = "\n\n#### SOURCES:\n"
+                citation_title_list = []
+
+                # Access titles and URIs from grounding chunks
+                if hasattr(response, 'candidates') and response.candidates:
+                    for candidate in response.candidates:
+                        if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
+                            if hasattr(candidate.grounding_metadata, 'grounding_chunks') and candidate.grounding_metadata.grounding_chunks:
+                                for chunk in candidate.grounding_metadata.grounding_chunks:
+                                    if hasattr(chunk, 'web') and chunk.web:
+                                        title = chunk.web.title
+                                        uri = chunk.web.uri
+                                        print(f"Title: {title}")
+                                        print(f"URI: {uri}")
+                                        if title not in citation_title_list:
+                                            citation_title_list.append(title)
+                                            citations += f"* [{title}]({uri})\n"
+
+            if citation_title_list:
+                full_response += citations
+            else:
+                full_response += "\n\n#### No sources found."
 
             message_placeholder.markdown(full_response)
 
@@ -878,15 +902,36 @@ def claude(
         try:
             with claude_client.messages.stream(
                 model=claude_model,
+                # system=model_role + math_instruction + additional_model_role,
                 system=model_role + math_instruction,
                 messages=context_list,
+                tools=[{
+                    "type": "web_search_20250305",
+                    "name": "web_search",
+                    "max_uses": 5
+                    }],
                 temperature=temp,
                 top_p=p,
                 max_tokens=max_tok,
                 ) as stream:
-                for response in stream.text_stream:
-                    full_response += response
-                    message_placeholder.markdown(full_response + "▌")
+
+                citations = "\n\n#### SOURCES:\n"
+                citation_title_list = []
+
+                for response in stream:
+                    if hasattr(response, 'type'):
+                        if response.type == 'text':
+                            full_response += response.text
+                        elif response.type == 'citation':
+                             if response.citation.title not in citation_title_list:
+                                citation_title_list.append(response.citation.title)
+                                citations += f"* [{response.citation.title}]({response.citation.url})\n"
+                        message_placeholder.markdown(full_response + "▌")
+
+            if citation_title_list == []:
+                citations += "\n\n#### No sources found."
+            full_response += citations
+
             message_placeholder.markdown(full_response)
 
         except Exception as e:
@@ -1312,45 +1357,49 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
         # additional_model_role = ""
         # additional_model_role = "Provide the relevant information from the search results in a format that includes the source titles and URLs in a LIST AT THE END OF YOUR ANSWER."
         
-        additional_model_role = (
-        "\n\n----------\n"
-        "If you use search, provide INLINE citations from the search results in the format of hyperlink.\n"
-        "----------\n"
-        "EXAMPLE: \n"
-        "[Google](https://www.google.com)"
-        )
+        # additional_model_role = (
+        # "\n\n----------\n"
+        # "If you use search, provide INLINE citations from the search results in the format of hyperlink.\n"
+        # "----------\n"
+        # "EXAMPLE: \n"
+        # "[Google](https://www.google.com)"
+        # )
         
         # additional_model_role = "Provide inline citations for the relevant information from the search results."
         
-        # additional_model_role = (
-        # "Academic Integrity & Transparency: \n"
-        # "CITATIONS: \n"
-        # "When referencing external sources, use NUMERIC CITATIONS in the format [1], [2], etc., within your answer."
-        # "----------\n"
-        # "SOURCE LISTING: \n"
-        # "ALWAYS CONCLUDE your response with a BULLET POINT LIST of cited sources, including: \n"
-        # "1. URLs for online resources \n"
-        # "2. Full Citation (e.g., author, title, publication, date) for academic online sources \n"
-        # "----------\n"
-        # "Example Citation & Source Listing: [Response Content Here...] \n"
-        # "Sources: List each citation in your answer, EACH IN A NEW LINE using the format: \n"
-        # "* [1] 'Example Title of Source' https://example.com/resource \n"
-        # "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://example.com/publication \n"
-        # )
+        additional_model_role = (
+        "\n\n----------\n"
+        "Academic Integrity & Transparency: \n"
+        "CITATIONS: \n"
+        "When referencing external sources, use NUMERIC CITATIONS in the format [1], [2], etc., within your answer."
+        "----------\n"
+        "SOURCE LISTING: \n"
+        "ALWAYS CONCLUDE your response with a BULLET POINT LIST of cited sources, including: \n"
+        "1. URLs for online resources \n"
+        "2. Full Citation (e.g., author, title, publication, date) for academic online sources \n"
+        "----------\n"
+        "Example Citation & Source Listing: [Response Content Here...] \n"
+        "Sources: List each citation in your answer, EACH IN A NEW LINE using the format: \n"
+        "* [1] 'Example Title of Source' https://example.com/resource \n"
+        "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://example.com/publication \n"
+        )
 
         math_instruction = (
         "\n\n----------\n"
-        "Output math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
+        "Mathematical Formatting: \n"
+        "ALWAYS output math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
         )
 
         try:
             for response in perplexity_client.chat.completions.create(
                 model="sonar-pro",
                 messages=
+                    # [{"role": "system", "content": model_role + math_instruction}] +
                     # [{"role": "system", "content": model_role + additional_model_role}] +
                     [{"role": "system", "content": model_role}] +
                     [
                     {"role": m["role"], "content": m["content"] + additional_model_role + math_instruction if m["role"] == "user" else m["content"]}
+                    # {"role": m["role"], "content": m["content"] + math_instruction if m["role"] == "user" else m["content"]}
                     # {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages
                     ],
@@ -1359,6 +1408,7 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
                 max_tokens=max_tok,
                 stream=True,
                 ):
+                print(f"\n\n{response}")
                 full_response += response.choices[0].delta.content or ""
                 message_placeholder.markdown(full_response + "▌")
             message_placeholder.markdown(full_response)
@@ -1461,7 +1511,7 @@ def process_prompt(
             responses = claude_3_7_thinking(prompt1, model_role, _image_file_path)
         elif model_name == "gemini-2.0-flash":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "gemini-2.5-pro-preview-03-25":
+        elif model_name == "gemini-2.5-pro-preview-05-06":
             responses = gemini_thinking(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "pixtral-large-latest":
             responses = mistral(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
@@ -1589,7 +1639,7 @@ client_thinking = genai.Client(
     api_key=GOOGLE_API_KEY,
     http_options={'api_version':'v1alpha'},
     )
-model_id_thinking = "gemini-2.5-pro-preview-03-25"
+model_id_thinking = "gemini-2.5-pro-preview-05-06"
 # model_id_thinking = "gemini-2.0-flash-thinking-exp-01-21"
 
 # genai.configure(api_key=GOOGLE_API_KEY)
@@ -1753,7 +1803,7 @@ model_name = st.sidebar.radio(
                                     "claude-3-7-sonnet-20250219-thinking",
                                     "pixtral-large-latest",
                                     "gemini-2.0-flash",
-                                    "gemini-2.5-pro-preview-03-25",
+                                    "gemini-2.5-pro-preview-05-06",
                                     "DeepSeek-R1",
                                     "perplexity-sonar-pro",
                                     "nvidia-llama-3.1-nemotron-70b-instruct",

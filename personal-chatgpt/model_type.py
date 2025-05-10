@@ -69,8 +69,9 @@ def Load_the_last_saved_model_type(conn) -> None:
                     result = ("gemini-2.0-flash", )
                 if result[0] in ("gemini-2.0-flash-thinking-exp", 
                                  "gemini-2.0-flash-thinking-exp-01-21",
+                                 "gemini-2.5-pro-preview-03-25"
                                  ):
-                    result = ("gemini-2.5-pro-preview-03-25", )
+                    result = ("gemini-2.5-pro-preview-05-06", )
                 if result[0] in ("claude-3-opus-20240229", 
                                  "claude-3-5-sonnet-20240620",
                                  "claude-3-5-sonnet-20241022"):
@@ -117,7 +118,7 @@ def return_type_index(type1: str) -> int:
         "claude-3-7-sonnet-20250219-thinking": 3, 
         "pixtral-large-latest": 4,
         "gemini-2.0-flash":5,
-        "gemini-2.5-pro-preview-03-25":6,
+        "gemini-2.5-pro-preview-05-06":6,
         "DeepSeek-R1": 7,
         "perplexity-sonar-pro": 8,
         "nvidia-llama-3.1-nemotron-70b-instruct": 9,
