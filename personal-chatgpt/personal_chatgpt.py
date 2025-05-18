@@ -67,6 +67,16 @@ from search_message import delete_all_rows_in_message_serach, \
                         search_full_text_and_save_to_message_search_table
 from session_summary import get_session_summary_and_save_to_session_table
 
+# # Inject custom CSS for spinner color
+# st.markdown("""
+#     <style>
+#     /* Change spinner color */
+#     .stSpinner > div > div {
+#         border-top-color: #1e90ff !important;  /* Change this to your desired color */
+#         border-right-color: #1e90ff !important;
+#     }
+#     </style>
+#     """, unsafe_allow_html=True)
 
 def start_session_save_to_mysql_and_increment_session_id(conn):
     """
@@ -305,10 +315,10 @@ def openrouter_o3_mini(
         thinking_text = "Reasoning.... Please wait...."
         displayed_text = f"""
         <div style="color: green; font-style: italic;">
-        {thinking_text}
+        <b>{thinking_text}</b>
         </div>
         """
-        # # <div style="background-color: lightyellow; color: green; font-weight: bold; padding: 5px; border-radius: 5px;">
+        # <div style="background-color: lightyellow; color: green; font-weight: bold; padding: 5px; border-radius: 5px;">
         st.markdown(displayed_text, unsafe_allow_html=True)
 
         message_placeholder = st.empty()
@@ -363,17 +373,18 @@ def openrouter_o3_mini(
         input_list = system_list + context_list
 
         try:
-            for response in openrouter_client.chat.completions.create(
-                model="openai/o3-mini-high",
-                messages=input_list,
-                temperature=temp,
-                top_p=p,
-                max_tokens=max_tok,
-                stream=True,
-                ):
-                full_response += response.choices[0].delta.content or ""
-                message_placeholder.markdown(full_response + "▌")
-            message_placeholder.markdown(full_response)
+            with st.spinner(""):
+                for response in openrouter_client.chat.completions.create(
+                    model="openai/o3-mini-high",
+                    messages=input_list,
+                    temperature=temp,
+                    top_p=p,
+                    max_tokens=max_tok,
+                    stream=True,
+                    ):
+                    full_response += response.choices[0].delta.content or ""
+                    message_placeholder.markdown(full_response + "▌")
+                message_placeholder.markdown(full_response)
 
         except OpenAIError as e:
             error_response = f"An error occurred with OpenAI in getting chat response: {e}"
@@ -679,7 +690,7 @@ def gemini_thinking(
         thinking_text = "Reasoning.... Please wait...."
         displayed_text = f"""
         <div style="color: green; font-style: italic;">
-        {thinking_text}
+        <b>{thinking_text}</b>
         </div>
         """
         st.markdown(displayed_text, unsafe_allow_html=True)
@@ -717,23 +728,24 @@ def gemini_thinking(
         input_list = system_list + context_list
 
         try:
-            for response in  client_thinking.models.generate_content_stream(
-                contents=input_list,
-                model=model_id_thinking,
-                config=GenerateContentConfig(
-                    temperature=temp,
-                    top_p=p,
-                    max_output_tokens=max_tok,
-                    response_modalities=["TEXT"],
-                    ),
-                ):
-                for part in response.candidates[0].content.parts:
-                    if part.thought == True:  # Catching the thoughts
-                        full_response += part.text
-                    else:
-                        full_response += part.text
-                message_placeholder.markdown(full_response + "▌")
-            message_placeholder.markdown(full_response)
+            with st.spinner(""):
+                for response in  client_thinking.models.generate_content_stream(
+                    contents=input_list,
+                    model=model_id_thinking,
+                    config=GenerateContentConfig(
+                        temperature=temp,
+                        top_p=p,
+                        max_output_tokens=max_tok,
+                        response_modalities=["TEXT"],
+                        ),
+                    ):
+                    for part in response.candidates[0].content.parts:
+                        if part.thought == True:  # Catching the thoughts
+                            full_response += part.text
+                        else:
+                            full_response += part.text
+                    message_placeholder.markdown(full_response + "▌")
+                message_placeholder.markdown(full_response)
 
         except Exception as e:
             error_response = f"An unexpected error occurred in gemini API call: {e}"
@@ -977,7 +989,7 @@ def claude_3_7_thinking(
         thinking_text = "Thinking.... Please wait...."
         displayed_text = f"""
         <div style="color: green; font-style: italic;">
-        {thinking_text}
+        <b>{thinking_text}</b>
         </div>
         """
         # # <div style="background-color: lightyellow; color: green; font-weight: bold; padding: 5px; border-radius: 5px;">
@@ -1025,63 +1037,64 @@ def claude_3_7_thinking(
         )
 
         try:
-            response = claude_client.messages.create(
-            model=claude_model,
-            system=model_role + math_instruction,
-            max_tokens=20000,
-            thinking={
-                "type": "enabled",
-                "budget_tokens": 16000
-            },
-            messages=messages,
-            )
+            with st.spinner(""):
+                response = claude_client.messages.create(
+                model=claude_model,
+                system=model_role + math_instruction,
+                max_tokens=20000,
+                thinking={
+                    "type": "enabled",
+                    "budget_tokens": 16000
+                },
+                messages=messages,
+                )
 
-            # Extract thinking and text from a Claude API response.
-            thinking = None  # This initialization is actually useful for the function
-            answer = None      # to handle cases where blocks might be missing
+                # Extract thinking and text from a Claude API response.
+                thinking = None  # This initialization is actually useful for the function
+                answer = None      # to handle cases where blocks might be missing
 
-            # Loop through content blocks to find thinking and text
-            for block in response.content:
-                if hasattr(block, 'type'):
-                    if block.type == 'thinking':
-                        thinking = block.thinking
-                    elif block.type == 'text':
-                        answer = block.text
+                # Loop through content blocks to find thinking and text
+                for block in response.content:
+                    if hasattr(block, 'type'):
+                        if block.type == 'thinking':
+                            thinking = block.thinking
+                        elif block.type == 'text':
+                            answer = block.text
 
-            full_response = f"========== THINKING ==========\n\n{thinking}\n\n========== ANSWER ==========\n\n{answer}"
+                full_response = f"========== THINKING ==========\n\n{thinking}\n\n========== ANSWER ==========\n\n{answer}"
 
-            # with claude_client.messages.stream(
-            #     model=claude_model,
-            #     system=model_role,
-            #     max_tokens=20000,
-            #     thinking={
-            #         "type": "enabled",
-            #         "budget_tokens": 16000
-            #     },
-            #     messages=messages,
-            #     ) as stream:
+                # with claude_client.messages.stream(
+                #     model=claude_model,
+                #     system=model_role,
+                #     max_tokens=20000,
+                #     thinking={
+                #         "type": "enabled",
+                #         "budget_tokens": 16000
+                #     },
+                #     messages=messages,
+                #     ) as stream:
 
-                
-            #     for event in stream.text_stream:
-            #         # if event.type == "content_block_start":
-            #         #     full_response += f"\nStarting {event.content_block.type} block..."
-            #         # elif event.type == "content_block_delta":
-            #         #     if event.delta.type == "thinking_delta":
-            #         #         full_response += f"Thinking: {event.delta.thinking}"
-            #         #     elif event.delta.type == "text_delta":
-            #         #         full_response += f"Response: {event.delta.text}"
-            #         # elif event.type == "content_block_stop":
-            #         #     full_response += "\nBlock complete."
-            #         # elif event.type == "error":
-            #         #     full_response += f"Error: {event.error}"
-            #         # elif event.type == "complete":
-            #         #     full_response += "\nStream complete."
-            #         # else:
-            #         #     full_response += "\nBlock complete."
-            #         full_response += event
-            #         message_placeholder.markdown(full_response + "▌")
+                    
+                #     for event in stream.text_stream:
+                #         # if event.type == "content_block_start":
+                #         #     full_response += f"\nStarting {event.content_block.type} block..."
+                #         # elif event.type == "content_block_delta":
+                #         #     if event.delta.type == "thinking_delta":
+                #         #         full_response += f"Thinking: {event.delta.thinking}"
+                #         #     elif event.delta.type == "text_delta":
+                #         #         full_response += f"Response: {event.delta.text}"
+                #         # elif event.type == "content_block_stop":
+                #         #     full_response += "\nBlock complete."
+                #         # elif event.type == "error":
+                #         #     full_response += f"Error: {event.error}"
+                #         # elif event.type == "complete":
+                #         #     full_response += "\nStream complete."
+                #         # else:
+                #         #     full_response += "\nBlock complete."
+                #         full_response += event
+                #         message_placeholder.markdown(full_response + "▌")
 
-            message_placeholder.markdown(full_response)
+                message_placeholder.markdown(full_response)
 
         # try:
         #     with claude_client.messages.stream(
