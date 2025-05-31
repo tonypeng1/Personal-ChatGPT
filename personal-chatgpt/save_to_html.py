@@ -106,10 +106,10 @@ def _indent_content(content: str, code_block_indent: str) -> str:
     Returns:
         The indented content as a string.
     """
-    if content is not None:
-        lines = content.split('\n')
-        indented_lines = []
-        in_code_block = False  # Flag to track whether we're inside a code block
+    # if content is not None:
+    #     lines = content.split('\n')
+    #     indented_lines = []
+    #     in_code_block = False  # Flag to track whether we're inside a code block
 
     #     for line in lines:
     #         if line.strip().startswith('```'):
@@ -198,7 +198,9 @@ def markdown_to_html(md_content: str) -> str:
             'fenced_code',
             'codehilite',
             'extra',
-            'mdx_math'
+            'mdx_math',
+            'sane_lists',
+            'nl2br',
         ],
         extension_configs={
             'mdx_math': {
