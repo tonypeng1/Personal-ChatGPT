@@ -5,7 +5,14 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
+Version 2.9 of this APP has made the following four changes:
+- Upgrade the Claude model `claude-3-7-sonnet-20250219` to `claude-sonnet-4-20250514`, which is a significant upgrade to Claude Sonnet 3.7. It delivers superior coding while responding more precisely to your instructions.
+- Upgrade the Claude thinking model `claude-3-7-sonnet-20250219-thinking` to `claude-sonnet-4-20250514-thinking`, which returns a summary of Claude’s full thinking process and leverages a more sophisticated reasoning strategy.
+- Upgrade the Deepseek reasoning model to `DeepSeek-R1-0528`, which improves benchmark performance with enhanced front-end capabilities and reduced hallucinations.
+- Add a spinner when waiting for the response of a thinking model and further improve nested outpur in a .HTML file.
+
 Version 2.8 of this APP has made the following four changes:
+
 - Upgrade the thinking model `gemini-2.5-pro-preview-03-25` to `gemini-2.5-pro-preview-05-06`, which marks best-in-class frontend web developmenta and major leap in video understanding with knowledge cutoff in January 2025 ahd a context window of 1M tokens.
 - Add the web search tool to the model `claude-3-7-sonnet-20250219`, which gives Claude direct access to real-time web content, allowing it to answer questions with up-to-date information.
 - Improve web-search result citation of the model `gemini-2.0-flash` by directly extracting the URLs and titles from model response rather than relying on prompt engineering. Same practice is used in the newly added search tool of the model `claude-3-7-sonnet-20250219`.
@@ -178,18 +185,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 2.8 of this APP, and install the project,
+To create a Python virtual environment, check out version 2.9 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v2.8
+git checkout v2.9
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:2.8 .
+docker build -t streamlit-mysql:2.9 .
 docker compose up
 ```
 ## Medium Article

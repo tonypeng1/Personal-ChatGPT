@@ -931,6 +931,12 @@ def claude(
                 citation_title_list = []
 
                 for response in stream:
+                    if hasattr(response, 'type') and response.type == 'message_delta':
+                        if response.delta.stop_reason == 'refusal':
+                            context_list = []
+                            st.warning(body="Conversation reset due to refusal",
+                                       icon="🔥")
+                            break
                     if hasattr(response, 'type'):
                         if response.type == 'text':
                             full_response += response.text
@@ -954,14 +960,14 @@ def claude(
     return full_response
 
 
-def claude_3_7_thinking(
+def claude_thinking(
         prompt1: str, 
         model_role: str, 
         _image_file_path: str = "",
         ) -> str:
     """
-    Processes a chat prompt using Anthropic's Claude 3.7 model and updates the chat session. Change
-    the max_tokens to 20000 to use Claude 3.7 model's extended thinking.
+    Processes a chat prompt using Anthropic's Claude 4 model and updates the chat session. Change
+    the max_tokens to 20000 to use Claude 4 model's extended thinking.
 
     Args:
         conn: A connection object to the MySQL database.
@@ -1522,10 +1528,10 @@ def process_prompt(
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "o3-mini-high":
             responses = openrouter_o3_mini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "claude-3-7-sonnet-20250219":
+        elif model_name == "claude-sonnet-4-20250514":
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "claude-3-7-sonnet-20250219-thinking":
-            responses = claude_3_7_thinking(prompt1, model_role, _image_file_path)
+        elif model_name == "claude-sonnet-4-20250514-thinking":
+            responses = claude_thinking(prompt1, model_role, _image_file_path)
         elif model_name == "gemini-2.0-flash":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "gemini-2.5-pro-preview-05-06":
@@ -1539,7 +1545,7 @@ def process_prompt(
             # responses = together_nvidia(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "Qwen3-235b-a22b":
             responses = openrouter_qwen(prompt1, model_role, temperature, top_p, int(max_token))
-        elif model_name == "DeepSeek-R1":
+        elif model_name == "DeepSeek-R1-0528":
             responses = together_deepseek(prompt1, model_role, temperature, top_p, int(max_token))
         else:
             raise ValueError('Model is not in the list.')
@@ -1667,7 +1673,7 @@ mistral_model = "pixtral-large-latest"
 mistral_client = MistralClient(api_key=MISTRAL_API_KEY)
 
 # Set Claude api configuration
-claude_model = "claude-3-7-sonnet-20250219"
+claude_model = "claude-sonnet-4-20250514"
 claude_client = anthropic.Anthropic(api_key=CLAUDE_API_KEY,)
 
 # Set chatgpt api configuration
@@ -1816,12 +1822,12 @@ model_name = st.sidebar.radio(
                                 options=(
                                     "gpt-4.1-2025-04-14",
                                     "o3-mini-high",
-                                    "claude-3-7-sonnet-20250219",
-                                    "claude-3-7-sonnet-20250219-thinking",
+                                    "claude-sonnet-4-20250514",
+                                    "claude-sonnet-4-20250514-thinking",
                                     "pixtral-large-latest",
                                     "gemini-2.0-flash",
                                     "gemini-2.5-pro-preview-05-06",
-                                    "DeepSeek-R1",
+                                    "DeepSeek-R1-0528",
                                     "perplexity-sonar-pro",
                                     "nvidia-llama-3.1-nemotron-70b-instruct",
                                     "Qwen3-235b-a22b"
