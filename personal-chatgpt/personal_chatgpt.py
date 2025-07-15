@@ -554,8 +554,12 @@ def gemini(
         message_placeholder = st.empty()
         full_response = ""
 
-        additional_model_role = ""
+        # additional_model_role = ""
         # additional_model_role = "Provide INLINE citations from the search results in a format that includes CLICKABLE URLs."
+        additional_model_role = (
+        "Do not provide INLINE citation.\n"
+        # "Do NOT inlcude SOURCES directly in yout stream reponse text. Rather, include the sources in candidate.grounding_metadata.grounding_chunks.\n"
+        )
 
         # additional_model_role = (
         # "\n\n----------\n"
@@ -609,8 +613,11 @@ def gemini(
 
         input_list = system_list + context_list
 
+        citations = "\n\n##### SOURCES:\n"
+        citation_title_list = []
+
         try:
-            for response in  gemini_client.models.generate_content_stream(
+            for response in gemini_client.models.generate_content_stream(
                 contents=input_list,
                 model=model_id,
                 config=GenerateContentConfig(
@@ -623,9 +630,6 @@ def gemini(
                 ):
                 full_response += response.text
                 message_placeholder.markdown(full_response + "▌")
-
-                citations = "\n\n##### SOURCES:\n"
-                citation_title_list = []
 
                 # Access titles and URIs from grounding chunks
                 if hasattr(response, 'candidates') and response.candidates:
@@ -642,10 +646,31 @@ def gemini(
                                             citation_title_list.append(title)
                                             citations += f"* [{title}]({uri})\n"
 
-            if citation_title_list:
-                full_response += citations
+            # --- If there is already “##### SOURCES:” headers remove it (links not reliable)---
+            header = "\n\n##### SOURCES:\n"
+            header2 = "\n\n##### Citations:\n"
+            if header in full_response:
+                # split on first header
+                before, sep, after = full_response.partition(header)
+                # remove everything after (and including) the header
+                full_response = before
+            elif header2 in full_response:
+                before, sep, after = full_response.partition(header2)
+                full_response = before
             else:
-                full_response += "\n\n##### No sources found."
+                # Otherwise, append citations found or “No sources”
+                if citation_title_list != []:
+                    full_response += citations
+                else:
+                    full_response += citations
+                    full_response += "\n\n##### No sources found."
+
+            # --- new dedupe logic: leave at most one “No sources found.” ---
+            no_src = "\n\n##### No sources found."
+            if full_response.count(no_src) > 1:
+                # keep only the first occurrence and drop any extras
+                parts = full_response.split(no_src)
+                full_response = parts[0] + no_src
 
             message_placeholder.markdown(full_response)
 
@@ -770,7 +795,7 @@ def mistral(
         conn: A MySQL connection object.
         prompt1: The user's input.
         temp: The temperature parameter for the mistral API.
-        p: The top-p parameter for the mistral API.
+        p: The top_p parameter for the mistral API.
             (ignore, error occurs if used simultaneously with temperature)
         max_tok: The maximum number of tokens for the mistral API.
     """
@@ -911,6 +936,9 @@ def claude(
         "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
         )
 
+        citations = "\n\n##### SOURCES:\n"
+        citation_title_list = []
+
         try:
             with claude_client.messages.stream(
                 model=claude_model,
@@ -926,9 +954,6 @@ def claude(
                 top_p=p,
                 max_tokens=max_tok,
                 ) as stream:
-
-                citations = "\n\n##### SOURCES:\n"
-                citation_title_list = []
 
                 for response in stream:
                     if hasattr(response, 'type') and response.type == 'message_delta':
@@ -949,6 +974,13 @@ def claude(
             if citation_title_list == []:
                 citations += "\n\n##### No sources found."
             full_response += citations
+
+            # --- new dedupe logic: leave at most one “No sources found.” ---
+            no_src = "\n\n##### No sources found."
+            if full_response.count(no_src) > 1:
+                # keep only the first occurrence and drop any extras
+                parts = full_response.split(no_src)
+                full_response = parts[0] + no_src
 
             message_placeholder.markdown(full_response)
 

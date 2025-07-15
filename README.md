@@ -5,6 +5,8 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
+Version 2.9.1 of this APP improves source citation in `gemini-2.0-flash` and `claude-sonnet-4-20250514` models.
+
 Version 2.9 of this APP has made the following four changes:
 - Upgrade the Claude model `claude-3-7-sonnet-20250219` to `claude-sonnet-4-20250514`, which is a significant upgrade to Claude Sonnet 3.7. It delivers superior coding while responding more precisely to your instructions.
 - Upgrade the Claude thinking model `claude-3-7-sonnet-20250219-thinking` to `claude-sonnet-4-20250514-thinking`, which returns a summary of Claude’s full thinking process and leverages a more sophisticated reasoning strategy.
@@ -185,18 +187,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 2.9 of this APP, and install the project,
+To create a Python virtual environment, check out version 2.9.1 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v2.9
+git checkout v2.9.1
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:2.9 .
+docker build -t streamlit-mysql:2.9.1 .
 docker compose up
 ```
 ## Medium Article
