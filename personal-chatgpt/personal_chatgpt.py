@@ -2208,7 +2208,7 @@ st.markdown("""
   position: absolute;
   top: -25px;
   right: 0;
-  background-color: #000;
+  background-color: #888;
   color: white;
   padding: 4px 8px;
   border-radius: 4px;
