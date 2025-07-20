@@ -67,16 +67,6 @@ from search_message import delete_all_rows_in_message_serach, \
                         search_full_text_and_save_to_message_search_table
 from session_summary import get_session_summary_and_save_to_session_table
 
-# # Inject custom CSS for spinner color
-# st.markdown("""
-#     <style>
-#     /* Change spinner color */
-#     .stSpinner > div > div {
-#         border-top-color: #1e90ff !important;  /* Change this to your desired color */
-#         border-right-color: #1e90ff !important;
-#     }
-#     </style>
-#     """, unsafe_allow_html=True)
 
 def start_session_save_to_mysql_and_increment_session_id(conn):
     """
@@ -2203,3 +2193,27 @@ if prompt := st.chat_input("What is up?"):
         st.rerun()
 
 connection.close()
+
+# Add custom CSS for copy button feedback in code blocks
+# This CSS will show a "Copied!" message when the copy button is clicked.
+st.markdown("""
+<style>
+/* Style for code block copy buttons */
+.stCodeBlock button[data-testid="stCopyButton"] {
+  position: relative;
+}
+
+.stCodeBlock button[data-testid="stCopyButton"]:active::after {
+  content: 'Copied!';
+  position: absolute;
+  top: -25px;
+  right: 0;
+  background-color: #000;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 8px;
+  white-space: nowrap;
+}
+</style>
+""", unsafe_allow_html=True)
