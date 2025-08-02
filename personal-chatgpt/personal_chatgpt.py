@@ -544,34 +544,9 @@ def gemini(
         message_placeholder = st.empty()
         full_response = ""
 
-        # additional_model_role = ""
-        # additional_model_role = "Provide INLINE citations from the search results in a format that includes CLICKABLE URLs."
         additional_model_role = (
         "Do not provide INLINE citation.\n"
-        # "Do NOT inlcude SOURCES directly in yout stream reponse text. Rather, include the sources in candidate.grounding_metadata.grounding_chunks.\n"
         )
-
-        # additional_model_role = (
-        # "\n\n----------\n"
-        # "IF YOU HAVE DONE a GOOGLE SEARCH, you MUST cite the sources from your search in the format described below. \n"
-        # "On the other hand, IF YOU HAVE NOT DONE SEARCH QUERIES, There is NO NEED to list sources. \n"
-        # # "Academic Integrity & Transparency: \n"
-        # "----------\n"
-        # # "CITATIONS: \n"
-        # "When referencing the sources from your serach results, use NUMERIC CITATIONS in the format [1], [2], etc., within your answer."
-        # # "----------\n"
-        # # "SOURCE LISTING: \n"
-        # "Always conclude your response with a BULLET POINT LIST of cited sources, including: \n"
-        # "1 Title of a source \n" 
-        # "2. URL ONLY FROM an online source with a VALID LINK STARTING WITH https://vertexaisearch.cloud.google.com/grounding-api-redirect/ \n"
-        # "----------\n"
-        # # "Example Citation & Source Listing: [Response Content Here...] \n"
-        # "Example Citation & Source Listing: (EACH SOURCE ON A NEW LINE)\n"
-        # "SOURCES:" 
-        # # '[1] f"* [{Example Title of Source}]({URL})"\n'
-        # "[1] 'Example Title of Source', https://vertexaisearch.cloud.google.com/grounding-api-redirect/... \n"
-        # "[2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://vertexaisearch.cloud.google.com/grounding-api-redirect/... \n"
-        # )
 
         math_instruction = (
         "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
@@ -580,7 +555,6 @@ def gemini(
         system_list = \
                 [{"role": "user",
                 "parts": [{
-                        # "text": model_role + additional_model_role +  "If you understand your role, please response 'I understand.'"
                         "text": model_role +  "If you understand your role, please response 'I understand.'"
                         }]
                 },
@@ -618,7 +592,21 @@ def gemini(
                     response_modalities=["TEXT"],
                     ),
                 ):
-                full_response += response.text
+                # Don't directly access response.text - check response structure first
+                if hasattr(response, 'candidates') and response.candidates:
+                    for candidate in response.candidates:
+                        if hasattr(candidate, 'content') and candidate.content:
+                            for part in candidate.content.parts:
+                                if hasattr(part, 'text') and part.text is not None:
+                                    full_response += part.text
+                                elif hasattr(part, 'executable_code') and part.executable_code is not None:
+                                    # Format code with markdown code block
+                                    code_lang = part.executable_code.language.lower() if hasattr(part.executable_code, 'language') else 'python'
+                                    # full_response += f"\n```{code_lang}\n{part.executable_code.code}\n```\n"
+                # Only access text directly if it exists
+                elif hasattr(response, 'text') and response.text is not None:
+                    full_response += response.text
+                
                 message_placeholder.markdown(full_response + "▌")
 
                 # Access titles and URIs from grounding chunks
@@ -630,13 +618,11 @@ def gemini(
                                     if hasattr(chunk, 'web') and chunk.web:
                                         title = chunk.web.title
                                         uri = chunk.web.uri
-                                        # print(f"Title: {title}")
-                                        # print(f"URI: {uri}")
                                         if title not in citation_title_list:
                                             citation_title_list.append(title)
                                             citations += f"* [{title}]({uri})\n"
 
-            # --- If there is already “##### SOURCES:” headers remove it (links not reliable)---
+            # --- If there is already "##### SOURCES:" headers remove it (links not reliable)---
             header = "\n\n##### SOURCES:\n"
             header2 = "\n\n##### Citations:\n"
             if header in full_response:
@@ -648,14 +634,14 @@ def gemini(
                 before, sep, after = full_response.partition(header2)
                 full_response = before
             else:
-                # Otherwise, append citations found or “No sources”
+                # Otherwise, append citations found or "No sources"
                 if citation_title_list != []:
                     full_response += citations
                 else:
                     full_response += citations
                     full_response += "\n\n##### No sources found."
 
-            # --- new dedupe logic: leave at most one “No sources found.” ---
+            # --- new dedupe logic: leave at most one "No sources found." ---
             no_src = "\n\n##### No sources found."
             if full_response.count(no_src) > 1:
                 # keep only the first occurrence and drop any extras
@@ -1398,16 +1384,6 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
         # additional_model_role = ""
         # additional_model_role = "Provide the relevant information from the search results in a format that includes the source titles and URLs in a LIST AT THE END OF YOUR ANSWER."
         
-        # additional_model_role = (
-        # "\n\n----------\n"
-        # "If you use search, provide INLINE citations from the search results in the format of hyperlink.\n"
-        # "----------\n"
-        # "EXAMPLE: \n"
-        # "[Google](https://www.google.com)"
-        # )
-        
-        # additional_model_role = "Provide inline citations for the relevant information from the search results."
-        
         additional_model_role = (
         "\n\n----------\n"
         "Academic Integrity & Transparency: \n"
@@ -1422,13 +1398,12 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
         "Example Citation & Source Listing: [Response Content Here...] \n"
         "List each citation in your answer, EACH IN A NEW LINE using the format: \n"
         "##### SOURCES: "
-        # "* [1] [{Example Title of Source}]({https://example.com/resource}) \n"
-        # )
-        # "Sources: List each citation in your answer, EACH IN A NEW LINE using the format: \n"
-        "* [1] 'Example Title of Source' https://example.com/resource \n"
-        "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://example.com/publication \n"
+        # "* [1] 'Example Title of Source' https://example.com/resource \n"
+        # "* [2] Doe, J. (2022). Example Title of Publication. Example Publisher. https://example.com/publication \n"
+        "* [1] [Example Title of Source](https://example.com/resource) \n"
+        "* [2] [Doe, J. (2022). Example Title of Publication. Example Publisher](https://example.com/publication) \n"
+        "* [3] [Smith, A. (2023). Another Example Title. Another Publisher](https://example.com/another-publication) \n"
         )
-
         math_instruction = (
         "\n\n----------\n"
         "Mathematical Formatting: \n"
