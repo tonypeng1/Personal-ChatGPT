@@ -3,10 +3,12 @@ import inspect
 import io
 import os
 import re
+import requests
 import pdb
 import PIL.Image
 
 import anthropic
+from bs4 import BeautifulSoup
 from google import genai
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearchRetrieval
 from mistralai.client import MistralClient
@@ -507,6 +509,37 @@ def together_deepseek(prompt1: str, model_role: str, temp: float, p: float, max_
     return full_response
 
 
+def get_real_title(uri):
+    try:
+        # Add a user agent to avoid some simple blocks
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'
+        }
+        resp = requests.get(uri, timeout=5, headers=headers)
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        
+        # Create a list of common error titles to filter out
+        error_titles = [
+            "403 Forbidden", 
+            "Just a moment...",
+            "Attention Required! | Cloudflare",
+            "Access Denied",
+            "Robot Challenge",
+            "Captcha"
+        ]
+        
+        title = soup.title.string.strip() if soup.title else None
+        
+        # If title contains any of the error patterns, return None
+        if title and any(error_text.lower() in title.lower() for error_text in error_titles):
+            return None
+        
+        return title
+    
+    except Exception as e:
+        return None
+
+
 def gemini(
         prompt1: str, 
         model_role: str, 
@@ -614,10 +647,23 @@ def gemini(
                     for candidate in response.candidates:
                         if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
                             if hasattr(candidate.grounding_metadata, 'grounding_chunks') and candidate.grounding_metadata.grounding_chunks:
+                                
+                                # displayed_text = "Extracting web source titles.... Please wait...."
+                                # displayed_text = f"""
+                                # <div style="color: #5f5fd4; font-style: italic;">
+                                # <b>{displayed_text}</b>
+                                # </div>
+                                # """
+                                # st.markdown(displayed_text, unsafe_allow_html=True)
+                                
                                 for chunk in candidate.grounding_metadata.grounding_chunks:
                                     if hasattr(chunk, 'web') and chunk.web:
                                         title = chunk.web.title
                                         uri = chunk.web.uri
+                                        # print(f"Chunk title: {title}")
+                                        real_title = get_real_title(uri)  # Fetch the real title
+                                        # print(f"Real title: {real_title}")
+                                        title = real_title if real_title else title  # Use real title if available, otherwise use the original title
                                         if title not in citation_title_list:
                                             citation_title_list.append(title)
                                             citations += f"* [{title}]({uri})\n"
