@@ -524,8 +524,12 @@ def get_real_title(uri):
             "Just a moment...",
             "Attention Required! | Cloudflare",
             "Access Denied",
+            "Access to this page has been denied"
             "Robot Challenge",
-            "Captcha"
+            "Captcha",
+            "Error 403",
+            "Error 404",
+            "Page Not Found",
         ]
         
         title = soup.title.string.strip() if soup.title else None
