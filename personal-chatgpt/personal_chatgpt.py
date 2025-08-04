@@ -524,7 +524,7 @@ def get_real_title(uri):
             "Just a moment...",
             "Attention Required! | Cloudflare",
             "Access Denied",
-            "Access to this page has been denied"
+            "Access to this page has been denied",
             "Robot Challenge",
             "Captcha",
             "Error 403",
