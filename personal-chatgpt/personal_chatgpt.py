@@ -237,18 +237,18 @@ def chatgpt(
 
                 if hasattr(response, 'delta'):
                     full_response += response.delta or ""
-                    message_placeholder.markdown(full_response + "▌")
+                    message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
 
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except OpenAIError as e:
             error_response = f"An error occurred with OpenAI in getting chat response: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
         except Exception as e:
             error_response = f"An unexpected error occurred in OpenAI API call: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
     return full_response
 
@@ -375,17 +375,17 @@ def openrouter_o3_mini(
                     stream=True,
                     ):
                     full_response += response.choices[0].delta.content or ""
-                    message_placeholder.markdown(full_response + "▌")
-                message_placeholder.markdown(full_response)
+                    message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+                message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except OpenAIError as e:
             error_response = f"An error occurred with OpenAI in getting chat response: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
         except Exception as e:
             error_response = f"An unexpected error occurred in OpenAI API call: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
     return full_response
 
@@ -434,17 +434,17 @@ def nvidia(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
                 # timeout=10,
                 ):
                 full_response += response.choices[0].delta.content or ""
-                message_placeholder.markdown(full_response + "▌")
-            message_placeholder.markdown(full_response)
+                message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except OpenAIError as e:
             error_response = f"An error occurred with Nvidia OpenAI in getting chat response: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
         except Exception as e:
             error_response = f"An unexpected error occurred in Nvidia OpenAI API call: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
     return full_response
 
@@ -494,17 +494,17 @@ def together_deepseek(prompt1: str, model_role: str, temp: float, p: float, max_
                 stream=True,
                 ):
                 full_response += response.choices[0].delta.content or ""
-                message_placeholder.markdown(full_response + "▌")
-            message_placeholder.markdown(full_response)
+                message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except OpenAIError as e:
             error_response = f"An error occurred with Together DeepSeek in getting chat response: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
         except Exception as e:
             error_response = f"An unexpected error occurred in Together DeepSeek OpenAI API call: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
     return full_response
 
@@ -640,7 +640,7 @@ def gemini(
                 elif hasattr(response, 'text') and response.text is not None:
                     full_response += response.text
                 
-                message_placeholder.markdown(full_response + "▌")
+                message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
 
                 # Access titles and URIs from grounding chunks
                 if hasattr(response, 'candidates') and response.candidates:
@@ -694,13 +694,14 @@ def gemini(
                 parts = full_response.split(no_src)
                 full_response = parts[0] + no_src
 
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except Exception as e:
             error_response = f"An unexpected error occurred in gemini API call: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
+    # print(f"Gemini response: {full_response}")
     return full_response
 
 
@@ -791,13 +792,13 @@ def gemini_thinking(
                             full_response += part.text
                         else:
                             full_response += part.text
-                    message_placeholder.markdown(full_response + "▌")
-                message_placeholder.markdown(full_response)
+                    message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+                message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except Exception as e:
             error_response = f"An unexpected error occurred in gemini API call: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
     return full_response
 
@@ -878,13 +879,13 @@ def mistral(
                 ):
                 if response.choices[0].delta.content is not None:
                     full_response += response.choices[0].delta.content
-                    message_placeholder.markdown(full_response + "▌")
-            message_placeholder.markdown(full_response)
+                    message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except Exception as e:
             error_response = f"An unexpected error occurred in Mistral API call: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
     return full_response
 
@@ -991,7 +992,7 @@ def claude(
                              if response.citation.title not in citation_title_list:
                                 citation_title_list.append(response.citation.title)
                                 citations += f"* [{response.citation.title}]({response.citation.url})\n"
-                        message_placeholder.markdown(full_response + "▌")
+                        message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
 
             if citation_title_list == []:
                 citations += "\n\n##### No sources found."
@@ -1004,13 +1005,14 @@ def claude(
                 parts = full_response.split(no_src)
                 full_response = parts[0] + no_src
 
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except Exception as e:
             error_response = f"An unexpected error occurred in Claude 3.5 API call: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
+    # print(f"Claude response: {full_response}")
     return full_response
 
 
@@ -1154,7 +1156,7 @@ def claude_thinking(
                 #         full_response += event
                 #         message_placeholder.markdown(full_response + "▌")
 
-                message_placeholder.markdown(full_response)
+                message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         # try:
         #     with claude_client.messages.stream(
@@ -1174,7 +1176,7 @@ def claude_thinking(
         except Exception as e:
             error_response = f"An unexpected error occurred in Claude 3.7 API call: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
     return full_response
 
@@ -1293,17 +1295,17 @@ def openrouter_qwen(prompt1: str, model_role: str, temp: float, p: float, max_to
                 stream=True,
                 ):
                 full_response += response.choices[0].delta.content or ""
-                message_placeholder.markdown(full_response + "▌")
-            message_placeholder.markdown(full_response)
+                message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except OpenAIError as e:
             error_response = f"An error occurred with OpenrouterAI in getting chat response: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
         except Exception as e:
             error_response = f"An unexpected error occurred in OpenrouterAI API call: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
     return full_response
 
@@ -1476,17 +1478,17 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
                 ):
                 # print(f"\n\n{response}")
                 full_response += response.choices[0].delta.content or ""
-                message_placeholder.markdown(full_response + "▌")
-            message_placeholder.markdown(full_response)
+                message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except OpenAIError as e:
             error_response = f"An error occurred with OpenAI in getting chat response: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
         except Exception as e:
             error_response = f"An unexpected error occurred in OpenAI API call: {e}"
             full_response = error_response
-            message_placeholder.markdown(full_response)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
     return full_response
 
@@ -1682,6 +1684,17 @@ def save_image_to_file(_image_binary):
                 f.write(_image_binary)
         except Exception as e:
             print(f"An error occurred: {e}")
+
+
+def wrap_dollar_amounts(text):
+    """
+    Replace $ with a visually similar Unicode character to prevent MathJax interpretation
+    """
+    if text is None:
+        return ""
+    
+    # Replace $ with a similar looking Unicode character (＄) in currency contexts
+    return re.sub(r'(\$)(\d+(?:\.\d+)?(?:\s?(?:per|each|USD|dollars?)?)?)', r'＄\2', text)
 
 
 # Get app keys
@@ -2037,16 +2050,16 @@ for message in st.session_state.messages:
             if message["image"] != "":
                 image_file = PIL.Image.open(message["image"])
                 st.image(image_file, width=None)
-            st.markdown(message["content"])
+            st.markdown(wrap_dollar_amounts(message["content"]), unsafe_allow_html=True)
 
         else:
             if message["model"] == "":
-                st.markdown(message["content"])
+                st.markdown(wrap_dollar_amounts(message["content"]), unsafe_allow_html=True)
             else:
                 text = message["model"]
                 text = f":blue-background[:blue[**{text}**]]"
                 st.markdown(text)
-                st.markdown(message["content"])
+                st.markdown(wrap_dollar_amounts(message["content"]), unsafe_allow_html=True)
 
 
 # The following code handles dropping a file from the local computer
@@ -2235,6 +2248,25 @@ st.markdown("""
   border-radius: 4px;
   font-size: 8px;
   white-space: nowrap;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+/* Prevent MathJax/KaTeX from interpreting $...$ as math in normal markdown */
+span, p, .markdown-text-container {
+  unicode-bidi: isolate;
+}
+
+/* Strong protection for dollar amounts */
+.no-mathjax {
+  unicode-bidi: isolate;
+  display: inline !important;
+  font-style: normal !important;
+  font-family: inherit !important;
+  color: inherit !important;
+  background: transparent !important;
 }
 </style>
 """, unsafe_allow_html=True)

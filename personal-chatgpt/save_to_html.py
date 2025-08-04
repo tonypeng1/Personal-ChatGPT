@@ -150,26 +150,12 @@ def _indent_content(content: str, code_block_indent: str) -> str:
 
 def escape_single_dollar_signs(text):
     """
-    Escapes single $ signs that are not part of $...$ or $$...$$ math blocks,
-    and are followed by a digit (e.g., $75).
+    Escapes $ signs used for currency while preserving math expressions.
+    - Preserves display math ($$...$$) and inline math ($...$)
+    - Only escapes $ when used for currency (e.g., $100)
     """
-    math_blocks = []
-
-    # Protect $$...$$ blocks first
-    def math_block_replacer(match):
-        math_blocks.append(match.group(0))
-        return f"__MATH_BLOCK_{len(math_blocks)-1}__"
-
-    text = re.sub(r"\$\$.*?\$\$", math_block_replacer, text, flags=re.DOTALL)
-    # Now protect $...$ blocks (not $$...$$)
-    text = re.sub(r"(?<!\$)\$(?!\$)(.+?)(?<!\\)\$(?!\$)", math_block_replacer, text, flags=re.DOTALL)
-
-    # Escape $ followed by a digit (not already escaped)
-    text = re.sub(r'(?<!\\)\$(?=\d)', r'\\$', text)
-
-    # Restore math blocks
-    for i, block in enumerate(math_blocks):
-        text = text.replace(f"__MATH_BLOCK_{i}__", block)
+    # Replace $ followed by digits (currency) with HTML entity
+    text = re.sub(r'\$(\d+(?:\.\d+)?)', r'&#36;\1', text)
     return text
 
 

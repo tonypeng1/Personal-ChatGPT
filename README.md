@@ -5,10 +5,11 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
-Version 2.9.3 of this APP has made the following three improvements: 
-- Make URL of a web page in the `perplexity-sonar-pro` model also CLICKABLE in the saved .HTML file.
+Version 2.9.3 of this APP has made the following four improvements: 
+- Make URL of a web page in the `perplexity-sonar-pro` model's resourcs of search results also CLICKABLE in the saved .HTML file.
 - Add handling of `executable code` in the `gemini-2.0-flash` model's response.
-- Extract the actual HTML <title> of a web page and display it as the title of a CLICKABLE link (rather than just using a simplified label) in the `gemini-2.0-flash` model's resourcs of search results.
+- Try extracting the actual HTML <title> of a web page and display it as the title of a CLICKABLE link (rather than just using a simplified label) in the `gemini-2.0-flash` model's resourcs of search results.
+- Correctly display dollar amounts (e.g., $2.82 and $2.77) in chat session HTML output as well as in the saved .HTML file.
 
 Version 2.9.2 of this APP adds a "Copied!" feedback when the copy button of a code block is clicked.
 
