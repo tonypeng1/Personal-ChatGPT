@@ -6,7 +6,7 @@ https://youtu.be/cHsequP0Wsw
 
 ## APP Features
 Version 2.10 of this APP has made the following two changes:
-- upgrades the OpenAI model from `gpt-4.1-2025-04-14` to `gpt-5-mini-2025-08-07`, which is proficient in code generation, bug fixing, and refactoring, instruction following, and tool calling. `gpt-5-mini-2025-08-07` is a more cost-efficient and faster version of GPT-5 with a larger token limit per minute. The response is in NON-STREAMING mode to potentially prvent organization/identity verification.
+- Upgrades the OpenAI model from `gpt-4.1-2025-04-14` to `gpt-5-mini-2025-08-07`, which is proficient in code generation, bug fixing, and refactoring, instruction following, and tool calling. `gpt-5-mini-2025-08-07` is a more cost-efficient and faster version of GPT-5 with a larger token limit per minute. The response is in NON-STREAMING mode to potentially prvent organization/identity verification.
 - Further improve the distinction between inline math vs currency.   
 
 Version 2.9.3 of this APP has made the following four improvements: 
