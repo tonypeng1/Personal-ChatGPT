@@ -158,6 +158,14 @@ def chatgpt(
         text = f":blue-background[:blue[**{model_name}**]]"
         st.markdown(text)
 
+        non_steaming_text = "Non-steaming mode.... Please wait...."
+        displayed_text = f"""
+        <div style="color: green; font-style: italic;">
+        <b>{non_steaming_text}</b>
+        </div>
+        """
+        st.markdown(displayed_text, unsafe_allow_html=True)
+
         message_placeholder = st.empty()
         full_response = ""
 
@@ -214,20 +222,65 @@ def chatgpt(
 
         input_list = system_list + context_list
 
+        # try:
+        #     for response in chatgpt_client.responses.create(
+        #         # response = chatgpt_client.responses.create(
+        #         model="gpt-5-mini-2025-08-07",
+        #         tools=[{
+        #             "type": "web_search_preview",
+        #             "search_context_size": "high",
+        #             }],
+        #         reasoning={
+        #             "effort": "low"
+        #         },
+        #         input=input_list,
+        #         # temperature=temp,
+        #         # top_p=p,
+        #         # max_output_tokens=max_tok,  # If added will have error
+        #         stream=True,
+        #         ):
+        #         # structure = inspect_object_structure(response)
+        #         # print(structure)
+        #         # try:
+        #         # print(f"Original response: {response}\n\n")
+        #         # Access the response attribute of the event object
+        #         #     pdb.set_trace() # Set a break point here
+
+        #         if hasattr(response, 'delta'):
+        #             full_response += response.delta or ""
+        #             message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+
+        #     message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+
+        # except OpenAIError as e:
+        #     error_response = f"An error occurred with OpenAI in getting chat response: {e}"
+        #     full_response = error_response
+        #     message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+        # except Exception as e:
+        #     error_response = f"An unexpected error occurred in OpenAI API call: {e}"
+        #     full_response = error_response
+        #     message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+
+        # Non-streaming response handling
         try:
-            for response in chatgpt_client.responses.create(
+            # for response in chatgpt_client.responses.create(
+            response = chatgpt_client.responses.create(
                 # response = chatgpt_client.responses.create(
-                model="gpt-4.1-2025-04-14",
+                model="gpt-5-mini-2025-08-07",
                 tools=[{
                     "type": "web_search_preview",
                     "search_context_size": "high",
                     }],
+                reasoning={
+                    "effort": "low"
+                },
                 input=input_list,
-                temperature=temp,
-                top_p=p,
+                # temperature=temp,
+                # top_p=p,
                 # max_output_tokens=max_tok,  # If added will have error
-                stream=True,
-                ):
+                # stream=True,
+                stream=False,
+                )
                 # structure = inspect_object_structure(response)
                 # print(structure)
                 # try:
@@ -235,9 +288,32 @@ def chatgpt(
                 # Access the response attribute of the event object
                 #     pdb.set_trace() # Set a break point here
 
-                if hasattr(response, 'delta'):
-                    full_response += response.delta or ""
-                    message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+            # print(response)
+            # Handle GPT-5 response structure with output field
+            if hasattr(response, 'output') and response.output:
+                # Find the message in the output list
+                for item in response.output:
+                    if hasattr(item, 'type') and item.type == 'message':
+                        if hasattr(item, 'content') and item.content:
+                            for content_item in item.content:
+                                if hasattr(content_item, 'type') and content_item.type == 'output_text':
+                                    full_response = content_item.text or ""
+                                    break
+                        break
+            elif hasattr(response, 'choices') and response.choices:
+                # Fallback for standard OpenAI API structure
+                full_response = response.choices[0].message.content or ""
+            else:
+                # Final fallback
+                full_response = ""
+
+            # print(f"Full response: {full_response}")
+
+            # if hasattr(response, 'choices'):
+            #     for choice in response.choices:
+            #         if hasattr(choice, 'delta'):
+            #             full_response += choice.delta or ""
+            #             message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
 
             message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
@@ -1573,7 +1649,7 @@ def process_prompt(
     determine_if_terminate_current_session_and_start_a_new_one(conn)
     st.session_state.messages.append({"role": "user", "model": "", "content": prompt1, "image": _image_file_path})
     try:
-        if model_name == "gpt-4.1-2025-04-14":
+        if model_name == "gpt-5-mini-2025-08-07":
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "o3-mini-high":
             responses = openrouter_o3_mini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
@@ -1692,13 +1768,87 @@ def save_image_to_file(_image_binary):
 
 def wrap_dollar_amounts(text):
     """
-    Replace $ with a visually similar Unicode character to prevent MathJax interpretation
+    Distinguish math vs currency.
+
+    Math examples (kept): $10 - 2 = 8$, $7 \\times 8 = 56$, $x^2 + 1$, $\\alpha + 2$.
+    Currency (converted $ -> ＄): $2.45, ~$3.10, $2.50–$3.10, $2.66/gal, $14.
+
+    Heuristics for math:
+      - Inside $...$ contains any of: = + - × * / ^ _ (not counting leading minus of a pure number)
+      - OR contains a backslash LaTeX command
+      - OR contains both a digit and (space or parenthesis) plus another digit (e.g. "10 - 2")
     """
-    if text is None:
+    if not text:
         return ""
-    
-    # Replace $ with a similar looking Unicode character (＄) in currency contexts
-    return re.sub(r'(\$)(\d+(?:\.\d+)?(?:\s?(?:per|each|USD|dollars?)?)?)', r'＄\2', text)
+
+    # 1. Currency ranges first
+    def _range_repl(m):
+        approx = m.group(1) or ""
+        a = m.group(2)
+        sep = m.group(3)
+        b = m.group(4)
+        unit = m.group(5) or ""
+        return f"{approx}＄{a}{sep}＄{b}{unit}"
+
+    text = re.sub(
+        r'(?<!\\)(~?)\$(\d[\d,]*(?:\.\d+)?)(\s?[–-]\s?)\$(\d[\d,]*(?:\.\d+)?)(\/[A-Za-z]+)?',
+        _range_repl,
+        text
+    )
+
+    # 2. Scan $...$ spans; protect those judged as math
+    math_spans = {}
+    def protect(s):
+        key = f"__MATH_{len(math_spans)}__"
+        math_spans[key] = s
+        return key
+
+    def is_math(content):
+        c = content.strip()
+        # Pure number (optional leading ~) pattern -> not math
+        if re.fullmatch(r'~?\d[\d,]*(\.\d+)?', c):
+            return False
+        # Has LaTeX command
+        if "\\" in c:
+            return True
+        # Has obvious math operator or relation
+        if re.search(r'[=+\-*/×÷^_]', c):
+            # Exclude sole leading minus number like -2.5
+            if re.fullmatch(r'-?\d[\d,]*(\.\d+)?', c):
+                return False
+            return True
+        # Digit space digit pattern (e.g., "10  2") indicates expression
+        if re.search(r'\d.+\s+\d', c):
+            return True
+        return False
+
+    def _scan(match):
+        span = match.group(0)        # full including $...$
+        inner = match.group(1)
+        if is_math(inner):
+            return protect(span)
+        return span  # leave for currency handling
+
+    text = re.sub(r'(?<!\\)\$(.+?)(?<!\\)\$', _scan, text, flags=re.DOTALL)
+
+    # 3. Single currency amounts (optional ~, optional unit like /gal)
+    def _currency_repl(m):
+        approx = m.group(1) or ""
+        amount = m.group(2)
+        unit = m.group(3) or ""
+        return f"{approx}＄{amount}{unit}"
+
+    text = re.sub(
+        r'(?<!\\)(~?)\$(\d[\d,]*(?:\.\d+)?)(\/[A-Za-z]+)?',
+        _currency_repl,
+        text
+    )
+
+    # 4. Restore math spans
+    for k, v in math_spans.items():
+        text = text.replace(k, v)
+
+    return text
 
 
 # Get app keys
@@ -1737,7 +1887,10 @@ claude_model = "claude-sonnet-4-20250514"
 claude_client = anthropic.Anthropic(api_key=CLAUDE_API_KEY,)
 
 # Set chatgpt api configuration
-chatgpt_client = openai.OpenAI(api_key=OPENAI_API_KEY)
+chatgpt_client = openai.OpenAI(
+    api_key=OPENAI_API_KEY,
+    # organization=st.secrets["OPENAI_ORG_ID"]
+    )
 
 # Set together api configuration
 together_client = openai.OpenAI(
@@ -1880,7 +2033,7 @@ type_index = return_type_index(st.session_state.type)  # from string to int (0 t
 model_name = st.sidebar.radio(
                                 label="Choose model:",
                                 options=(
-                                    "gpt-4.1-2025-04-14",
+                                    "gpt-5-mini-2025-08-07",
                                     "o3-mini-high",
                                     "claude-sonnet-4-20250514",
                                     "claude-sonnet-4-20250514-thinking",

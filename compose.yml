@@ -1,10 +1,13 @@
 services:
   app:
+    build: .
     container_name: chat_gpt
-    image: streamlit-mysql:2.9.3
+    image: streamlit-mysql:2.10
     ports:
       - 8501:8501
     environment:
+      # - OPENAI_API_KEY=${OPENAI_API_KEY} # Reads from .env file
+      # - OPENAI_ORG_ID=${OPENAI_ORG_ID} # Reads from .env file
       - IMAGE_SAVE_PATH=/app/images
       - PYTHONUNBUFFERED=1  # Enable unbuffered output for Python scripts
       - EXPORT_DIR=/app/exported-images  # Needed if a .HTML file is saved

@@ -82,8 +82,10 @@ def Load_the_last_saved_model_type(conn) -> None:
                 if result[0] in ("gpt-4-turbo-2024-04-09", 
                                  "gpt-4o-2024-11-20",
                                  "o1-preview",
-                                 "gpt-4o"):
-                    result = ("gpt-4.1-2025-04-14", )
+                                 "gpt-4o",
+                                 "gpt-4.1-2025-04-14",
+                                 "gpt-5-2025-08-07"):
+                    result = ("gpt-5-mini-2025-08-07", )
                 if result[0] in ("mistral-large-latest", ):
                     result = ("pixtral-large-latest", )
                 if result[0] in ("Qwen2.5-Coder-32B-Instruct",
@@ -117,7 +119,7 @@ def return_type_index(type1: str) -> int:
         KeyError: If the type description is not found in the predefined dictionary.
     """
     type_dic = {
-        "gpt-4.1-2025-04-14": 0,
+        "gpt-5-mini-2025-08-07": 0,
         "o3-mini-high": 1,
         "claude-sonnet-4-20250514": 2, 
         "claude-sonnet-4-20250514-thinking": 3, 
