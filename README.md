@@ -5,6 +5,8 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
+Version 2.10.1 of this APP improves the display of nested ordered or unordered lists in the saved .HTML file for most models.
+
 Version 2.10 of this APP has made the following two changes:
 - Upgrades the OpenAI model from `gpt-4.1-2025-04-14` to `gpt-5-mini-2025-08-07`, which is proficient in code generation, bug fixing, and refactoring, instruction following, and tool calling. `gpt-5-mini-2025-08-07` is a more cost-efficient and faster version of GPT-5 with a larger token limit per minute. The response is in NON-STREAMING mode to potentially prvent organization/identity verification.
 - Further improve the distinction between inline math vs currency.   
@@ -199,18 +201,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 2.10 of this APP, and install the project,
+To create a Python virtual environment, check out version 2.10.1 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v2.10
+git checkout v2.10.1
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:2.10 .
+docker build -t streamlit-mysql:2.10.1 .
 docker compose up
 ```
 ## Medium Article

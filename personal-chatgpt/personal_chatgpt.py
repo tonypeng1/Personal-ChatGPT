@@ -158,10 +158,10 @@ def chatgpt(
         text = f":blue-background[:blue[**{model_name}**]]"
         st.markdown(text)
 
-        non_steaming_text = "Non-steaming mode.... Please wait...."
+        non_streaming_text = "Non-streaming mode.... Please wait...."
         displayed_text = f"""
         <div style="color: green; font-style: italic;">
-        <b>{non_steaming_text}</b>
+        <b>{non_streaming_text}</b>
         </div>
         """
         st.markdown(displayed_text, unsafe_allow_html=True)
@@ -187,12 +187,30 @@ def chatgpt(
         "\n\nDO NOT USE THE DEFAULT FORMAT to output math. Instead, output math in LaTeX, \n" 
         "wrapped in $...$ for inline or $$...$$ for block math."
         )
+
+        output_format_instruction = (
+        "\n\nConstruct your answer in the format of MARKDOWN SYNTAX such as headings (Note: start with H2. Use H3, H4, H5 etc. as needed), bold, italic,  \n"
+        "ordered lists, unordered lists, horizontal rules, etc. \n"
+        "When using unordered lists, use an asterisk (*) RATHER THAN a hyphen (-). \n"
+        "When using NESTED ordered or unordered lists, use FOUR spaces for indentation. \n"
+        "Examples: \n"
+        "\n"
+        "* Item 1\n"
+        "    * Subitem 1\n"
+        "    * Subitem 2\n"
+        "* Item 2\n"
+        "\n"
+        "1. Item 1\n"
+        "    1. Subitem 1\n"
+        "    2. Subitem 2\n"
+        "2. Item 2\n"
+        )
         
         # math_instruction = (
         # "\n\nOutput math in LaTeX, wrapped in \\(...\\) for inline or $$...$$ for block math."
         # )
 
-        system_list = [{"role": "system", "content": model_role + math_instruction}]
+        system_list = [{"role": "system", "content": model_role + output_format_instruction + math_instruction}]
         # system_list = [{"role": "system", "content": model_role}]
 
         context_list = []
@@ -263,59 +281,60 @@ def chatgpt(
 
         # Non-streaming response handling
         try:
-            # for response in chatgpt_client.responses.create(
-            response = chatgpt_client.responses.create(
-                # response = chatgpt_client.responses.create(
-                model="gpt-5-mini-2025-08-07",
-                tools=[{
-                    "type": "web_search_preview",
-                    "search_context_size": "high",
-                    }],
-                reasoning={
-                    "effort": "low"
-                },
-                input=input_list,
-                # temperature=temp,
-                # top_p=p,
-                # max_output_tokens=max_tok,  # If added will have error
-                # stream=True,
-                stream=False,
-                )
-                # structure = inspect_object_structure(response)
-                # print(structure)
-                # try:
-                # print(f"Original response: {response}\n\n")
-                # Access the response attribute of the event object
-                #     pdb.set_trace() # Set a break point here
+            with st.spinner(""):
+                # for response in chatgpt_client.responses.create(
+                response = chatgpt_client.responses.create(
+                    # response = chatgpt_client.responses.create(
+                    model="gpt-5-mini-2025-08-07",
+                    tools=[{
+                        "type": "web_search_preview",
+                        "search_context_size": "high",
+                        }],
+                    reasoning={
+                        "effort": "low"
+                    },
+                    input=input_list,
+                    # temperature=temp,
+                    # top_p=p,
+                    # max_output_tokens=max_tok,  # If added will have error
+                    # stream=True,
+                    stream=False,
+                    )
+                    # structure = inspect_object_structure(response)
+                    # print(structure)
+                    # try:
+                    # print(f"Original response: {response}\n\n")
+                    # Access the response attribute of the event object
+                    #     pdb.set_trace() # Set a break point here
 
-            # print(response)
-            # Handle GPT-5 response structure with output field
-            if hasattr(response, 'output') and response.output:
-                # Find the message in the output list
-                for item in response.output:
-                    if hasattr(item, 'type') and item.type == 'message':
-                        if hasattr(item, 'content') and item.content:
-                            for content_item in item.content:
-                                if hasattr(content_item, 'type') and content_item.type == 'output_text':
-                                    full_response = content_item.text or ""
-                                    break
-                        break
-            elif hasattr(response, 'choices') and response.choices:
-                # Fallback for standard OpenAI API structure
-                full_response = response.choices[0].message.content or ""
-            else:
-                # Final fallback
-                full_response = ""
+                # print(response)
+                # Handle GPT-5 response structure with output field
+                if hasattr(response, 'output') and response.output:
+                    # Find the message in the output list
+                    for item in response.output:
+                        if hasattr(item, 'type') and item.type == 'message':
+                            if hasattr(item, 'content') and item.content:
+                                for content_item in item.content:
+                                    if hasattr(content_item, 'type') and content_item.type == 'output_text':
+                                        full_response = content_item.text or ""
+                                        break
+                            break
+                elif hasattr(response, 'choices') and response.choices:
+                    # Fallback for standard OpenAI API structure
+                    full_response = response.choices[0].message.content or ""
+                else:
+                    # Final fallback
+                    full_response = ""
 
-            # print(f"Full response: {full_response}")
+                # print(f"Full response: {full_response}")
 
-            # if hasattr(response, 'choices'):
-            #     for choice in response.choices:
-            #         if hasattr(choice, 'delta'):
-            #             full_response += choice.delta or ""
-            #             message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+                # if hasattr(response, 'choices'):
+                #     for choice in response.choices:
+                #         if hasattr(choice, 'delta'):
+                #             full_response += choice.delta or ""
+                #             message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
 
-            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+                message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except OpenAIError as e:
             error_response = f"An error occurred with OpenAI in getting chat response: {e}"
@@ -410,8 +429,26 @@ def openrouter_o3_mini(
         "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
         )
 
+        output_format_instruction = (
+        "\n\nConstruct your answer in the format of MARKDOWN SYNTAX such as headings (Note: start with H2. Use H3, H4, H5 etc. as needed), bold, italic,  \n"
+        "ordered lists, unordered lists, horizontal rules, etc. \n"
+        "When using unordered lists, use an asterisk (*) RATHER THAN a hyphen (-). \n"
+        "When using NESTED ordered or unordered lists, use FOUR spaces for indentation. \n"
+        "Examples: \n"
+        "\n"
+        "* Item 1\n"
+        "    * Subitem 1\n"
+        "    * Subitem 2\n"
+        "* Item 2\n"
+        "\n"
+        "1. Item 1\n"
+        "    1. Subitem 1\n"
+        "    2. Subitem 2\n"
+        "2. Item 2\n"
+        )
+
         # system_list = [{"role": "system", "content": model_role + math_instruction}]
-        system_list = [{"role": "system", "content": model_role + math_instruction}]
+        system_list = [{"role": "system", "content": model_role + output_format_instruction + math_instruction}]
 
         context_list = []
         for m in st.session_state.messages:
@@ -494,11 +531,31 @@ def nvidia(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
         "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
         )
 
+        output_format_instruction = (
+        "\n\nConstruct your answer in the format of MARKDOWN SYNTAX such as headings (Note: start with H2. Use H3, H4, H5 etc. as needed), bold, italic,  \n"
+        "ordered lists, unordered lists, horizontal rules, etc. \n"
+        "When using unordered lists, use an asterisk (*) RATHER THAN a hyphen (-). \n"
+        "When using NESTED ordered or unordered lists, use EXACTLY FOUR spaces for indentation. Do NOT use tabs or eight spaces. See examples below.\n"
+        "Examples: \n"
+        "\n"
+        "* **Item 1**\n"
+        "    * Subitem 1\n"
+        "    * Subitem 2\n"
+        "* **Item 2**\n"
+        "\n"
+        "1. **Item 1**\n"
+        "    1. Subitem 1\n"
+        "    2. Subitem 2\n"
+        "2. **Item 2**\n"
+        "    1. Subitem 1\n"
+        "    2. Subitem 2\n"
+        )
+
         try:
             for response in nvidia_client.chat.completions.create(
                 model="nvidia/llama-3.1-nemotron-70b-instruct",
                 messages=
-                    [{"role": "system", "content": model_role + math_instruction}] +
+                    [{"role": "system", "content": model_role + output_format_instruction + math_instruction}] +
                     [
                     {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages
@@ -522,6 +579,7 @@ def nvidia(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -
             full_response = error_response
             message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
+    # print(full_response)
     return full_response
 
 
@@ -554,12 +612,30 @@ def together_deepseek(prompt1: str, model_role: str, temp: float, p: float, max_
         "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
         )
 
+        output_format_instruction = (
+        "\n\nConstruct your answer in the format of MARKDOWN SYNTAX such as headings (Note: start with H2. Use H3, H4, H5 etc. as needed), bold, italic,  \n"
+        "ordered lists, unordered lists, horizontal rules, etc. \n"
+        "When using unordered lists, use an asterisk (*) RATHER THAN a hyphen (-). \n"
+        "When using NESTED ordered or unordered lists, use FOUR spaces for indentation. \n"
+        "Examples: \n"
+        "\n"
+        "* Item 1\n"
+        "    * Subitem 1\n"
+        "    * Subitem 2\n"
+        "* Item 2\n"
+        "\n"
+        "1. Item 1\n"
+        "    1. Subitem 1\n"
+        "    2. Subitem 2\n"
+        "2. Item 2\n"
+        )
+
         try:
             for response in together_client.chat.completions.create(
                 # model="nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
                 model="deepseek-ai/DeepSeek-R1",
                 messages=
-                    [{"role": "system", "content": model_role + math_instruction}] +
+                    [{"role": "system", "content": model_role + output_format_instruction + math_instruction}] +
                     [
                     {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages
@@ -919,7 +995,25 @@ def mistral(
         "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
         )
 
-        system_list = [{"role": "system", "content": model_role + math_instruction}]
+        output_format_instruction = (
+        "\n\nConstruct your answer in the format of MARKDOWN SYNTAX such as headings (Note: start with H2. Use H3, H4, H5 etc. as needed), bold, italic,  \n"
+        "ordered lists, unordered lists, horizontal rules, etc. \n"
+        "When using unordered lists, use an asterisk (*) RATHER THAN a hyphen (-). \n"
+        "When using NESTED ordered or unordered lists, use FOUR spaces for indentation. \n"
+        "Examples: \n"
+        "\n"
+        "* Item 1\n"
+        "    * Subitem 1\n"
+        "    * Subitem 2\n"
+        "* Item 2\n"
+        "\n"
+        "1. Item 1\n"
+        "    1. Subitem 1\n"
+        "    2. Subitem 2\n"
+        "2. Item 2\n"
+        )
+
+        system_list = [{"role": "system", "content": model_role + output_format_instruction + math_instruction}]
         # system_list = [{"role": "system", "content": model_role}]
 
         context_list = []
@@ -1039,6 +1133,24 @@ def claude(
         "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
         )
 
+        output_format_instruction = (
+        "\n\nConstruct your answer in the format of MARKDOWN SYNTAX such as headings (Note: start with H2. Use H3, H4, H5 etc. as needed), bold, italic,  \n"
+        "ordered lists, unordered lists, horizontal rules, etc. \n"
+        "When using unordered lists, use an asterisk (*) RATHER THAN a hyphen (-). \n"
+        "When using NESTED ordered or unordered lists, use FOUR spaces for indentation. \n"
+        "Examples: \n"
+        "\n"
+        "* Item 1\n"
+        "    * Subitem 1\n"
+        "    * Subitem 2\n"
+        "* Item 2\n"
+        "\n"
+        "1. Item 1\n"
+        "    1. Subitem 1\n"
+        "    2. Subitem 2\n"
+        "2. Item 2\n"
+        )
+
         citations = "\n\n##### SOURCES:\n"
         citation_title_list = []
 
@@ -1046,7 +1158,7 @@ def claude(
             with claude_client.messages.stream(
                 model=claude_model,
                 # system=model_role + math_instruction + additional_model_role,
-                system=model_role + math_instruction,
+                system=model_role + output_format_instruction + math_instruction,
                 messages=context_list,
                 tools=[{
                     "type": "web_search_20250305",
@@ -1137,7 +1249,6 @@ def claude_thinking(
         # # <div style="background-color: lightyellow; color: green; font-weight: bold; padding: 5px; border-radius: 5px;">
         st.markdown(displayed_text, unsafe_allow_html=True)
 
-
         message_placeholder = st.empty()
         full_response = ""
 
@@ -1178,11 +1289,29 @@ def claude_thinking(
         "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
         )
 
+        output_format_instruction = (
+        "\n\nConstruct your answer in the format of MARKDOWN SYNTAX such as headings (Note: start with H2. Use H3, H4, H5 etc. as needed), bold, italic,  \n"
+        "ordered lists, unordered lists, horizontal rules, etc. \n"
+        "When using unordered lists, use an asterisk (*) RATHER THAN a hyphen (-). \n"
+        "When using NESTED ordered or unordered lists, use FOUR spaces for indentation. \n"
+        "Examples: \n"
+        "\n"
+        "* Item 1\n"
+        "    * Subitem 1\n"
+        "    * Subitem 2\n"
+        "* Item 2\n"
+        "\n"
+        "1. Item 1\n"
+        "    1. Subitem 1\n"
+        "    2. Subitem 2\n"
+        "2. Item 2\n"
+        )
+
         try:
             with st.spinner(""):
                 response = claude_client.messages.create(
                 model=claude_model,
-                system=model_role + math_instruction,
+                system=model_role + output_format_instruction + math_instruction,
                 max_tokens=20000,
                 thinking={
                     "type": "enabled",
@@ -1357,11 +1486,29 @@ def openrouter_qwen(prompt1: str, model_role: str, temp: float, p: float, max_to
         "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
         )
 
+        output_format_instruction = (
+        "\n\nConstruct your answer in the format of MARKDOWN SYNTAX such as headings (Note: start with H2. Use H3, H4, H5 etc. as needed), bold, italic,  \n"
+        "ordered lists, unordered lists, horizontal rules, etc. \n"
+        "When using unordered lists, use an asterisk (*) RATHER THAN a hyphen (-). \n"
+        "When using NESTED ordered or unordered lists, use FOUR spaces for indentation. \n"
+        "Examples: \n"
+        "\n"
+        "* Item 1\n"
+        "    * Subitem 1\n"
+        "    * Subitem 2\n"
+        "* Item 2\n"
+        "\n"
+        "1. Item 1\n"
+        "    1. Subitem 1\n"
+        "    2. Subitem 2\n"
+        "2. Item 2\n"
+        )
+
         try:
             for response in openrouter_client.chat.completions.create(
                 model="qwen/qwen3-235b-a22b",
                 messages=
-                    [{"role": "system", "content": model_role + math_instruction}] +
+                    [{"role": "system", "content": model_role + output_format_instruction + math_instruction}] +
                     [
                     {"role": m["role"],
                     #  "content": f'[INST]{m["content"]}[/INST]' if m["role"] == "user" \
@@ -1532,10 +1679,29 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
         "* [2] [Doe, J. (2022). Example Title of Publication. Example Publisher](https://example.com/publication) \n"
         "* [3] [Smith, A. (2023). Another Example Title. Another Publisher](https://example.com/another-publication) \n"
         )
+
         math_instruction = (
         "\n\n----------\n"
         "Mathematical Formatting: \n"
         "ALWAYS output math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
+        )
+
+        output_format_instruction = (
+        "\n\nConstruct your answer in the format of MARKDOWN SYNTAX such as headings (Note: start with H2. Use H3, H4, H5 etc. as needed), bold, italic,  \n"
+        "ordered lists, unordered lists, horizontal rules, etc. \n"
+        "When using unordered lists, use an asterisk (*) RATHER THAN a hyphen (-). \n"
+        "When using NESTED ordered or unordered lists, use FOUR spaces for indentation. \n"
+        "Examples: \n"
+        "\n"
+        "* Item 1\n"
+        "    * Subitem 1\n"
+        "    * Subitem 2\n"
+        "* Item 2\n"
+        "\n"
+        "1. Item 1\n"
+        "    1. Subitem 1\n"
+        "    2. Subitem 2\n"
+        "2. Item 2\n"
         )
 
         try:
@@ -1546,7 +1712,7 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
                     # [{"role": "system", "content": model_role + additional_model_role}] +
                     [{"role": "system", "content": model_role}] +
                     [
-                    {"role": m["role"], "content": m["content"] + additional_model_role + math_instruction if m["role"] == "user" else m["content"]}
+                    {"role": m["role"], "content": m["content"] + additional_model_role + output_format_instruction + math_instruction if m["role"] == "user" else m["content"]}
                     # {"role": m["role"], "content": m["content"] + math_instruction if m["role"] == "user" else m["content"]}
                     # {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages
@@ -1570,6 +1736,7 @@ def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: in
             full_response = error_response
             message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
+    # print(f"Final response: {full_response}")
     return full_response
 
 
