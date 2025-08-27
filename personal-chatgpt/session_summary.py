@@ -3,7 +3,7 @@ import base64
 from mistralai.client import MistralClient
 from mysql.connector import Error
 import ocrspace
-from openai import OpenAIError
+from openai import OpenAIError, APITimeoutError, APIConnectionError
 import streamlit as st
 import tiktoken
 
@@ -134,7 +134,7 @@ def mistral_ocr_api_call(
 #     return extracted_text
 
 
-def shorten_prompt_to_tokens(prompt: str, encoding_name: str="cl100k_base" , max_tokens: int=3800) -> str:
+def shorten_prompt_to_tokens(prompt: str, encoding_name: str="cl100k_base" , max_tokens: int=2000) -> str:
     """
     Shortens the input prompt to a specified maximum number of tokens using the specified encoding.
     If the number of tokens in the prompt exceeds the max_tokens limit, it truncates the prompt.
@@ -175,21 +175,28 @@ def chatgpt_summary_user_only(client, chat_text_user_only: str) -> str:
     """
     try:
         response = client.completions.create(
-        model="gpt-3.5-turbo-instruct",
-        prompt="Use a sentence to summary the main topics of the user's questions in following chat session. " + 
-        "DO NOT start the sentence with 'The user' or 'Questions about'. For example, if the summary is 'Questions about handling errors " + 
-        "in OpenAI API.', just return 'Handling errors in OpenAI API'. DO NOT use special characters that can not be used in a file name. " + 
-        "No more than ten words in the sentence. A partial sentence is fine.\n\n" + chat_text_user_only,
-        max_tokens=30,  # Adjust the max tokens as per the summarization requirements
-        n=1,
-        stop=None,
-        temperature=0.5
+            model="gpt-3.5-turbo-instruct",
+            prompt="Use a sentence to summary the main topics of the user's questions in following chat session. " + 
+            "DO NOT start the sentence with 'The user' or 'Questions about'. For example, if the summary is 'Questions about handling errors " + 
+            "in OpenAI API.', just return 'Handling errors in OpenAI API'. DO NOT use special characters that can not be used in a file name. " + 
+            "No more than ten words in the sentence. A partial sentence is fine.\n\n" + chat_text_user_only,
+            max_tokens=30,
+            n=1,
+            stop=None,
+            temperature=0.5,
+            timeout=30
         )
         summary = response.choices[0].text.strip()
         return summary
 
+    except APIConnectionError as e:
+        st.error("Could not connect to OpenAI API. Please check your internet connection or try again later.")
+        raise
     except OpenAIError as e:
         st.error(f"An error occurred with OpenAI in getting chat summary: {e}")
+        raise
+    except APITimeoutError as e:
+        st.error("OpenAI API request timed out. Please try again later.")
         raise
     except Exception as e:
         st.error(f"An unexpected error occurred in OpenAI API call to get summary: {e}")

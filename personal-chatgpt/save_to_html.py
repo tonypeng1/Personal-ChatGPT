@@ -39,7 +39,7 @@ def copy_image_to_export_dir_in_docker(image_path: str):
     shutil.copy(image_path, exported_path)
 
 
-def convert_messages_to_markdown(messages: List[Dict[str, str]], code_block_indent='                 ') -> str:
+def convert_messages_to_markdown(messages: List[Dict[str, str]], code_block_indent="               ") -> str:
     """
     Convert chat messages to markdown format with proper styling and image handling.
 
