@@ -1506,7 +1506,7 @@ def openrouter_qwen(prompt1: str, model_role: str, temp: float, p: float, max_to
 
         try:
             for response in openrouter_client.chat.completions.create(
-                model="qwen/qwen3-235b-a22b",
+                model="qwen/qwen3-235b-a22b-2507",
                 messages=
                     [{"role": "system", "content": model_role + output_format_instruction + math_instruction}] +
                     [
@@ -1826,7 +1826,7 @@ def process_prompt(
             responses = claude_thinking(prompt1, model_role, _image_file_path)
         elif model_name == "gemini-2.0-flash":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "gemini-2.5-pro-preview-05-06":
+        elif model_name == "gemini-2.5-pro":
             responses = gemini_thinking(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "pixtral-large-latest":
             responses = mistral(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
@@ -1835,7 +1835,7 @@ def process_prompt(
         elif model_name == "nvidia-llama-3.1-nemotron-70b-instruct":
             responses = nvidia(prompt1, model_role, temperature, top_p, int(max_token))
             # responses = together_nvidia(prompt1, model_role, temperature, top_p, int(max_token))
-        elif model_name == "Qwen3-235b-a22b":
+        elif model_name == "qwen3-235b-a22b-2507":
             responses = openrouter_qwen(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "DeepSeek-R1-0528":
             responses = together_deepseek(prompt1, model_role, temperature, top_p, int(max_token))
@@ -2039,7 +2039,7 @@ client_thinking = genai.Client(
     api_key=GOOGLE_API_KEY,
     http_options={'api_version':'v1alpha'},
     )
-model_id_thinking = "gemini-2.5-pro-preview-05-06"
+model_id_thinking = "gemini-2.5-pro"
 # model_id_thinking = "gemini-2.0-flash-thinking-exp-01-21"
 
 # genai.configure(api_key=GOOGLE_API_KEY)
@@ -2206,11 +2206,11 @@ model_name = st.sidebar.radio(
                                     "claude-sonnet-4-20250514-thinking",
                                     "pixtral-large-latest",
                                     "gemini-2.0-flash",
-                                    "gemini-2.5-pro-preview-05-06",
+                                    "gemini-2.5-pro",
                                     "DeepSeek-R1-0528",
                                     "perplexity-sonar-pro",
                                     "nvidia-llama-3.1-nemotron-70b-instruct",
-                                    "Qwen3-235b-a22b"
+                                    "qwen3-235b-a22b-2507"
                                  ),
                                 index=type_index,
                                 key="type1"
