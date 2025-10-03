@@ -76,10 +76,12 @@ def Load_the_last_saved_model_type(conn) -> None:
                 if result[0] in ("claude-3-opus-20240229", 
                                  "claude-3-5-sonnet-20240620",
                                  "claude-3-5-sonnet-20241022",
-                                 "claude-3-7-sonnet-20250219"):
-                    result = ("claude-sonnet-4-20250514", )
-                if result[0] in ("claude-3-7-sonnet-20250219-thinking", ):
-                    result = ("claude-sonnet-4-20250514-thinking", )              
+                                 "claude-3-7-sonnet-20250219",
+                                 "claude-sonnet-4-20250514"):
+                    result = ("claude-sonnet-4-5-20250929", )
+                if result[0] in ("claude-3-7-sonnet-20250219-thinking", 
+                                 "claude-sonnet-4-20250514-thinking"):
+                    result = ("claude-sonnet-4-5-20250929-thinking", )
                 if result[0] in ("gpt-4-turbo-2024-04-09", 
                                  "gpt-4o-2024-11-20",
                                  "o1-preview",
@@ -123,8 +125,8 @@ def return_type_index(type1: str) -> int:
     type_dic = {
         "gpt-5-mini-2025-08-07": 0,
         "o3-mini-high": 1,
-        "claude-sonnet-4-20250514": 2, 
-        "claude-sonnet-4-20250514-thinking": 3, 
+        "claude-sonnet-4-5-20250929": 2, 
+        "claude-sonnet-4-5-20250929-thinking": 3, 
         "pixtral-large-latest": 4,
         "gemini-2.0-flash":5,
         "gemini-2.5-pro":6,

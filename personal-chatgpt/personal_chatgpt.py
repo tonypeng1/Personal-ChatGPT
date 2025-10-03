@@ -1073,7 +1073,7 @@ def claude(
         _image_file_path: str = "",
         ) -> str:
     """
-    Processes a chat prompt using Anthropic's Claude 3.5 model and updates the chat session.
+    Processes a chat prompt using Anthropic's Claude 4.5 model and updates the chat session.
 
     Args:
         conn: A connection object to the MySQL database.
@@ -1166,7 +1166,7 @@ def claude(
                     "max_uses": 5
                     }],
                 temperature=temp,
-                top_p=p,
+                # top_p=p,
                 max_tokens=max_tok,
                 ) as stream:
 
@@ -1200,7 +1200,7 @@ def claude(
             message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except Exception as e:
-            error_response = f"An unexpected error occurred in Claude 3.5 API call: {e}"
+            error_response = f"An unexpected error occurred in Claude 4.5 API call: {e}"
             full_response = error_response
             message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
@@ -1214,8 +1214,8 @@ def claude_thinking(
         _image_file_path: str = "",
         ) -> str:
     """
-    Processes a chat prompt using Anthropic's Claude 4 model and updates the chat session. Change
-    the max_tokens to 20000 to use Claude 4 model's extended thinking.
+    Processes a chat prompt using Anthropic's Claude 4.5 model and updates the chat session. Change
+    the max_tokens to 20000 to use Claude 4.5 model's extended thinking.
 
     Args:
         conn: A connection object to the MySQL database.
@@ -1383,7 +1383,7 @@ def claude_thinking(
         #     message_placeholder.markdown(full_response)
 
         except Exception as e:
-            error_response = f"An unexpected error occurred in Claude 3.7 API call: {e}"
+            error_response = f"An unexpected error occurred in Claude 4.5 thinking API call: {e}"
             full_response = error_response
             message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
@@ -1820,9 +1820,9 @@ def process_prompt(
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "o3-mini-high":
             responses = openrouter_o3_mini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "claude-sonnet-4-20250514":
+        elif model_name == "claude-sonnet-4-5-20250929":
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "claude-sonnet-4-20250514-thinking":
+        elif model_name == "claude-sonnet-4-5-20250929-thinking":
             responses = claude_thinking(prompt1, model_role, _image_file_path)
         elif model_name == "gemini-2.0-flash":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
@@ -2050,7 +2050,7 @@ mistral_model = "pixtral-large-latest"
 mistral_client = MistralClient(api_key=MISTRAL_API_KEY)
 
 # Set Claude api configuration
-claude_model = "claude-sonnet-4-20250514"
+claude_model = "claude-sonnet-4-5-20250929"
 claude_client = anthropic.Anthropic(api_key=CLAUDE_API_KEY,)
 
 # Set chatgpt api configuration
@@ -2202,8 +2202,8 @@ model_name = st.sidebar.radio(
                                 options=(
                                     "gpt-5-mini-2025-08-07",
                                     "o3-mini-high",
-                                    "claude-sonnet-4-20250514",
-                                    "claude-sonnet-4-20250514-thinking",
+                                    "claude-sonnet-4-5-20250929",
+                                    "claude-sonnet-4-5-20250929-thinking",
                                     "pixtral-large-latest",
                                     "gemini-2.0-flash",
                                     "gemini-2.5-pro",

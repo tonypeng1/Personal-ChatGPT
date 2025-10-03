@@ -5,6 +5,8 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
+Version 2.12 of this APP has upgraded the Claude model from `claude-sonnet-4-20250514` to `claude-sonnet-4-5-20250929`, which is the strongest model for coding, building complex agent, and using computers. And it shows substantial gains in reasoning and math.
+
 Version 2.11 of this APP has made the following two changes:
 - Upgrade the Gemini model `gemini-2.5-pro-preview-05-06` to the more stable `gemini-2.5-pro`.
 - Upgrade the Gwen model `Qwen3-235b-a22b` to `qwen3-235b-a22b-2507`, which supports a native 262K context length and does not implement "thinking mode". Compared to its base variant, this version delivers significant gains in knowledge coverage, long-context reasoning, coding benchmarks, and alignment with open-ended tasks.
@@ -205,18 +207,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 2.11 of this APP, and install the project,
+To create a Python virtual environment, check out version 2.12 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v2.10.1
+git checkout v2.12
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:2.11 .
+docker build -t streamlit-mysql:2.12 .
 docker compose up
 ```
 ## Medium Article
