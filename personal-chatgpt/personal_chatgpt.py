@@ -348,6 +348,228 @@ def chatgpt(
     return full_response
 
 
+def chatgpt_thinking(
+        prompt1: str, 
+        model_role: str, 
+        temp: float, 
+        p: float, 
+        max_tok: int,
+        _image_file_path: str = "",
+        ) -> str:
+    """
+    Processes a chat prompt using OpenAI's ChatCompletion and updates the chat session.
+
+    Args:
+        conn: A connection object to the MySQL database.
+        prompt (str): The user's input prompt to the chatbot.
+        temp (float): The temperature parameter for OpenAI's ChatCompletion.
+        p (float): The top_p parameter for OpenAI's ChatCompletion.
+        max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
+        _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
+
+    Raises:
+        Raises an exception if there is a failure in database operations or OpenAI's API call.
+    """
+    with st.chat_message("user"):
+        if _image_file_path != "":
+            image_file = PIL.Image.open(_image_file_path)
+            st.image(image_file, width=None)
+        st.markdown(prompt1)
+
+    with st.chat_message("assistant"):
+        text = f":blue-background[:blue[**{model_name}**]]"
+        st.markdown(text)
+
+        reasoning_text = "Thinking hard.... Please wait.... This may take a while...."
+        displayed_text = f"""
+        <div style="color: green; font-style: italic;">
+        <b>{reasoning_text}</b>
+        </div>
+        """
+        st.markdown(displayed_text, unsafe_allow_html=True)
+
+        message_placeholder = st.empty()
+        full_response = ""
+
+        # NOT WORKING!
+        # math_instruction = (
+        # "\nYour instructions on writing math formulas: \n"
+        # "You have a MathJax render environment. \n"
+        # "Any LaTeX text between squre braket sign '[]' or paranthesis '()' will be rendered as a TeX formula; \n"
+        # "For example, [x^2 + 3x] is output for 'x² + 3x' to appear as TeX. \n"
+        # )
+
+        # math_instruction = (
+        # "\nWhen writing an mathematic formula, RENDER IT! \n"
+        # "Do NOT just output the LaTeX code. \n"
+        # "For example, output 'x² + 3x' instead of [x^2 + 3x]. \n"
+        # )  # NOT WORKING TOO!
+
+        math_instruction = (
+        "\n\nDO NOT USE THE DEFAULT FORMAT to output math. Instead, output math in LaTeX, \n" 
+        "wrapped in $...$ for inline or $$...$$ for block math."
+        )
+
+        output_format_instruction = (
+        "\n\nConstruct your answer in the format of MARKDOWN SYNTAX such as headings (Note: start with H2. Use H3, H4, H5 etc. as needed), bold, italic,  \n"
+        "ordered lists, unordered lists, horizontal rules, etc. \n"
+        "When using unordered lists, use an asterisk (*) RATHER THAN a hyphen (-). \n"
+        "When using NESTED ordered or unordered lists, use FOUR spaces for indentation. \n"
+        "Examples: \n"
+        "\n"
+        "* Item 1\n"
+        "    * Subitem 1\n"
+        "    * Subitem 2\n"
+        "* Item 2\n"
+        "\n"
+        "1. Item 1\n"
+        "    1. Subitem 1\n"
+        "    2. Subitem 2\n"
+        "2. Item 2\n"
+        )
+        
+        # math_instruction = (
+        # "\n\nOutput math in LaTeX, wrapped in \\(...\\) for inline or $$...$$ for block math."
+        # )
+
+        system_list = [{"role": "system", "content": model_role + output_format_instruction + math_instruction}]
+        # system_list = [{"role": "system", "content": model_role}]
+
+        context_list = []
+        for m in st.session_state.messages:
+            if m["role"] == "user":
+                if m["image"] != "":
+                    base64_image = encode_image(m["image"])
+                    dic = {"role": "user", 
+                           "content": [
+                                {
+                                    "type": "input_text",
+                                    "text": m["content"],
+                                },
+                                {
+                                    "type": "input_image",
+                                    "image_url": f"data:image/png;base64,{base64_image}",
+                                },
+                           ],
+                        }
+                    context_list.append(dic)
+                else:
+                    dic = {"role": "user", "content": m["content"]}
+                    context_list.append(dic)
+            else:
+                dic = {"role": "assistant", "content": m["content"]}
+                context_list.append(dic)
+
+        input_list = system_list + context_list
+
+        # try:
+        #     for response in chatgpt_client.responses.create(
+        #         # response = chatgpt_client.responses.create(
+        #         model="gpt-5-mini-2025-08-07",
+        #         tools=[{
+        #             "type": "web_search_preview",
+        #             "search_context_size": "high",
+        #             }],
+        #         reasoning={
+        #             "effort": "low"
+        #         },
+        #         input=input_list,
+        #         # temperature=temp,
+        #         # top_p=p,
+        #         # max_output_tokens=max_tok,  # If added will have error
+        #         stream=True,
+        #         ):
+        #         # structure = inspect_object_structure(response)
+        #         # print(structure)
+        #         # try:
+        #         # print(f"Original response: {response}\n\n")
+        #         # Access the response attribute of the event object
+        #         #     pdb.set_trace() # Set a break point here
+
+        #         if hasattr(response, 'delta'):
+        #             full_response += response.delta or ""
+        #             message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+
+        #     message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+
+        # except OpenAIError as e:
+        #     error_response = f"An error occurred with OpenAI in getting chat response: {e}"
+        #     full_response = error_response
+        #     message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+        # except Exception as e:
+        #     error_response = f"An unexpected error occurred in OpenAI API call: {e}"
+        #     full_response = error_response
+        #     message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+
+        # Non-streaming response handling
+        try:
+            with st.spinner(""):
+                # for response in chatgpt_client.responses.create(
+                response = chatgpt_client.responses.create(
+                    # response = chatgpt_client.responses.create(
+                    model="gpt-5-mini-2025-08-07",
+                    tools=[{
+                        "type": "web_search_preview",
+                        "search_context_size": "high",
+                        }],
+                    reasoning={
+                        "effort": "high"
+                    },
+                    input=input_list,
+                    # temperature=temp,
+                    # top_p=p,
+                    # max_output_tokens=max_tok,  # If added will have error
+                    # stream=True,
+                    stream=False,
+                    )
+                    # structure = inspect_object_structure(response)
+                    # print(structure)
+                    # try:
+                    # print(f"Original response: {response}\n\n")
+                    # Access the response attribute of the event object
+                    #     pdb.set_trace() # Set a break point here
+
+                # print(response)
+                # Handle GPT-5 response structure with output field
+                if hasattr(response, 'output') and response.output:
+                    # Find the message in the output list
+                    for item in response.output:
+                        if hasattr(item, 'type') and item.type == 'message':
+                            if hasattr(item, 'content') and item.content:
+                                for content_item in item.content:
+                                    if hasattr(content_item, 'type') and content_item.type == 'output_text':
+                                        full_response = content_item.text or ""
+                                        break
+                            break
+                elif hasattr(response, 'choices') and response.choices:
+                    # Fallback for standard OpenAI API structure
+                    full_response = response.choices[0].message.content or ""
+                else:
+                    # Final fallback
+                    full_response = ""
+
+                # print(f"Full response: {full_response}")
+
+                # if hasattr(response, 'choices'):
+                #     for choice in response.choices:
+                #         if hasattr(choice, 'delta'):
+                #             full_response += choice.delta or ""
+                #             message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+
+                message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+
+        except OpenAIError as e:
+            error_response = f"An error occurred with OpenAI in getting chat response: {e}"
+            full_response = error_response
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+        except Exception as e:
+            error_response = f"An unexpected error occurred in OpenAI API call: {e}"
+            full_response = error_response
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+
+    return full_response
+
+
 def inspect_object_structure(obj, max_depth=3, current_depth=0):
     """Print the structure of an object for debugging."""
     if current_depth > max_depth:
@@ -1818,8 +2040,8 @@ def process_prompt(
     try:
         if model_name == "gpt-5-mini-2025-08-07":
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "o3-mini-high":
-            responses = openrouter_o3_mini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
+        elif model_name == "gpt-5-mini-2025-08-07-thinking":
+            responses = chatgpt_thinking(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "claude-sonnet-4-5-20250929":
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "claude-sonnet-4-5-20250929-thinking":
@@ -2201,7 +2423,7 @@ model_name = st.sidebar.radio(
                                 label="Choose model:",
                                 options=(
                                     "gpt-5-mini-2025-08-07",
-                                    "o3-mini-high",
+                                    "gpt-5-mini-2025-08-07-thinking",
                                     "claude-sonnet-4-5-20250929",
                                     "claude-sonnet-4-5-20250929-thinking",
                                     "pixtral-large-latest",

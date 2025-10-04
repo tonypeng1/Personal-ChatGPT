@@ -97,6 +97,8 @@ def Load_the_last_saved_model_type(conn) -> None:
                     result = ("qwen3-235b-a22b-2507", )
                 if result[0] in ("DeepSeek-R1", ):
                     result = ("DeepSeek-R1-0528", )
+                if result[0] in ("o3-mini-high", ):
+                    result = ("gpt-5-mini-2025-08-07-thinking", )
                 st.session_state.type = result[0]
             else:
                 st.session_state.type = None
@@ -124,7 +126,7 @@ def return_type_index(type1: str) -> int:
     """
     type_dic = {
         "gpt-5-mini-2025-08-07": 0,
-        "o3-mini-high": 1,
+        "gpt-5-mini-2025-08-07-thinking": 1,
         "claude-sonnet-4-5-20250929": 2, 
         "claude-sonnet-4-5-20250929-thinking": 3, 
         "pixtral-large-latest": 4,

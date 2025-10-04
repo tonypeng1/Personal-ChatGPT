@@ -5,6 +5,8 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
+Version 2.13 of this APP has replaced the `o3-mini-high` reasoning model with the `gpt-5-mini-2025-08-07` model with its `reasoning effort` level set to `high` (listed as `gpt-5-mini-2025-08-07-thinking` in the model options). 
+
 Version 2.12 of this APP has upgraded the Claude model from `claude-sonnet-4-20250514` to `claude-sonnet-4-5-20250929`, which is the strongest model for coding, building complex agent, and using computers. And it shows substantial gains in reasoning and math.
 
 Version 2.11 of this APP has made the following two changes:
@@ -207,18 +209,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 2.12 of this APP, and install the project,
+To create a Python virtual environment, check out version 2.13 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v2.12
+git checkout v2.13
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:2.12 .
+docker build -t streamlit-mysql:2.13 .
 docker compose up
 ```
 ## Medium Article
