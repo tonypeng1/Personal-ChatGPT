@@ -1,6 +1,6 @@
 import base64
 
-from mistralai.client import MistralClient
+from mistralai import Mistral
 from mysql.connector import Error
 import ocrspace
 from openai import OpenAIError, APITimeoutError, APIConnectionError
@@ -66,7 +66,7 @@ def mistral_ocr_api_call(
     # Set mastral api configuration
     MISTRAL_API_KEY = st.secrets["MISTRAL_API_KEY"]
     mistral_model = "pixtral-large-latest"
-    mistral_client = MistralClient(api_key=MISTRAL_API_KEY)
+    mistral_client = Mistral(api_key=MISTRAL_API_KEY)
 
     ocr_model_role = (
         "You are an expert Optical Character Recognition (OCR) system. Your primary function \n" 
@@ -99,14 +99,33 @@ def mistral_ocr_api_call(
 
     full_response = ""
     try:
-        for response in mistral_client.chat_stream(
+        for chunk in mistral_client.chat.stream(
             model=mistral_model,
             messages=input_list,
             temperature=0.0,
             max_tokens=3000,
-            ):
-            if response.choices[0].delta.content is not None:
-                full_response += response.choices[0].delta.content
+        ):
+            delta = getattr(chunk.data.choices[0], "delta", None)
+            delta_content = getattr(delta, "content", None) if delta else None
+
+            chunk_text = ""
+            if isinstance(delta_content, str):
+                chunk_text = delta_content
+            elif isinstance(delta_content, list):
+                text_parts = []
+                for item in delta_content:
+                    if isinstance(item, str):
+                        text_parts.append(item)
+                        continue
+                    item_text = getattr(item, "text", None)
+                    if not item_text and isinstance(item, dict):
+                        item_text = item.get("text")
+                    if item_text:
+                        text_parts.append(item_text)
+                chunk_text = "".join(text_parts)
+
+            if chunk_text:
+                full_response += chunk_text
 
     except Exception as e:
         error_response = f"An unexpected error occurred in Mistral OCR API call: {e}"

@@ -10,8 +10,8 @@ import PIL.Image
 import anthropic
 from bs4 import BeautifulSoup
 from google import genai
-from google.genai.types import Tool, GenerateContentConfig, GoogleSearchRetrieval
-from mistralai.client import MistralClient
+from google.genai.types import Tool, GenerateContentConfig, GoogleSearchRetrieval, ThinkingConfig
+from mistralai import Mistral
 from mysql.connector import connect, Error
 import ocrspace
 import openai
@@ -158,13 +158,13 @@ def chatgpt(
         text = f":blue-background[:blue[**{model_name}**]]"
         st.markdown(text)
 
-        non_streaming_text = "Non-streaming mode.... Please wait...."
-        displayed_text = f"""
-        <div style="color: green; font-style: italic;">
-        <b>{non_streaming_text}</b>
-        </div>
-        """
-        st.markdown(displayed_text, unsafe_allow_html=True)
+        # non_streaming_text = "Non-streaming mode.... Please wait...."
+        # displayed_text = f"""
+        # <div style="color: green; font-style: italic;">
+        # <b>{non_streaming_text}</b>
+        # </div>
+        # """
+        # st.markdown(displayed_text, unsafe_allow_html=True)
 
         message_placeholder = st.empty()
         full_response = ""
@@ -206,10 +206,6 @@ def chatgpt(
         "2. Item 2\n"
         )
         
-        # math_instruction = (
-        # "\n\nOutput math in LaTeX, wrapped in \\(...\\) for inline or $$...$$ for block math."
-        # )
-
         system_list = [{"role": "system", "content": model_role + output_format_instruction + math_instruction}]
         # system_list = [{"role": "system", "content": model_role}]
 
@@ -240,110 +236,109 @@ def chatgpt(
 
         input_list = system_list + context_list
 
-        # try:
-        #     for response in chatgpt_client.responses.create(
-        #         # response = chatgpt_client.responses.create(
-        #         model="gpt-5-mini-2025-08-07",
-        #         tools=[{
-        #             "type": "web_search_preview",
-        #             "search_context_size": "high",
-        #             }],
-        #         reasoning={
-        #             "effort": "low"
-        #         },
-        #         input=input_list,
-        #         # temperature=temp,
-        #         # top_p=p,
-        #         # max_output_tokens=max_tok,  # If added will have error
-        #         stream=True,
-        #         ):
-        #         # structure = inspect_object_structure(response)
-        #         # print(structure)
-        #         # try:
-        #         # print(f"Original response: {response}\n\n")
-        #         # Access the response attribute of the event object
-        #         #     pdb.set_trace() # Set a break point here
+        def _extract_output_text(response_obj):
+            """Return concatenated output_text segments from a Responses API object."""
+            if not response_obj:
+                return ""
 
-        #         if hasattr(response, 'delta'):
-        #             full_response += response.delta or ""
-        #             message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+            collected_chunks = []
+            output_items = getattr(response_obj, "output", None)
+            if output_items:
+                for item in output_items:
+                    if getattr(item, "type", None) != "message":
+                        continue
+                    for content_item in getattr(item, "content", []) or []:
+                        if getattr(content_item, "type", None) == "output_text":
+                            collected_chunks.append(content_item.text or "")
+                if collected_chunks:
+                    return "".join(collected_chunks)
 
-        #     message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+            choices = getattr(response_obj, "choices", None)
+            if choices:
+                message = getattr(choices[0], "message", None)
+                if message is not None:
+                    return getattr(message, "content", "") or ""
 
-        # except OpenAIError as e:
-        #     error_response = f"An error occurred with OpenAI in getting chat response: {e}"
-        #     full_response = error_response
-        #     message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
-        # except Exception as e:
-        #     error_response = f"An unexpected error occurred in OpenAI API call: {e}"
-        #     full_response = error_response
-        #     message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+            return getattr(response_obj, "output_text", "") or ""
 
-        # Non-streaming response handling
-        try:
+        def _request_non_streaming() -> str:
             with st.spinner(""):
-                # for response in chatgpt_client.responses.create(
                 response = chatgpt_client.responses.create(
-                    # response = chatgpt_client.responses.create(
-                    model="gpt-5-mini-2025-08-07",
+                    model="gpt-5.1-2025-11-13",
                     tools=[{
                         "type": "web_search_preview",
                         "search_context_size": "high",
-                        }],
+                    }],
                     reasoning={
                         "effort": "low"
                     },
+                    text={
+                        "verbosity": "high"
+                    },
                     input=input_list,
-                    # temperature=temp,
-                    # top_p=p,
-                    # max_output_tokens=max_tok,  # If added will have error
-                    # stream=True,
                     stream=False,
-                    )
-                    # structure = inspect_object_structure(response)
-                    # print(structure)
-                    # try:
-                    # print(f"Original response: {response}\n\n")
-                    # Access the response attribute of the event object
-                    #     pdb.set_trace() # Set a break point here
+                )
+            return _extract_output_text(response)
 
-                # print(response)
-                # Handle GPT-5 response structure with output field
-                if hasattr(response, 'output') and response.output:
-                    # Find the message in the output list
-                    for item in response.output:
-                        if hasattr(item, 'type') and item.type == 'message':
-                            if hasattr(item, 'content') and item.content:
-                                for content_item in item.content:
-                                    if hasattr(content_item, 'type') and content_item.type == 'output_text':
-                                        full_response = content_item.text or ""
-                                        break
-                            break
-                elif hasattr(response, 'choices') and response.choices:
-                    # Fallback for standard OpenAI API structure
-                    full_response = response.choices[0].message.content or ""
-                else:
-                    # Final fallback
-                    full_response = ""
+        def _request_streaming() -> str:
+            streamed_chunks = []
+            final_response_obj = None
 
-                # print(f"Full response: {full_response}")
+            with chatgpt_client.responses.stream(
+                model="gpt-5.1-2025-11-13",
+                tools=[{
+                    "type": "web_search_preview",
+                    "search_context_size": "high",
+                }],
+                reasoning={
+                    "effort": "low"
+                },
+                text={
+                    "verbosity": "high"
+                },
+                input=input_list,
+            ) as stream:
+                for event in stream:
+                    if event.type == "response.output_text.delta":
+                        streamed_chunks.append(event.delta or "")
+                        current_text = "".join(streamed_chunks)
+                        message_placeholder.markdown(
+                            wrap_dollar_amounts(current_text) + "▌",
+                            unsafe_allow_html=True,
+                        )
+                    elif event.type == "response.output_text.done":
+                        # Use the done event to ensure UI shows settled text before completion chunks arrive.
+                        current_text = "".join(streamed_chunks)
+                        message_placeholder.markdown(
+                            wrap_dollar_amounts(current_text) + "▌",
+                            unsafe_allow_html=True,
+                        )
+                    elif event.type == "response.completed":
+                        final_response_obj = event.response
+                    elif event.type in {"response.failed", "response.error"}:
+                        error_detail = getattr(getattr(event, "error", None), "message", None)
+                        raise RuntimeError(error_detail or "Streaming response failed.")
 
-                # if hasattr(response, 'choices'):
-                #     for choice in response.choices:
-                #         if hasattr(choice, 'delta'):
-                #             full_response += choice.delta or ""
-                #             message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+                final_response_obj = stream.get_final_response() or final_response_obj
 
-                message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+            if final_response_obj:
+                return _extract_output_text(final_response_obj)
 
-        except OpenAIError as e:
-            error_response = f"An error occurred with OpenAI in getting chat response: {e}"
-            full_response = error_response
-            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
-        except Exception as e:
-            error_response = f"An unexpected error occurred in OpenAI API call: {e}"
-            full_response = error_response
-            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+            return "".join(streamed_chunks)
+
+        try:
+            full_response = _request_streaming()
+        except OpenAIError as stream_error:
+            st.warning(f"Streaming error encountered. Falling back to non-streaming mode. ({stream_error})")
+            full_response = _request_non_streaming()
+        except RuntimeError as stream_error:
+            st.warning(f"Streaming error encountered. Falling back to non-streaming mode. ({stream_error})")
+            full_response = _request_non_streaming()
+        except Exception as stream_error:
+            st.warning(f"Unexpected streaming issue. Falling back to non-streaming mode. ({stream_error})")
+            full_response = _request_non_streaming()
+
+        message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
     return full_response
 
@@ -380,7 +375,7 @@ def chatgpt_thinking(
         text = f":blue-background[:blue[**{model_name}**]]"
         st.markdown(text)
 
-        reasoning_text = "Thinking hard.... Please wait.... This may take a while...."
+        reasoning_text = "Thinking.... Please wait...."
         displayed_text = f"""
         <div style="color: green; font-style: italic;">
         <b>{reasoning_text}</b>
@@ -462,110 +457,102 @@ def chatgpt_thinking(
 
         input_list = system_list + context_list
 
-        # try:
-        #     for response in chatgpt_client.responses.create(
-        #         # response = chatgpt_client.responses.create(
-        #         model="gpt-5-mini-2025-08-07",
-        #         tools=[{
-        #             "type": "web_search_preview",
-        #             "search_context_size": "high",
-        #             }],
-        #         reasoning={
-        #             "effort": "low"
-        #         },
-        #         input=input_list,
-        #         # temperature=temp,
-        #         # top_p=p,
-        #         # max_output_tokens=max_tok,  # If added will have error
-        #         stream=True,
-        #         ):
-        #         # structure = inspect_object_structure(response)
-        #         # print(structure)
-        #         # try:
-        #         # print(f"Original response: {response}\n\n")
-        #         # Access the response attribute of the event object
-        #         #     pdb.set_trace() # Set a break point here
+        def _extract_output_text(response_obj):
+            """Return concatenated output_text segments from a Responses API object."""
+            if not response_obj:
+                return ""
 
-        #         if hasattr(response, 'delta'):
-        #             full_response += response.delta or ""
-        #             message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+            collected_chunks = []
+            output_items = getattr(response_obj, "output", None)
+            if output_items:
+                for item in output_items:
+                    if getattr(item, "type", None) != "message":
+                        continue
+                    for content_item in getattr(item, "content", []) or []:
+                        if getattr(content_item, "type", None) == "output_text":
+                            collected_chunks.append(content_item.text or "")
+                if collected_chunks:
+                    return "".join(collected_chunks)
 
-        #     message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+            choices = getattr(response_obj, "choices", None)
+            if choices:
+                message = getattr(choices[0], "message", None)
+                if message is not None:
+                    return getattr(message, "content", "") or ""
 
-        # except OpenAIError as e:
-        #     error_response = f"An error occurred with OpenAI in getting chat response: {e}"
-        #     full_response = error_response
-        #     message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
-        # except Exception as e:
-        #     error_response = f"An unexpected error occurred in OpenAI API call: {e}"
-        #     full_response = error_response
-        #     message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+            return getattr(response_obj, "output_text", "") or ""
 
-        # Non-streaming response handling
-        try:
+        def _request_non_streaming() -> str:
             with st.spinner(""):
-                # for response in chatgpt_client.responses.create(
                 response = chatgpt_client.responses.create(
-                    # response = chatgpt_client.responses.create(
-                    model="gpt-5-mini-2025-08-07",
+                    model="gpt-5.1-2025-11-13",
                     tools=[{
                         "type": "web_search_preview",
                         "search_context_size": "high",
-                        }],
+                    }],
                     reasoning={
                         "effort": "high"
                     },
                     input=input_list,
-                    # temperature=temp,
-                    # top_p=p,
-                    # max_output_tokens=max_tok,  # If added will have error
-                    # stream=True,
                     stream=False,
-                    )
-                    # structure = inspect_object_structure(response)
-                    # print(structure)
-                    # try:
-                    # print(f"Original response: {response}\n\n")
-                    # Access the response attribute of the event object
-                    #     pdb.set_trace() # Set a break point here
+                )
+            return _extract_output_text(response)
 
-                # print(response)
-                # Handle GPT-5 response structure with output field
-                if hasattr(response, 'output') and response.output:
-                    # Find the message in the output list
-                    for item in response.output:
-                        if hasattr(item, 'type') and item.type == 'message':
-                            if hasattr(item, 'content') and item.content:
-                                for content_item in item.content:
-                                    if hasattr(content_item, 'type') and content_item.type == 'output_text':
-                                        full_response = content_item.text or ""
-                                        break
-                            break
-                elif hasattr(response, 'choices') and response.choices:
-                    # Fallback for standard OpenAI API structure
-                    full_response = response.choices[0].message.content or ""
-                else:
-                    # Final fallback
-                    full_response = ""
+        def _request_streaming() -> str:
+            streamed_chunks = []
+            final_response_obj = None
 
-                # print(f"Full response: {full_response}")
+            with chatgpt_client.responses.stream(
+                model="gpt-5.1-2025-11-13",
+                tools=[{
+                    "type": "web_search_preview",
+                    "search_context_size": "high",
+                }],
+                reasoning={
+                    "effort": "high"
+                },
+                input=input_list,
+            ) as stream:
+                for event in stream:
+                    if event.type == "response.output_text.delta":
+                        streamed_chunks.append(event.delta or "")
+                        current_text = "".join(streamed_chunks)
+                        message_placeholder.markdown(
+                            wrap_dollar_amounts(current_text) + "▌",
+                            unsafe_allow_html=True,
+                        )
+                    elif event.type == "response.output_text.done":
+                        current_text = "".join(streamed_chunks)
+                        message_placeholder.markdown(
+                            wrap_dollar_amounts(current_text) + "▌",
+                            unsafe_allow_html=True,
+                        )
+                    elif event.type == "response.completed":
+                        final_response_obj = event.response
+                    elif event.type in {"response.failed", "response.error"}:
+                        error_detail = getattr(getattr(event, "error", None), "message", None)
+                        raise RuntimeError(error_detail or "Streaming response failed.")
 
-                # if hasattr(response, 'choices'):
-                #     for choice in response.choices:
-                #         if hasattr(choice, 'delta'):
-                #             full_response += choice.delta or ""
-                #             message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+                final_response_obj = stream.get_final_response() or final_response_obj
 
-                message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+            if final_response_obj:
+                return _extract_output_text(final_response_obj)
 
-        except OpenAIError as e:
-            error_response = f"An error occurred with OpenAI in getting chat response: {e}"
-            full_response = error_response
-            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
-        except Exception as e:
-            error_response = f"An unexpected error occurred in OpenAI API call: {e}"
-            full_response = error_response
-            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+            return "".join(streamed_chunks)
+
+        try:
+            full_response = _request_streaming()
+        except OpenAIError as stream_error:
+            st.warning(f"Streaming error encountered. Falling back to non-streaming mode. ({stream_error})")
+            full_response = _request_non_streaming()
+        except RuntimeError as stream_error:
+            st.warning(f"Streaming error encountered. Falling back to non-streaming mode. ({stream_error})")
+            full_response = _request_non_streaming()
+        except Exception as stream_error:
+            st.warning(f"Unexpected streaming issue. Falling back to non-streaming mode. ({stream_error})")
+            full_response = _request_non_streaming()
+
+        message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
     return full_response
 
@@ -1000,6 +987,7 @@ def gemini(
                     top_p=p,
                     max_output_tokens=max_tok,
                     tools=[google_search_tool],
+                    thinking_config=ThinkingConfig(thinking_level="low"),
                     response_modalities=["TEXT"],
                     ),
                 ):
@@ -1103,6 +1091,10 @@ def gemini_thinking(
         _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
     """
 
+    google_search_tool = Tool(
+    google_search = GoogleSearchRetrieval
+    )
+
     with st.chat_message("user"):
         if _image_file_path != "":
             image_file = PIL.Image.open(_image_file_path)
@@ -1113,7 +1105,7 @@ def gemini_thinking(
         text = f":blue-background[:blue[**{model_name}**]]"
         st.markdown(text)
 
-        thinking_text = "Reasoning.... Please wait...."
+        thinking_text = "Thinking.... Please wait...."
         displayed_text = f"""
         <div style="color: green; font-style: italic;">
         <b>{thinking_text}</b>
@@ -1153,31 +1145,99 @@ def gemini_thinking(
 
         input_list = system_list + context_list
 
+        citations = "\n\n##### SOURCES:\n"
+        citation_title_list = []
+
         try:
-            with st.spinner(""):
-                for response in  client_thinking.models.generate_content_stream(
-                    contents=input_list,
-                    model=model_id_thinking,
-                    config=GenerateContentConfig(
-                        temperature=temp,
-                        top_p=p,
-                        max_output_tokens=max_tok,
-                        response_modalities=["TEXT"],
-                        ),
-                    ):
-                    for part in response.candidates[0].content.parts:
-                        if part.thought == True:  # Catching the thoughts
-                            full_response += part.text
-                        else:
-                            full_response += part.text
-                    message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
-                message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+            for response in  client_thinking.models.generate_content_stream(
+                contents=input_list,
+                model=model_id_thinking,
+                config=GenerateContentConfig(
+                    temperature=temp,
+                    top_p=p,
+                    max_output_tokens=max_tok,
+                    tools=[google_search_tool],
+                    thinking_config=ThinkingConfig(thinking_level="high"),
+                    response_modalities=["TEXT"],
+                    ),
+                ):
+                # Don't directly access response.text - check response structure first
+                if hasattr(response, 'candidates') and response.candidates:
+                    for candidate in response.candidates:
+                        if hasattr(candidate, 'content') and candidate.content:
+                            for part in candidate.content.parts:
+                                if hasattr(part, 'text') and part.text is not None:
+                                    full_response += part.text
+                                elif hasattr(part, 'executable_code') and part.executable_code is not None:
+                                    # Format code with markdown code block
+                                    code_lang = part.executable_code.language.lower() if hasattr(part.executable_code, 'language') else 'python'
+                                    # full_response += f"\n```{code_lang}\n{part.executable_code.code}\n```\n"
+                # Only access text directly if it exists
+                elif hasattr(response, 'text') and response.text is not None:
+                    full_response += response.text
+                
+                message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+
+                # Access titles and URIs from grounding chunks
+                if hasattr(response, 'candidates') and response.candidates:
+                    for candidate in response.candidates:
+                        if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
+                            if hasattr(candidate.grounding_metadata, 'grounding_chunks') and candidate.grounding_metadata.grounding_chunks:
+                                
+                                # displayed_text = "Extracting web source titles.... Please wait...."
+                                # displayed_text = f"""
+                                # <div style="color: #5f5fd4; font-style: italic;">
+                                # <b>{displayed_text}</b>
+                                # </div>
+                                # """
+                                # st.markdown(displayed_text, unsafe_allow_html=True)
+                                
+                                for chunk in candidate.grounding_metadata.grounding_chunks:
+                                    if hasattr(chunk, 'web') and chunk.web:
+                                        title = chunk.web.title
+                                        uri = chunk.web.uri
+                                        # print(f"Chunk title: {title}")
+                                        real_title = get_real_title(uri)  # Fetch the real title
+                                        # print(f"Real title: {real_title}")
+                                        title = real_title if real_title else title  # Use real title if available, otherwise use the original title
+                                        if title not in citation_title_list:
+                                            citation_title_list.append(title)
+                                            citations += f"* [{title}]({uri})\n"
+
+            # --- If there is already "##### SOURCES:" headers remove it (links not reliable)---
+            header = "\n\n##### SOURCES:\n"
+            header2 = "\n\n##### Citations:\n"
+            if header in full_response:
+                # split on first header
+                before, sep, after = full_response.partition(header)
+                # remove everything after (and including) the header
+                full_response = before
+            elif header2 in full_response:
+                before, sep, after = full_response.partition(header2)
+                full_response = before
+            else:
+                # Otherwise, append citations found or "No sources"
+                if citation_title_list != []:
+                    full_response += citations
+                else:
+                    full_response += citations
+                    full_response += "\n\n##### No sources found."
+
+            # --- new dedupe logic: leave at most one "No sources found." ---
+            no_src = "\n\n##### No sources found."
+            if full_response.count(no_src) > 1:
+                # keep only the first occurrence and drop any extras
+                parts = full_response.split(no_src)
+                full_response = parts[0] + no_src
+
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except Exception as e:
             error_response = f"An unexpected error occurred in gemini API call: {e}"
             full_response = error_response
             message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
+    # print(f"Gemini response: {full_response}")
     return full_response
 
 
@@ -1266,16 +1326,35 @@ def mistral(
         input_list = system_list + context_list
 
         try:
-            for response in mistral_client.chat_stream(
+            for chunk in mistral_client.chat.stream(
                 model=mistral_model,
                 messages=input_list,
                 temperature=temp,
-                # top_p=p,
-                max_tokens=max_tok
-                ):
-                if response.choices[0].delta.content is not None:
-                    full_response += response.choices[0].delta.content
+                max_tokens=max_tok,
+            ):
+                delta = getattr(chunk.data.choices[0], "delta", None)
+                delta_content = getattr(delta, "content", None) if delta else None
+
+                chunk_text = ""
+                if isinstance(delta_content, str):
+                    chunk_text = delta_content
+                elif isinstance(delta_content, list):
+                    text_parts = []
+                    for item in delta_content:
+                        if isinstance(item, str):
+                            text_parts.append(item)
+                            continue
+                        item_text = getattr(item, "text", None)
+                        if not item_text and isinstance(item, dict):
+                            item_text = item.get("text")
+                        if item_text:
+                            text_parts.append(item_text)
+                    chunk_text = "".join(text_parts)
+
+                if chunk_text:
+                    full_response += chunk_text
                     message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+
             message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except Exception as e:
@@ -1530,8 +1609,11 @@ def claude_thinking(
         )
 
         try:
-            with st.spinner(""):
-                response = claude_client.messages.create(
+            thinking_content = ""
+            answer_content = ""
+            current_block_type = None
+            
+            with claude_client.messages.stream(
                 model=claude_model,
                 system=model_role + output_format_instruction + math_instruction,
                 max_tokens=20000,
@@ -1540,69 +1622,26 @@ def claude_thinking(
                     "budget_tokens": 16000
                 },
                 messages=messages,
-                )
+                ) as stream:
+                
+                for event in stream:
+                    if hasattr(event, 'type'):
+                        if event.type == 'content_block_start':
+                            if hasattr(event.content_block, 'type'):
+                                current_block_type = event.content_block.type
+                        elif event.type == 'content_block_delta':
+                            if hasattr(event.delta, 'type'):
+                                if event.delta.type == 'thinking_delta':
+                                    thinking_content += event.delta.thinking
+                                    full_response = f"========== THINKING ==========\n\n{thinking_content}\n\n========== ANSWER ==========\n\n{answer_content}"
+                                    message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+                                elif event.delta.type == 'text_delta':
+                                    answer_content += event.delta.text
+                                    full_response = f"========== THINKING ==========\n\n{thinking_content}\n\n========== ANSWER ==========\n\n{answer_content}"
+                                    message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
 
-                # Extract thinking and text from a Claude API response.
-                thinking = None  # This initialization is actually useful for the function
-                answer = None      # to handle cases where blocks might be missing
-
-                # Loop through content blocks to find thinking and text
-                for block in response.content:
-                    if hasattr(block, 'type'):
-                        if block.type == 'thinking':
-                            thinking = block.thinking
-                        elif block.type == 'text':
-                            answer = block.text
-
-                full_response = f"========== THINKING ==========\n\n{thinking}\n\n========== ANSWER ==========\n\n{answer}"
-
-                # with claude_client.messages.stream(
-                #     model=claude_model,
-                #     system=model_role,
-                #     max_tokens=20000,
-                #     thinking={
-                #         "type": "enabled",
-                #         "budget_tokens": 16000
-                #     },
-                #     messages=messages,
-                #     ) as stream:
-
-                    
-                #     for event in stream.text_stream:
-                #         # if event.type == "content_block_start":
-                #         #     full_response += f"\nStarting {event.content_block.type} block..."
-                #         # elif event.type == "content_block_delta":
-                #         #     if event.delta.type == "thinking_delta":
-                #         #         full_response += f"Thinking: {event.delta.thinking}"
-                #         #     elif event.delta.type == "text_delta":
-                #         #         full_response += f"Response: {event.delta.text}"
-                #         # elif event.type == "content_block_stop":
-                #         #     full_response += "\nBlock complete."
-                #         # elif event.type == "error":
-                #         #     full_response += f"Error: {event.error}"
-                #         # elif event.type == "complete":
-                #         #     full_response += "\nStream complete."
-                #         # else:
-                #         #     full_response += "\nBlock complete."
-                #         full_response += event
-                #         message_placeholder.markdown(full_response + "▌")
-
-                message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
-
-        # try:
-        #     with claude_client.messages.stream(
-        #         model=claude_model,
-        #         system=model_role,
-        #         messages=messages,
-        #         temperature=temp,
-        #         top_p=p,
-        #         max_tokens=max_tok,
-        #         ) as stream:
-        #         for response in stream.text_stream:
-        #             full_response += response
-        #             message_placeholder.markdown(full_response + "▌")
-
-        #     message_placeholder.markdown(full_response)
+            full_response = f"========== THINKING ==========\n\n{thinking_content}\n\n========== ANSWER ==========\n\n{answer_content}"
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except Exception as e:
             error_response = f"An unexpected error occurred in Claude 4.5 thinking API call: {e}"
@@ -2038,17 +2077,17 @@ def process_prompt(
     determine_if_terminate_current_session_and_start_a_new_one(conn)
     st.session_state.messages.append({"role": "user", "model": "", "content": prompt1, "image": _image_file_path})
     try:
-        if model_name == "gpt-5-mini-2025-08-07":
+        if model_name == "gpt-5.1-2025-11-13":
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "gpt-5-mini-2025-08-07-thinking":
+        elif model_name == "gpt-5.1-2025-11-13-thinking":
             responses = chatgpt_thinking(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "claude-sonnet-4-5-20250929":
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "claude-sonnet-4-5-20250929-thinking":
             responses = claude_thinking(prompt1, model_role, _image_file_path)
-        elif model_name == "gemini-2.0-flash":
+        elif model_name == "gemini-3-pro-preview":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "gemini-2.5-pro":
+        elif model_name == "gemini-3-pro-preview-thinking":
             responses = gemini_thinking(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "pixtral-large-latest":
             responses = mistral(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
@@ -2253,15 +2292,15 @@ OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
 
 # Set gemini api configuration
 gemini_client = genai.Client(api_key=GOOGLE_API_KEY)
-# model_id = "gemini-2.0-pro-exp-02-05"
-model_id = "gemini-2.0-flash"
+# model_id = "gemini-2.0-flash"
+model_id = "gemini-3-pro-preview"
 
 # Set gemini thinking api configuration
 client_thinking = genai.Client(
     api_key=GOOGLE_API_KEY,
     http_options={'api_version':'v1alpha'},
     )
-model_id_thinking = "gemini-2.5-pro"
+model_id_thinking = "gemini-3-pro-preview"
 # model_id_thinking = "gemini-2.0-flash-thinking-exp-01-21"
 
 # genai.configure(api_key=GOOGLE_API_KEY)
@@ -2269,7 +2308,7 @@ model_id_thinking = "gemini-2.5-pro"
 
 # Set mastral api configuration
 mistral_model = "pixtral-large-latest"
-mistral_client = MistralClient(api_key=MISTRAL_API_KEY)
+mistral_client = Mistral(api_key=MISTRAL_API_KEY)
 
 # Set Claude api configuration
 claude_model = "claude-sonnet-4-5-20250929"
@@ -2414,7 +2453,7 @@ st.sidebar.title("Options")
 
 # Handle model type. The type chosen will be reused rather than using a default value.
 # If the type table is empty, set the initial type to "Deterministic".
-insert_initial_default_model_type(connection, 'gemini-2.0-flash')
+insert_initial_default_model_type(connection, 'gemini-3-pro-preview')
 
 Load_the_last_saved_model_type(connection)  # load from database and save to session_state
 type_index = return_type_index(st.session_state.type)  # from string to int (0 to 4)
@@ -2422,13 +2461,13 @@ type_index = return_type_index(st.session_state.type)  # from string to int (0 t
 model_name = st.sidebar.radio(
                                 label="Choose model:",
                                 options=(
-                                    "gpt-5-mini-2025-08-07",
-                                    "gpt-5-mini-2025-08-07-thinking",
+                                    "gpt-5.1-2025-11-13",
+                                    "gpt-5.1-2025-11-13-thinking",
                                     "claude-sonnet-4-5-20250929",
                                     "claude-sonnet-4-5-20250929-thinking",
                                     "pixtral-large-latest",
-                                    "gemini-2.0-flash",
-                                    "gemini-2.5-pro",
+                                    "gemini-3-pro-preview",
+                                    "gemini-3-pro-preview-thinking",
                                     "DeepSeek-R1-0528",
                                     "perplexity-sonar-pro",
                                     "nvidia-llama-3.1-nemotron-70b-instruct",
@@ -2734,23 +2773,22 @@ if st.session_state.delete_session:
 # The following code handles model API call and new chat session creation (if necessary) before sending
 # the API call.
 model_role = (
-    "Your Role & Expertise: \n"
-    "You're a seasoned Senior Engineer, specializing in: \n"
-    "1. Machine Learning (ML) projects \n"
-    "2. Generative Artificial Intelligence (AI) \n"
-    "3. Large Language Models (LLMs) \n"
-    "4. Kafka, Java, Flink, Kafka-connect, and Ververica-platform \n"
-    "---------- \n"
-    "Text Responses Gudelines: \n"
-    "1. Use a LIGHTLY CASUAL, CONCISE tone (think 'explaining to a colleague') \n"
-    "2. Use STRAIGHT-TO-THE-POINT language for clarity and efficiency \n"
-    "3. When providing code solutions, include the complete code and the import statements. \n"
-    "---------- \n"
+    # "You're a seasoned Senior Engineer, specializing in: \n"
+    # "1. Machine Learning (ML) projects \n"
+    # "2. Generative Artificial Intelligence (AI) \n"
+    # "3. Large Language Models (LLMs) \n"
+    # "4. Kafka, Java, Flink, Kafka-connect, and Ververica-platform \n"
+    # "---------- \n"
+    # "Text Responses Gudelines: \n"
+    # "1. Use a LIGHTLY CASUAL, CONCISE tone (think 'explaining to a colleague') \n"
+    # "2. Use STRAIGHT-TO-THE-POINT language for clarity and efficiency \n"
+    # "---------- \n"
     "Code Solutions Guidelines: \n"
-    "1. Always provide COMPLETE, RUNNABLE CODE examples \n"
-    "2. Include all necessary IMPORT STATEMENTS for ease of execution \n"
-    "3. Ensure the code is WELL-COMMENTED for understanding \n"
-    "4. Test the code before sending to ensure it works as expected \n"
+    "1. Provide code example ONLY when asked about a CODING question. \n"
+    "2. Always provide COMPLETE, RUNNABLE CODE examples that include all necessary imports. \n"
+    "3. Include all necessary IMPORT STATEMENTS for ease of execution. \n"
+    "4. Ensure the code is WELL-COMMENTED for understanding. \n"
+    "5. Test the code before sending to ensure it works as expected. \n"
     "---------- \n"
     )
 
