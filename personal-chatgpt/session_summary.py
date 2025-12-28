@@ -193,19 +193,22 @@ def chatgpt_summary_user_only(client, chat_text_user_only: str) -> str:
     and limits the summary to a maximum of sixteen words.
     """
     try:
-        response = client.completions.create(
-            model="gpt-3.5-turbo-instruct",
-            prompt="Use a sentence to summary the main topics of the user's questions in following chat session. " + 
-            "DO NOT start the sentence with 'The user' or 'Questions about'. For example, if the summary is 'Questions about handling errors " + 
-            "in OpenAI API.', just return 'Handling errors in OpenAI API'. DO NOT use special characters that can not be used in a file name. " + 
-            "No more than ten words in the sentence. A partial sentence is fine.\n\n" + chat_text_user_only,
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that summarizes chat sessions."},
+                {"role": "user", "content": "Use a sentence to summary the main topics of the user's questions in following chat session. " + 
+                "DO NOT start the sentence with 'The user' or 'Questions about'. For example, if the summary is 'Questions about handling errors " + 
+                "in OpenAI API.', just return 'Handling errors in OpenAI API'. DO NOT use special characters that can not be used in a file name. " + 
+                "No more than ten words in the sentence. A partial sentence is fine.\n\n" + chat_text_user_only}
+            ],
             max_tokens=30,
             n=1,
             stop=None,
             temperature=0.5,
             timeout=30
         )
-        summary = response.choices[0].text.strip()
+        summary = response.choices[0].message.content.strip()
         return summary
 
     except APIConnectionError as e:

@@ -264,7 +264,7 @@ def chatgpt(
         def _request_non_streaming() -> str:
             with st.spinner(""):
                 response = chatgpt_client.responses.create(
-                    model="gpt-5.1-2025-11-13",
+                    model="gpt-5.2-2025-12-11",
                     tools=[{
                         "type": "web_search_preview",
                         "search_context_size": "high",
@@ -285,7 +285,7 @@ def chatgpt(
             final_response_obj = None
 
             with chatgpt_client.responses.stream(
-                model="gpt-5.1-2025-11-13",
+                model="gpt-5.2-2025-12-11",
                 tools=[{
                     "type": "web_search_preview",
                     "search_context_size": "high",
@@ -485,7 +485,7 @@ def chatgpt_thinking(
         def _request_non_streaming() -> str:
             with st.spinner(""):
                 response = chatgpt_client.responses.create(
-                    model="gpt-5.1-2025-11-13",
+                    model="gpt-5.2-2025-12-11",
                     tools=[{
                         "type": "web_search_preview",
                         "search_context_size": "high",
@@ -503,7 +503,7 @@ def chatgpt_thinking(
             final_response_obj = None
 
             with chatgpt_client.responses.stream(
-                model="gpt-5.1-2025-11-13",
+                model="gpt-5.2-2025-12-11",
                 tools=[{
                     "type": "web_search_preview",
                     "search_context_size": "high",
@@ -2077,9 +2077,9 @@ def process_prompt(
     determine_if_terminate_current_session_and_start_a_new_one(conn)
     st.session_state.messages.append({"role": "user", "model": "", "content": prompt1, "image": _image_file_path})
     try:
-        if model_name == "gpt-5.1-2025-11-13":
+        if model_name == "gpt-5.2-2025-12-11":
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "gpt-5.1-2025-11-13-thinking":
+        elif model_name == "gpt-5.2-2025-12-11-thinking":
             responses = chatgpt_thinking(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "claude-sonnet-4-5-20250929":
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
@@ -2461,8 +2461,8 @@ type_index = return_type_index(st.session_state.type)  # from string to int (0 t
 model_name = st.sidebar.radio(
                                 label="Choose model:",
                                 options=(
-                                    "gpt-5.1-2025-11-13",
-                                    "gpt-5.1-2025-11-13-thinking",
+                                    "gpt-5.2-2025-12-11",
+                                    "gpt-5.2-2025-12-11-thinking",
                                     "claude-sonnet-4-5-20250929",
                                     "claude-sonnet-4-5-20250929-thinking",
                                     "pixtral-large-latest",

@@ -5,6 +5,8 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
+Version 2.15 of this APP has upgrade `gpt-5.1-2025-11-13` and `gpt-5.1-2025-11-13-thinking` to `gpt-5.2-2025-12-11` and `gpt-5.2-2025-12-11-thinking`, respectively, which in the former the thinking effort is set to `low` while in the latter `high`. GPT-5.2 is better at creating spreadsheets, building presentations, writing code, perceiving images, understanding long contexts, using tools, and handling complex, multi-step projects.
+
 Version 2.14 of this APP has made the following changes:
 - Upgrade both `gpt-5-mini-2025-08-07` and `gpt-5-mini-2025-08-07-thinking` to `gpt-5.1-2025-11-13` and `gpt-5.1-2025-11-13-thinking`, where in the former the reasoning effort is set to `low` while in the latter to `high`. GPT-5.1 is a smarter, more conversational model that is warmer, more intelligent, and better at following your instructions. It is also faster on simple tasks, more persistent on complex ones.
 - Upgrade both `gemini-2.0-flash` and `gemini-2.5-pro` to `gemini-3-pro-preview` and `gemini-3-pro-preview-thinking`, where in the former the thinking level is set to `low` while in the latter to `high`. Gemini-3-Pro is best for multimodal understanding and agentic and vibe coding, delivering richer visualizations and deeper interactivity — all built on a foundation of state-of-the-art reasoning.
@@ -14,8 +16,8 @@ Version 2.14 of this APP has made the following changes:
 
 At present, this APP has six models that support web-search result citations:
 
-1. `gpt-5.1-2025-11-13`
-2. `gpt-5.1-2025-11-13-thinking`
+1. `gpt-5.2-2025-12-11`
+2. `gpt-5.2-2025-12-11-thinking`
 3. `claude-sonnet-4-5-20250929`
 4. `gemini-3-pro-preview`
 5. `gemini-3-pro-preview-thinking`
@@ -225,18 +227,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 2.14 of this APP, and install the project,
+To create a Python virtual environment, check out version 2.15 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v2.14
+git checkout v2.15
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:2.14 .
+docker build -t streamlit-mysql:2.15 .
 docker compose up
 ```
 ## Medium Article
