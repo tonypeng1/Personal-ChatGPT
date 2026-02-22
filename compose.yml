@@ -2,7 +2,7 @@ services:
   app:
     build: .
     container_name: chat_gpt
-    image: streamlit-mysql:2.15
+    image: streamlit-mysql:2.16
     ports:
       - 8501:8501
     environment:
@@ -13,16 +13,11 @@ services:
       - EXPORT_DIR=/app/exported-images  # Needed if a .HTML file is saved
       # - HOST_DESINATION_DIR=images  # An folder named "images" will be created in the host "Downloads" folder
     volumes:
-      - type: volume  # Use a Docker-managed volume named "image-data" at '/app/images' in docker
-        source: image-data
-        target: /app/images
-      - type: bind  # Bind-mount from host '~/Downloads/images' to container '/app/exported-images'
-        source: ${HOME:-${USERPROFILE}}/Downloads  # Automatically determine the home directory path based on the operating system
-        target: /app/exported-images
+      - image-data:/app/images
+      - ${HOME}/Downloads:/app/exported-images
     depends_on:
       mysql:
         condition: service_healthy
-        restart: true
 
   mysql:
     container_name: mysql_db
@@ -39,9 +34,9 @@ services:
       - MYSQL_DATABASE=chat
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 3s
+      timeout: 10s
       retries: 5
-      interval: 5s  # Time between healthcheck attempts
+      interval: 10s  # Time between healthcheck attempts
 
 volumes:
   mysql-data:  # Name of the Docker-managed database volume

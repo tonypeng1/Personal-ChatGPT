@@ -5,7 +5,22 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
-Version 2.15 of this APP has upgrade `gpt-5.1-2025-11-13` and `gpt-5.1-2025-11-13-thinking` to `gpt-5.2-2025-12-11` and `gpt-5.2-2025-12-11-thinking`, respectively, which in the former the thinking effort is set to `low` while in the latter `high`. GPT-5.2 is better at creating spreadsheets, building presentations, writing code, perceiving images, understanding long contexts, using tools, and handling complex, multi-step projects.
+Version 2.16 of this APP has made the following changes:
+- Upgrade `claude-sonnet-4-5-20250929` and `gemini-3-pro-preview` to the new `claude-sonnet-4-6` and `gemini-3.1-pro-preview`, respectively. Prices of the two new models are the same as their predecessors. Claude Sonnet 4.6 is a full upgrade of the model’s skills across coding, computer use, long-context reasoning, agent planning, knowledge work, and design. On the other hand, Gemini 3.1 Pro Preview provides better thinking, improved token efficiency, and a more grounded, factually consistent experience. 
+- Enable dynamic filtering in Claude search: it can now natively write and execute code during web searches to filter results before they enter the context window, improving both accuracy and token efficiency. Also, enable the web fetch function in the API call.
+- Add both the web search and web fetch features to the `claude-sonnet-4-6-thinking` model in this APP.
+
+At present, this APP has seven models that support web-search result citations:
+
+1. `gpt-5.2-2025-12-11`
+2. `gpt-5.2-2025-12-11-thinking`
+3. `claude-sonnet-4-6`
+4. `claude-sonnet-4-6-thinking`
+5. `gemini-3.1-pro-preview`
+6. `gemini-3.1-pro-preview-thinking`
+7. `perplexity-sonar-pro`
+ 
+Version 2.15 of this APP has upgraded `gpt-5.1-2025-11-13` and `gpt-5.1-2025-11-13-thinking` to `gpt-5.2-2025-12-11` and `gpt-5.2-2025-12-11-thinking`, respectively, which in the former the thinking effort is set to `low` while in the latter `high`. GPT-5.2 is better at creating spreadsheets, building presentations, writing code, perceiving images, understanding long contexts, using tools, and handling complex, multi-step projects.
 
 Version 2.14 of this APP has made the following changes:
 - Upgrade both `gpt-5-mini-2025-08-07` and `gpt-5-mini-2025-08-07-thinking` to `gpt-5.1-2025-11-13` and `gpt-5.1-2025-11-13-thinking`, where in the former the reasoning effort is set to `low` while in the latter to `high`. GPT-5.1 is a smarter, more conversational model that is warmer, more intelligent, and better at following your instructions. It is also faster on simple tasks, more persistent on complex ones.

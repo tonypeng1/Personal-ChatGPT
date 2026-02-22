@@ -1374,7 +1374,7 @@ def claude(
         _image_file_path: str = "",
         ) -> str:
     """
-    Processes a chat prompt using Anthropic's Claude 4.5 model and updates the chat session.
+    Processes a chat prompt using Anthropic's Claude 4.6 model and updates the chat session.
 
     Args:
         conn: A connection object to the MySQL database.
@@ -1397,6 +1397,15 @@ def claude(
     with st.chat_message("assistant"):
         text = f":blue-background[:blue[**{model_name}**]]"
         st.markdown(text)
+
+        thinking_text = "Please wait...."
+        displayed_text = f"""
+        <div style="color: green; font-style: italic;">
+        <b>{thinking_text}</b>
+        </div>
+        """
+        # # <div style="background-color: lightyellow; color: green; font-weight: bold; padding: 5px; border-radius: 5px;">
+        st.markdown(displayed_text, unsafe_allow_html=True)
 
         message_placeholder = st.empty()
         full_response = ""
@@ -1452,7 +1461,8 @@ def claude(
         "2. Item 2\n"
         )
 
-        citations = "\n\n##### SOURCES:\n"
+        citation_header = "\n\n##### SOURCES:\n"
+        citations_list_str = ""
         citation_title_list = []
 
         try:
@@ -1462,46 +1472,75 @@ def claude(
                 system=model_role + output_format_instruction + math_instruction,
                 messages=context_list,
                 tools=[{
-                    "type": "web_search_20250305",
+                    "type": "web_search_20260209",
                     "name": "web_search",
                     "max_uses": 5
+                    },
+                    {
+                    "type": "web_fetch_20260209",
+                    "name": "web_fetch"
                     }],
                 temperature=temp,
                 # top_p=p,
                 max_tokens=max_tok,
                 ) as stream:
 
-                for response in stream:
-                    if hasattr(response, 'type') and response.type == 'message_delta':
-                        if response.delta.stop_reason == 'refusal':
-                            context_list = []
-                            st.warning(body="Conversation reset due to refusal",
-                                       icon="🔥")
+                for event in stream:
+                    # Uncomment to debug event structure:
+                    # print(f"DEBUG event.type={event.type}, content_block={getattr(event, 'content_block', None)}, delta={getattr(event, 'delta', None)}")
+
+                    if event.type == 'content_block_start':
+                        # Web search results arrive HERE in content_block_start (no deltas follow)
+                        block = getattr(event, 'content_block', None)
+                        if block is not None and 'web_search_tool_result' in getattr(block, 'type', ''):
+                            results = getattr(block, 'content', None) or []
+                            for result in (results if isinstance(results, list) else []):
+                                url = (result.get('url', '') if isinstance(result, dict) else getattr(result, 'url', '')) or ''
+                                title = (result.get('title', '') if isinstance(result, dict) else getattr(result, 'title', '')) or url
+                                if url and title not in citation_title_list:
+                                    citation_title_list.append(title)
+                                    citations_list_str += f"* [{title}]({url})\n"
+
+                    elif event.type == 'message_delta':
+                        if getattr(event.delta, 'stop_reason', None) == 'refusal':
+                            st.warning(body="Conversation reset due to refusal", icon="🔥")
                             break
-                    if hasattr(response, 'type'):
-                        if response.type == 'text':
-                            full_response += response.text
-                        elif response.type == 'citation':
-                             if response.citation.title not in citation_title_list:
-                                citation_title_list.append(response.citation.title)
-                                citations += f"* [{response.citation.title}]({response.citation.url})\n"
-                        message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
 
-            if citation_title_list == []:
-                citations += "\n\n##### No sources found."
-            full_response += citations
+                    elif event.type == 'content_block_delta':
+                        delta = event.delta
+                        if delta.type == 'text_delta':
+                            full_response += delta.text
+                        elif delta.type == 'citations_delta':
+                            # CitationsDelta.citation is CitationCharLocation etc. — has document_title but not URL
+                            cit = getattr(delta, 'citation', None)
+                            if cit:
+                                doc_title = getattr(cit, 'document_title', '') or ''
+                                if doc_title and doc_title not in citation_title_list:
+                                    citation_title_list.append(doc_title)
 
-            # --- new dedupe logic: leave at most one “No sources found.” ---
-            no_src = "\n\n##### No sources found."
-            if full_response.count(no_src) > 1:
-                # keep only the first occurrence and drop any extras
-                parts = full_response.split(no_src)
-                full_response = parts[0] + no_src
+                    # Only show text while streaming; citations are appended after stream ends
+                    message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+
+            # Post-stream: scan final message for any web search results not yet captured
+            final_msg = stream.get_final_message()
+            for block in final_msg.content:
+                if 'web_search_tool_result' in getattr(block, 'type', ''):
+                    results = getattr(block, 'content', None) or []
+                    for result in (results if isinstance(results, list) else []):
+                        url = (result.get('url', '') if isinstance(result, dict) else getattr(result, 'url', '')) or ''
+                        title = (result.get('title', '') if isinstance(result, dict) else getattr(result, 'title', '')) or url
+                        if url and title not in citation_title_list:
+                            citation_title_list.append(title)
+                            citations_list_str += f"* [{title}]({url})\n"
+
+            # Append sources only after all text has been streamed
+            if citation_title_list:
+                full_response += citation_header + citations_list_str
 
             message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except Exception as e:
-            error_response = f"An unexpected error occurred in Claude 4.5 API call: {e}"
+            error_response = f"An unexpected error occurred in Claude 4.6 API call: {e}"
             full_response = error_response
             message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
@@ -1515,8 +1554,8 @@ def claude_thinking(
         _image_file_path: str = "",
         ) -> str:
     """
-    Processes a chat prompt using Anthropic's Claude 4.5 model and updates the chat session. Change
-    the max_tokens to 20000 to use Claude 4.5 model's extended thinking.
+    Processes a chat prompt using Anthropic's Claude 4.6 model and updates the chat session. Change
+    the max_tokens to 20000 to use Claude 4.6 model's extended thinking.
 
     Args:
         conn: A connection object to the MySQL database.
@@ -1612,6 +1651,10 @@ def claude_thinking(
             thinking_content = ""
             answer_content = ""
             current_block_type = None
+
+            citation_header = "\n\n##### SOURCES:\n"
+            citations_list_str = ""
+            citation_title_list = []
             
             with claude_client.messages.stream(
                 model=claude_model,
@@ -1621,30 +1664,70 @@ def claude_thinking(
                     "type": "enabled",
                     "budget_tokens": 16000
                 },
+                tools=[{
+                    "type": "web_search_20260209",
+                    "name": "web_search",
+                    "max_uses": 5,
+                    },
+                    {
+                    "type": "web_fetch_20260209",
+                    "name": "web_fetch"
+                    }],
                 messages=messages,
                 ) as stream:
                 
                 for event in stream:
-                    if hasattr(event, 'type'):
-                        if event.type == 'content_block_start':
-                            if hasattr(event.content_block, 'type'):
-                                current_block_type = event.content_block.type
-                        elif event.type == 'content_block_delta':
-                            if hasattr(event.delta, 'type'):
-                                if event.delta.type == 'thinking_delta':
-                                    thinking_content += event.delta.thinking
-                                    full_response = f"========== THINKING ==========\n\n{thinking_content}\n\n========== ANSWER ==========\n\n{answer_content}"
-                                    message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
-                                elif event.delta.type == 'text_delta':
-                                    answer_content += event.delta.text
-                                    full_response = f"========== THINKING ==========\n\n{thinking_content}\n\n========== ANSWER ==========\n\n{answer_content}"
-                                    message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+                    # Uncomment to debug event structure:
+                    # print(f"DEBUG event.type={event.type}, content_block={getattr(event, 'content_block', None)}, delta={getattr(event, 'delta', None)}")
 
-            full_response = f"========== THINKING ==========\n\n{thinking_content}\n\n========== ANSWER ==========\n\n{answer_content}"
+                    if event.type == 'content_block_start':
+                        # Web search results arrive HERE in content_block_start (no deltas follow)
+                        block = getattr(event, 'content_block', None)
+                        if block is not None and 'web_search_tool_result' in getattr(block, 'type', ''):
+                            results = getattr(block, 'content', None) or []
+                            for result in (results if isinstance(results, list) else []):
+                                url = (result.get('url', '') if isinstance(result, dict) else getattr(result, 'url', '')) or ''
+                                title = (result.get('title', '') if isinstance(result, dict) else getattr(result, 'title', '')) or url
+                                if url and title not in citation_title_list:
+                                    citation_title_list.append(title)
+                                    citations_list_str += f"* [{title}]({url})\n"
+
+                    elif event.type == 'content_block_delta':
+                        delta = event.delta
+                        if delta.type == 'thinking_delta':
+                            thinking_content += delta.thinking
+                        elif delta.type == 'text_delta':
+                            answer_content += delta.text
+                        elif delta.type == 'citations_delta':
+                            cit = getattr(delta, 'citation', None)
+                            if cit:
+                                doc_title = getattr(cit, 'document_title', '') or ''
+                                if doc_title and doc_title not in citation_title_list:
+                                    citation_title_list.append(doc_title)
+
+                    # Only show text while streaming; citations are appended after stream ends
+                    full_response = f"========== THINKING ==========\n\n{thinking_content}\n\n========== ANSWER ==========\n\n{answer_content}"
+                    message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+
+            # Post-stream: scan final message for any web search results not yet captured
+            final_msg = stream.get_final_message()
+            for block in final_msg.content:
+                if 'web_search_tool_result' in getattr(block, 'type', ''):
+                    results = getattr(block, 'content', None) or []
+                    for result in (results if isinstance(results, list) else []):
+                        url = (result.get('url', '') if isinstance(result, dict) else getattr(result, 'url', '')) or ''
+                        title = (result.get('title', '') if isinstance(result, dict) else getattr(result, 'title', '')) or url
+                        if url and title not in citation_title_list:
+                            citation_title_list.append(title)
+                            citations_list_str += f"* [{title}]({url})\n"
+
+            # Append sources only after all text has been streamed
+            final_citations = (citation_header + citations_list_str) if citation_title_list else ""
+            full_response = f"========== THINKING ==========\n\n{thinking_content}\n\n========== ANSWER ==========\n\n{answer_content}{final_citations}"
             message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
         except Exception as e:
-            error_response = f"An unexpected error occurred in Claude 4.5 thinking API call: {e}"
+            error_response = f"An unexpected error occurred in Claude 4.6 thinking API call: {e}"
             full_response = error_response
             message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
@@ -2081,13 +2164,13 @@ def process_prompt(
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "gpt-5.2-2025-12-11-thinking":
             responses = chatgpt_thinking(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "claude-sonnet-4-5-20250929":
+        elif model_name == "claude-sonnet-4-6":
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "claude-sonnet-4-5-20250929-thinking":
+        elif model_name == "claude-sonnet-4-6-thinking":
             responses = claude_thinking(prompt1, model_role, _image_file_path)
-        elif model_name == "gemini-3-pro-preview":
+        elif model_name == "gemini-3.1-pro-preview":
             responses = gemini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
-        elif model_name == "gemini-3-pro-preview-thinking":
+        elif model_name == "gemini-3.1-pro-preview-thinking":
             responses = gemini_thinking(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
         elif model_name == "pixtral-large-latest":
             responses = mistral(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
@@ -2293,14 +2376,14 @@ OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
 # Set gemini api configuration
 gemini_client = genai.Client(api_key=GOOGLE_API_KEY)
 # model_id = "gemini-2.0-flash"
-model_id = "gemini-3-pro-preview"
+model_id = "gemini-3.1-pro-preview"
 
 # Set gemini thinking api configuration
 client_thinking = genai.Client(
     api_key=GOOGLE_API_KEY,
     http_options={'api_version':'v1alpha'},
     )
-model_id_thinking = "gemini-3-pro-preview"
+model_id_thinking = "gemini-3.1-pro-preview"
 # model_id_thinking = "gemini-2.0-flash-thinking-exp-01-21"
 
 # genai.configure(api_key=GOOGLE_API_KEY)
@@ -2311,7 +2394,7 @@ mistral_model = "pixtral-large-latest"
 mistral_client = Mistral(api_key=MISTRAL_API_KEY)
 
 # Set Claude api configuration
-claude_model = "claude-sonnet-4-5-20250929"
+claude_model = "claude-sonnet-4-6"
 claude_client = anthropic.Anthropic(api_key=CLAUDE_API_KEY,)
 
 # Set chatgpt api configuration
@@ -2453,7 +2536,7 @@ st.sidebar.title("Options")
 
 # Handle model type. The type chosen will be reused rather than using a default value.
 # If the type table is empty, set the initial type to "Deterministic".
-insert_initial_default_model_type(connection, 'gemini-3-pro-preview')
+insert_initial_default_model_type(connection, 'gemini-3.1-pro-preview')
 
 Load_the_last_saved_model_type(connection)  # load from database and save to session_state
 type_index = return_type_index(st.session_state.type)  # from string to int (0 to 4)
@@ -2463,11 +2546,11 @@ model_name = st.sidebar.radio(
                                 options=(
                                     "gpt-5.2-2025-12-11",
                                     "gpt-5.2-2025-12-11-thinking",
-                                    "claude-sonnet-4-5-20250929",
-                                    "claude-sonnet-4-5-20250929-thinking",
+                                    "claude-sonnet-4-6",
+                                    "claude-sonnet-4-6-thinking",
                                     "pixtral-large-latest",
-                                    "gemini-3-pro-preview",
-                                    "gemini-3-pro-preview-thinking",
+                                    "gemini-3.1-pro-preview",
+                                    "gemini-3.1-pro-preview-thinking",
                                     "DeepSeek-R1-0528",
                                     "perplexity-sonar-pro",
                                     "nvidia-llama-3.1-nemotron-70b-instruct",
