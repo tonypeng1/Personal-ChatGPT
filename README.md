@@ -5,6 +5,10 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
+Version 2.17 of this APP has made the following two improvements:
+- Improve the disambiguation between inline math expressions and currency dollar amounts. Specifically, any `$...$` span whose content contains Markdown bold markers (`**`) is no longer misclassified as LaTeX math.
+- Fix citation handling in `gemini()` and `gemini_thinking()`: thinking tokens (`part.thought`) are now filtered out of the response text; a fallback citation path parses `search_entry_point` chip links when `grounding_chunks` is absent.
+
 Version 2.16 of this APP has made the following changes:
 - Upgrade `claude-sonnet-4-5-20250929` and `gemini-3-pro-preview` to the new `claude-sonnet-4-6` and `gemini-3.1-pro-preview`, respectively. Prices of the two new models are the same as their predecessors. Claude Sonnet 4.6 is a full upgrade of the model’s skills across coding, computer use, long-context reasoning, agent planning, knowledge work, and design. On the other hand, Gemini 3.1 Pro Preview provides better thinking, improved token efficiency, and a more grounded, factually consistent experience. 
 - Enable dynamic filtering in Claude search: it can now natively write and execute code during web searches to filter results before they enter the context window, improving both accuracy and token efficiency. Also, enable the web fetch function in the API call.
@@ -242,18 +246,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 2.16 of this APP, and install the project,
+To create a Python virtual environment, check out version 2.17 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v2.16
+git checkout v2.17
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:2.16 .
+docker build -t streamlit-mysql:2.17 .
 docker compose up
 ```
 ## Medium Article

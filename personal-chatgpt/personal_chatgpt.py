@@ -977,6 +977,7 @@ def gemini(
 
         citations = "\n\n##### SOURCES:\n"
         citation_title_list = []
+        last_grounding_metadata = None
 
         try:
             for response in gemini_client.models.generate_content_stream(
@@ -996,6 +997,9 @@ def gemini(
                     for candidate in response.candidates:
                         if hasattr(candidate, 'content') and candidate.content:
                             for part in candidate.content.parts:
+                                # Skip thinking/thought parts to avoid polluting full_response
+                                if hasattr(part, 'thought') and part.thought:
+                                    continue
                                 if hasattr(part, 'text') and part.text is not None:
                                     full_response += part.text
                                 elif hasattr(part, 'executable_code') and part.executable_code is not None:
@@ -1008,50 +1012,52 @@ def gemini(
                 
                 message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
 
-                # Access titles and URIs from grounding chunks
+                # Access titles and URIs from grounding chunks; track metadata for fallback
                 if hasattr(response, 'candidates') and response.candidates:
                     for candidate in response.candidates:
                         if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
+                            last_grounding_metadata = candidate.grounding_metadata
                             if hasattr(candidate.grounding_metadata, 'grounding_chunks') and candidate.grounding_metadata.grounding_chunks:
-                                
-                                # displayed_text = "Extracting web source titles.... Please wait...."
-                                # displayed_text = f"""
-                                # <div style="color: #5f5fd4; font-style: italic;">
-                                # <b>{displayed_text}</b>
-                                # </div>
-                                # """
-                                # st.markdown(displayed_text, unsafe_allow_html=True)
-                                
                                 for chunk in candidate.grounding_metadata.grounding_chunks:
                                     if hasattr(chunk, 'web') and chunk.web:
                                         title = chunk.web.title
                                         uri = chunk.web.uri
-                                        # print(f"Chunk title: {title}")
                                         real_title = get_real_title(uri)  # Fetch the real title
-                                        # print(f"Real title: {real_title}")
                                         title = real_title if real_title else title  # Use real title if available, otherwise use the original title
                                         if title not in citation_title_list:
                                             citation_title_list.append(title)
                                             citations += f"* [{title}]({uri})\n"
 
-            # --- If there is already "##### SOURCES:" headers remove it (links not reliable)---
+            # --- Fallback: some models omit grounding_chunks but populate search_entry_point
+            # --- chips; extract those <a class="chip"> links as sources instead ---
+            if not citation_title_list and last_grounding_metadata:
+                sep_obj = last_grounding_metadata.search_entry_point
+                if sep_obj and sep_obj.rendered_content:
+                    soup = BeautifulSoup(sep_obj.rendered_content, 'html.parser')
+                    for a_tag in soup.find_all('a', class_='chip'):
+                        link_text = a_tag.get_text(strip=True)
+                        link_href = a_tag.get('href', '')
+                        if link_href and link_text not in citation_title_list:
+                            citation_title_list.append(link_text)
+                            citations += f"* [Google Search: {link_text}]({link_href})\n"
+
+            # --- Strip any model-generated SOURCES/Citations section (links may be hallucinated),
+            # --- then always re-append the verified API grounding_chunks citations ---
             header = "\n\n##### SOURCES:\n"
             header2 = "\n\n##### Citations:\n"
             if header in full_response:
-                # split on first header
+                # strip the model's own sources section
                 before, sep, after = full_response.partition(header)
-                # remove everything after (and including) the header
                 full_response = before
             elif header2 in full_response:
                 before, sep, after = full_response.partition(header2)
                 full_response = before
+            # Always append API-collected citations (or "No sources" if none found)
+            if citation_title_list:
+                full_response += citations
             else:
-                # Otherwise, append citations found or "No sources"
-                if citation_title_list != []:
-                    full_response += citations
-                else:
-                    full_response += citations
-                    full_response += "\n\n##### No sources found."
+                full_response += citations
+                full_response += "\n\n##### No sources found."
 
             # --- new dedupe logic: leave at most one "No sources found." ---
             no_src = "\n\n##### No sources found."
@@ -1147,6 +1153,7 @@ def gemini_thinking(
 
         citations = "\n\n##### SOURCES:\n"
         citation_title_list = []
+        last_grounding_metadata = None
 
         try:
             for response in  client_thinking.models.generate_content_stream(
@@ -1166,6 +1173,9 @@ def gemini_thinking(
                     for candidate in response.candidates:
                         if hasattr(candidate, 'content') and candidate.content:
                             for part in candidate.content.parts:
+                                # Skip thinking/thought parts to avoid polluting full_response
+                                if hasattr(part, 'thought') and part.thought:
+                                    continue
                                 if hasattr(part, 'text') and part.text is not None:
                                     full_response += part.text
                                 elif hasattr(part, 'executable_code') and part.executable_code is not None:
@@ -1178,50 +1188,52 @@ def gemini_thinking(
                 
                 message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
 
-                # Access titles and URIs from grounding chunks
+                # Access titles and URIs from grounding chunks; track metadata for fallback
                 if hasattr(response, 'candidates') and response.candidates:
                     for candidate in response.candidates:
                         if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
+                            last_grounding_metadata = candidate.grounding_metadata
                             if hasattr(candidate.grounding_metadata, 'grounding_chunks') and candidate.grounding_metadata.grounding_chunks:
-                                
-                                # displayed_text = "Extracting web source titles.... Please wait...."
-                                # displayed_text = f"""
-                                # <div style="color: #5f5fd4; font-style: italic;">
-                                # <b>{displayed_text}</b>
-                                # </div>
-                                # """
-                                # st.markdown(displayed_text, unsafe_allow_html=True)
-                                
                                 for chunk in candidate.grounding_metadata.grounding_chunks:
                                     if hasattr(chunk, 'web') and chunk.web:
                                         title = chunk.web.title
                                         uri = chunk.web.uri
-                                        # print(f"Chunk title: {title}")
                                         real_title = get_real_title(uri)  # Fetch the real title
-                                        # print(f"Real title: {real_title}")
                                         title = real_title if real_title else title  # Use real title if available, otherwise use the original title
                                         if title not in citation_title_list:
                                             citation_title_list.append(title)
                                             citations += f"* [{title}]({uri})\n"
 
-            # --- If there is already "##### SOURCES:" headers remove it (links not reliable)---
+            # --- Fallback: some models omit grounding_chunks but populate search_entry_point
+            # --- chips; extract those <a class="chip"> links as sources instead ---
+            if not citation_title_list and last_grounding_metadata:
+                sep_obj = last_grounding_metadata.search_entry_point
+                if sep_obj and sep_obj.rendered_content:
+                    soup = BeautifulSoup(sep_obj.rendered_content, 'html.parser')
+                    for a_tag in soup.find_all('a', class_='chip'):
+                        link_text = a_tag.get_text(strip=True)
+                        link_href = a_tag.get('href', '')
+                        if link_href and link_text not in citation_title_list:
+                            citation_title_list.append(link_text)
+                            citations += f"* [Google Search: {link_text}]({link_href})\n"
+
+            # --- Strip any model-generated SOURCES/Citations section (links may be hallucinated),
+            # --- then always re-append the verified API grounding_chunks citations ---
             header = "\n\n##### SOURCES:\n"
             header2 = "\n\n##### Citations:\n"
             if header in full_response:
-                # split on first header
+                # strip the model's own sources section
                 before, sep, after = full_response.partition(header)
-                # remove everything after (and including) the header
                 full_response = before
             elif header2 in full_response:
                 before, sep, after = full_response.partition(header2)
                 full_response = before
+            # Always append API-collected citations (or "No sources" if none found)
+            if citation_title_list:
+                full_response += citations
             else:
-                # Otherwise, append citations found or "No sources"
-                if citation_title_list != []:
-                    full_response += citations
-                else:
-                    full_response += citations
-                    full_response += "\n\n##### No sources found."
+                full_response += citations
+                full_response += "\n\n##### No sources found."
 
             # --- new dedupe logic: leave at most one "No sources found." ---
             no_src = "\n\n##### No sources found."
@@ -2292,6 +2304,14 @@ def wrap_dollar_amounts(text):
     if not text:
         return ""
 
+    # 0. Pre-process LaTeX-escaped currency that the model emits.
+    #    Gemini can produce $\$2.73$ (1 backslash) or $\\$2.17$ (2 backslashes) —
+    #    the double-backslash form arises when two consecutive streaming chunks are
+    #    concatenated: one chunk ends with '$\' and the next starts with '\$2.17$'.
+    #    Use \\+ to handle any number of backslashes between the two dollar signs.
+    #    Must run before any other step so backslash-dollar content isn't mistaken for math.
+    text = re.sub(r'\$\\+\$(\d[\d,]*(?:\.\d+)?)\$', r'＄\1', text)
+
     # 1. Currency ranges first
     def _range_repl(m):
         approx = m.group(1) or ""
@@ -2316,20 +2336,29 @@ def wrap_dollar_amounts(text):
 
     def is_math(content):
         c = content.strip()
+        # Long spans are never math (real inline math is short; long spans
+        # are sentences that happen to contain two $ signs)
+        if len(c) > 80:
+            return False
         # Pure number (optional leading ~) pattern -> not math
         if re.fullmatch(r'~?\d[\d,]*(\.\d+)?', c):
+            return False
+        # Content containing markdown bold markers (**) is never real LaTeX
+        # math — it means the $...$ scanner has bridged across a bold span.
+        if '**' in c:
             return False
         # Has LaTeX command
         if "\\" in c:
             return True
-        # Has obvious math operator or relation
-        if re.search(r'[=+\-*/×÷^_]', c):
+        # Has obvious math operator or relation.
+        # Note: '/' is intentionally excluded — it also appears in units
+        # like $2.89/gallon and would create false positives.
+        # Note: '*' is intentionally excluded — Claude uses '**' for bold
+        # markdown constantly, and LaTeX multiplication uses \times or \cdot.
+        if re.search(r'[=+\-×÷^_]', c):
             # Exclude sole leading minus number like -2.5
             if re.fullmatch(r'-?\d[\d,]*(\.\d+)?', c):
                 return False
-            return True
-        # Digit space digit pattern (e.g., "10  2") indicates expression
-        if re.search(r'\d.+\s+\d', c):
             return True
         return False
 
