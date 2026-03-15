@@ -10,6 +10,16 @@ Version 2.17 of this APP has made the following changes:
 - Improve the disambiguation between inline math expressions and currency dollar amounts. Specifically, any `$...$` span whose content contains Markdown bold markers (`**`) is no longer misclassified as LaTeX math.
 - Fix citation handling in `gemini()` and `gemini_thinking()`: thinking tokens (`part.thought`) are now filtered out of the response text; a fallback citation path parses `search_entry_point` chip links when `grounding_chunks` is absent.
 
+In version 2.17 of this APP, you can use the following 7 multimodal LLM models with both image and text input:
+
+1. `gpt-5.2-2025-12-11`
+2. `gpt-5.2-2025-12-11-thinking`
+3. `claude-sonnet-4-6`
+4. `claude-sonnet-4-6-thinking`
+5. `gemini-3.1-pro-preview`
+6. `gemini-3.1-pro-preview-thinking`
+7. `pixtral-large-latest`
+
 Version 2.16 of this APP has made the following changes:
 - Upgrade `claude-sonnet-4-5-20250929` and `gemini-3-pro-preview` to the new `claude-sonnet-4-6` and `gemini-3.1-pro-preview`, respectively. Prices of the two new models are the same as their predecessors. Claude Sonnet 4.6 is a full upgrade of the model’s skills across coding, computer use, long-context reasoning, agent planning, knowledge work, and design. On the other hand, Gemini 3.1 Pro Preview provides better thinking, improved token efficiency, and a more grounded, factually consistent experience. 
 - Enable dynamic filtering in Claude search: it can now natively write and execute code during web searches to filter results before they enter the context window, improving both accuracy and token efficiency. Also, enable the web fetch function in the API call.
