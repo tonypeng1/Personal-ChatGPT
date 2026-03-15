@@ -5,9 +5,8 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
-Version 2.18 of this APP adds support that allows users to paste multiple images before sending a prompt by clicking "From Clipboard" repeatedly; a badge shows the count.
-
-Version 2.17 of this APP has made the following two improvements:
+Version 2.17 of this APP has made the following changes:
+- Add support that allows users to paste multiple images before sending a prompt by clicking "From Clipboard" repeatedly; a badge shows the count.
 - Improve the disambiguation between inline math expressions and currency dollar amounts. Specifically, any `$...$` span whose content contains Markdown bold markers (`**`) is no longer misclassified as LaTeX math.
 - Fix citation handling in `gemini()` and `gemini_thinking()`: thinking tokens (`part.thought`) are now filtered out of the response text; a fallback citation path parses `search_entry_point` chip links when `grounding_chunks` is absent.
 
@@ -248,18 +247,18 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 2.18 of this APP, and install the project,
+To create a Python virtual environment, check out version 2.17 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v2.18
+git checkout v2.17
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
 ```
-docker build -t streamlit-mysql:2.18 .
+docker build -t streamlit-mysql:2.17 .
 docker compose up
 ```
 ## Medium Article
