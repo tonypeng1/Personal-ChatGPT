@@ -318,7 +318,7 @@ def add_column_image_to_message_table(conn):
                 cursor.execute(
                 """
                 ALTER TABLE message
-                ADD COLUMN image VARCHAR(50) NOT NULL DEFAULT "" AFTER role;
+                ADD COLUMN image TEXT AFTER role;
                 """
                 )
                 result = cursor.fetchone()
@@ -386,7 +386,7 @@ def add_column_image_to_message_search_table(conn):
                 cursor.execute(
                 """
                 ALTER TABLE message_search
-                ADD COLUMN image VARCHAR(50) NOT NULL DEFAULT "" AFTER role;
+                ADD COLUMN image TEXT AFTER role;
                 """
                 )
                 result = cursor.fetchone()
@@ -400,6 +400,72 @@ def add_column_image_to_message_search_table(conn):
             raise
     else:
         pass
+
+
+def migrate_column_image_to_text_in_message_table(conn):
+    """
+    Migrates the 'image' column in the 'message' table from VARCHAR to TEXT
+    if it is currently a VARCHAR type (e.g. the old VARCHAR(50) definition).
+    This is needed to support storing multiple pipe-delimited file paths.
+    """
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+            """
+            SELECT data_type
+            FROM information_schema.columns
+            WHERE
+                table_schema = 'chat'
+                AND table_name = 'message'
+                AND column_name = 'image';
+            """
+            )
+            result = cursor.fetchone()
+            if result and result[0].lower() == 'varchar':
+                cursor.execute(
+                """
+                ALTER TABLE message
+                MODIFY COLUMN image TEXT;
+                """
+                )
+                conn.commit()
+
+    except Error as error:
+        st.error(f"Failed to migrate image column in message table to TEXT: {error}")
+        raise
+
+
+def migrate_column_image_to_text_in_message_search_table(conn):
+    """
+    Migrates the 'image' column in the 'message_search' table from VARCHAR to TEXT
+    if it is currently a VARCHAR type (e.g. the old VARCHAR(50) definition).
+    This is needed to support storing multiple pipe-delimited file paths.
+    """
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+            """
+            SELECT data_type
+            FROM information_schema.columns
+            WHERE
+                table_schema = 'chat'
+                AND table_name = 'message_search'
+                AND column_name = 'image';
+            """
+            )
+            result = cursor.fetchone()
+            if result and result[0].lower() == 'varchar':
+                cursor.execute(
+                """
+                ALTER TABLE message_search
+                MODIFY COLUMN image TEXT;
+                """
+                )
+                conn.commit()
+
+    except Error as error:
+        st.error(f"Failed to migrate image column in message_search table to TEXT: {error}")
+        raise
 
 
 def check_if_column_content_in_message_table_is_indexed(conn) -> str:

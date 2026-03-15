@@ -51,7 +51,10 @@ def load_previous_chat_session(conn, session1: int) -> None:
 
             st.session_state.messages = []
             for (role, image, model, content) in cursor:
-                st.session_state.messages.append({"role": role, "image": image, "model": model, 
+                # Deserialize the pipe-delimited image string back to a list.
+                # Old single-path records (no '|') become a single-item list.
+                image_list = [p for p in image.split("|") if p] if image else []
+                st.session_state.messages.append({"role": role, "image": image_list, "model": model, 
                                                   "content": content})
 
     except Error as error:

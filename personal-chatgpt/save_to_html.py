@@ -67,23 +67,29 @@ def convert_messages_to_markdown(messages: List[Dict[str, str]], code_block_inde
         model = message['model']
         indented_content = _indent_content(content, code_block_indent)
 
-        if message["image"] != "":
-            if is_docker:
-                # Copy image to exported-images directory
-                copy_image_to_export_dir_in_docker(message['image'])
-                file_name = os.path.basename(message['image'])
-                image_url = file_name  # Use the file name directly as the URL in the .html file (in Downloads folder)
-                # print(f"Image URL: {image_url}")
-            else:
-                # Locally, use file:// protocol with absolute path
-                image_path = os.path.abspath(message['image'])
-                image_url = f"file://{image_path}"
+        # Normalise: image field may be a list (new) or a string (legacy)
+        image_field = message["image"]
+        if isinstance(image_field, str):
+            image_list = [image_field] if image_field else []
+        else:
+            image_list = [p for p in image_field if p]
+
+        if image_list:
+            # Build one markdown image tag per path
+            image_md_parts = []
+            for idx, img_path in enumerate(image_list):
+                if is_docker:
+                    copy_image_to_export_dir_in_docker(img_path)
+                    image_url = os.path.basename(img_path)
+                else:
+                    image_url = f"file://{os.path.abspath(img_path)}"
+                image_md_parts.append(f"![Image {idx + 1}]({image_url})")
+            images_md = "\n".join(image_md_parts)
 
             if role == "user":
-                markdown_lines.append(f"###*{role.capitalize()}* :\n![Image]({image_url})\n{indented_content}\n")
+                markdown_lines.append(f"###*{role.capitalize()}* :\n{images_md}\n{indented_content}\n")
             else:
-                markdown_lines.append(f"###*{role.capitalize()} ({model})* :\n![Image]({image_url})\n{indented_content}\n")
-                # markdown_lines.append(f"###*{model.capitalize()}* :\n![Image]({image_url})\n{indented_content}\n")
+                markdown_lines.append(f"###*{role.capitalize()} ({model})* :\n{images_md}\n{indented_content}\n")
 
         else:
             if role == "user":

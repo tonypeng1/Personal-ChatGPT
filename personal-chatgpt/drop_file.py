@@ -20,7 +20,7 @@ def save_to_mysql_message(
         role1: str, 
         model1: str, 
         content1: str,
-        _image_file_path: str = "",
+        _image_file_paths: list = [],
         ) -> None:
     """
     Inserts a new message into the "message" table in a MySQL database table.
@@ -31,16 +31,19 @@ def save_to_mysql_message(
     - role1 (str): The role of the user sending the message.
     - model1 (str): The mdoel used.
     - content1 (str): The content of the message.
-    - _image_file_path (str, optional): The path to the image file associated with the message. Defaults to "".
+    - _image_file_paths (list, optional): List of image file paths associated with the message. Defaults to [].
+                                          Stored in the DB as a pipe-delimited string.
 
     Raises:
     - Error: If the message could not be saved.
     """
+    # Serialize the list to a pipe-delimited string for storage.
+    image_str = "|".join(_image_file_paths) if _image_file_paths else ""
     try:
         with conn.cursor() as cursor:
-            if _image_file_path != "":
+            if image_str:
                 sql = "INSERT INTO message (session_id, role, model, content, image) VALUES (%s, %s, %s, %s, %s)"
-                val = (session_id1, role1, model1, content1, _image_file_path)
+                val = (session_id1, role1, model1, content1, image_str)
                 cursor.execute(sql, val)
                 conn.commit()
             else:

@@ -36,13 +36,15 @@ def load_previous_chat_session_all_questions_for_summary_only_users_image(conn, 
             for (role, image, content) in cursor.fetchall():  # Fetch all rows at once
                 if role == 'user':
                     chat_user += (content or "") + " "
-                    if image != "":
-                        # Use the OCR API to extract text from the image
-                        try:
-                            extracted_text = mistral_ocr_api_call(image)
-                            chat_user += " " + (extracted_text or "") + " "
-                        except Exception as e:
-                            st.error(f"Error occurred while processing the image in Mistral OCR API: {e}")
+                    if image:
+                        # Deserialize pipe-delimited string back to individual paths
+                        image_paths = [p for p in image.split("|") if p]
+                        for img_path in image_paths:
+                            try:
+                                extracted_text = mistral_ocr_api_call(img_path)
+                                chat_user += " " + (extracted_text or "") + " "
+                            except Exception as e:
+                                st.error(f"Error occurred while processing the image in Mistral OCR API: {e}")
                         
             # Shorten the prompt to 3800 tokens or less
             # print(f"chat_user: {chat_user}")

@@ -96,5 +96,11 @@ def init_session_states():
     if "zip_file" not in st.session_state:
         st.session_state.zip_file = False
 
-    if "image_file_path" not in st.session_state:
-        st.session_state.image_file_path = ""
+    if "image_file_paths" not in st.session_state:
+        st.session_state.image_file_paths = []  # list of file paths for clipboard images pending send
+
+    if "clipboard_images" not in st.session_state:
+        st.session_state.clipboard_images = []  # list of raw bytes for each pasted image
+
+    if "clipboard_key" not in st.session_state:
+        st.session_state.clipboard_key = 0  # incremented after each paste to force a fresh widget

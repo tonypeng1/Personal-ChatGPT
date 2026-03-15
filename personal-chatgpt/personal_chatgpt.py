@@ -31,6 +31,8 @@ from drop_file import increment_file_uploader_key, \
                         set_both_load_and_search_sessions_to_False
 from init_database import add_column_image_to_message_table, \
                         add_column_image_to_message_search_table, \
+                        migrate_column_image_to_text_in_message_table, \
+                        migrate_column_image_to_text_in_message_search_table, \
                         add_column_model_to_message_search_table, \
                         add_column_model_to_message_table, \
                         index_column_content_in_table_message, \
@@ -132,7 +134,7 @@ def chatgpt(
         temp: float, 
         p: float, 
         max_tok: int,
-        _image_file_path: str = "",
+        _image_file_paths: list = [],
         ) -> str:
     """
     Processes a chat prompt using OpenAI's ChatCompletion and updates the chat session.
@@ -143,15 +145,14 @@ def chatgpt(
         temp (float): The temperature parameter for OpenAI's ChatCompletion.
         p (float): The top_p parameter for OpenAI's ChatCompletion.
         max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
-        _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
+        _image_file_paths (list): List of paths to image files to be processed.
 
     Raises:
         Raises an exception if there is a failure in database operations or OpenAI's API call.
     """
     with st.chat_message("user"):
-        if _image_file_path != "":
-            image_file = PIL.Image.open(_image_file_path)
-            st.image(image_file, width=None)
+        for img_path in _image_file_paths:
+            st.image(PIL.Image.open(img_path), width=None)
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
@@ -212,20 +213,21 @@ def chatgpt(
         context_list = []
         for m in st.session_state.messages:
             if m["role"] == "user":
-                if m["image"] != "":
-                    base64_image = encode_image(m["image"])
-                    dic = {"role": "user", 
-                           "content": [
-                                {
-                                    "type": "input_text",
-                                    "text": m["content"],
-                                },
-                                {
-                                    "type": "input_image",
-                                    "image_url": f"data:image/png;base64,{base64_image}",
-                                },
-                           ],
+                img_list = m["image"] if isinstance(m["image"], list) else ([m["image"]] if m["image"] else [])
+                if img_list:
+                    content_parts = [
+                        {
+                            "type": "input_text",
+                            "text": m["content"],
                         }
+                    ]
+                    for img_path in img_list:
+                        base64_image = encode_image(img_path)
+                        content_parts.append({
+                            "type": "input_image",
+                            "image_url": f"data:image/png;base64,{base64_image}",
+                        })
+                    dic = {"role": "user", "content": content_parts}
                     context_list.append(dic)
                 else:
                     dic = {"role": "user", "content": m["content"]}
@@ -349,7 +351,7 @@ def chatgpt_thinking(
         temp: float, 
         p: float, 
         max_tok: int,
-        _image_file_path: str = "",
+        _image_file_paths: list = [],
         ) -> str:
     """
     Processes a chat prompt using OpenAI's ChatCompletion and updates the chat session.
@@ -360,15 +362,14 @@ def chatgpt_thinking(
         temp (float): The temperature parameter for OpenAI's ChatCompletion.
         p (float): The top_p parameter for OpenAI's ChatCompletion.
         max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
-        _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
+        _image_file_paths (list): List of paths to image files to be processed.
 
     Raises:
         Raises an exception if there is a failure in database operations or OpenAI's API call.
     """
     with st.chat_message("user"):
-        if _image_file_path != "":
-            image_file = PIL.Image.open(_image_file_path)
-            st.image(image_file, width=None)
+        for img_path in _image_file_paths:
+            st.image(PIL.Image.open(img_path), width=None)
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
@@ -433,20 +434,20 @@ def chatgpt_thinking(
         context_list = []
         for m in st.session_state.messages:
             if m["role"] == "user":
-                if m["image"] != "":
-                    base64_image = encode_image(m["image"])
-                    dic = {"role": "user", 
-                           "content": [
-                                {
-                                    "type": "input_text",
-                                    "text": m["content"],
-                                },
-                                {
-                                    "type": "input_image",
-                                    "image_url": f"data:image/png;base64,{base64_image}",
-                                },
-                           ],
-                        }
+                if m["image"]:
+                    content = [
+                        {
+                            "type": "input_text",
+                            "text": m["content"],
+                        },
+                    ]
+                    for img_path in m["image"]:
+                        base64_image = encode_image(img_path)
+                        content.append({
+                            "type": "input_image",
+                            "image_url": f"data:image/png;base64,{base64_image}",
+                        })
+                    dic = {"role": "user", "content": content}
                     context_list.append(dic)
                 else:
                     dic = {"role": "user", "content": m["content"]}
@@ -582,7 +583,7 @@ def openrouter_o3_mini(
         temp: float, 
         p: float, 
         max_tok: int,
-        _image_file_path: str = "",
+        _image_file_paths: list = [],
         ) -> str:
     """
     Processes a chat prompt using OpenAI's ChatCompletion and updates the chat session.
@@ -593,15 +594,14 @@ def openrouter_o3_mini(
         temp (float): The temperature parameter for OpenAI's ChatCompletion.
         p (float): The top_p parameter for OpenAI's ChatCompletion.
         max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
-        _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
+        _image_file_paths (list): List of paths to image files to be processed.
 
     Raises:
         Raises an exception if there is a failure in database operations or OpenAI's API call.
     """
     with st.chat_message("user"):
-        if _image_file_path != "":
-            image_file = PIL.Image.open(_image_file_path)
-            st.image(image_file, width=None)
+        for img_path in _image_file_paths:
+            st.image(PIL.Image.open(img_path), width=None)
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
@@ -662,20 +662,20 @@ def openrouter_o3_mini(
         context_list = []
         for m in st.session_state.messages:
             if m["role"] == "user":
-                if m["image"] != "":
-                    base64_image = encode_image(m["image"])
-                    dic = {"role": "user", 
-                           "content": [
-                                {
-                                    "type": "text",
-                                    "text": m["content"],
-                                },
-                                {
-                                    "type": "image_url",
-                                    "image_url": {"url": f"data:image/png;base64,{base64_image}"},
-                                },
-                           ],
-                        }
+                if m["image"]:
+                    content = [
+                        {
+                            "type": "text",
+                            "text": m["content"],
+                        },
+                    ]
+                    for img_path in m["image"]:
+                        base64_image = encode_image(img_path)
+                        content.append({
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/png;base64,{base64_image}"},
+                        })
+                    dic = {"role": "user", "content": content}
                     context_list.append(dic)
                 else:
                     dic = {"role": "user", "content": m["content"]}
@@ -911,7 +911,7 @@ def gemini(
         temp: float, 
         p: float, 
         max_tok: int,
-        _image_file_path: str = "",
+        _image_file_paths: list = [],
         ) -> str:
     """
     Generates a response using the Gemini API.
@@ -922,7 +922,7 @@ def gemini(
         temp: The temperature parameter for the Gemini API.
         p: The top-p parameter for the Gemini API.
         max_tok: The maximum number of tokens for the Gemini API.
-        _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
+        _image_file_paths (list): List of paths to image files to be processed.
 
     """
     google_search_tool = Tool(
@@ -930,9 +930,8 @@ def gemini(
         )
 
     with st.chat_message("user"):
-        if _image_file_path != "":
-            image_file = PIL.Image.open(_image_file_path)
-            st.image(image_file, width=None)
+        for img_path in _image_file_paths:
+            st.image(PIL.Image.open(img_path), width=None)
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
@@ -966,9 +965,8 @@ def gemini(
             if m["role"] == "user":
                 dic = {"role": "user", "parts": [{"text": m["content"] + additional_model_role + math_instruction}]}
                 context_list.append(dic)
-                if m["image"] != "":
-                    _context_image_file = PIL.Image.open(m["image"])
-                    context_list.append(_context_image_file)
+                for img_path in m["image"]:
+                    context_list.append(PIL.Image.open(img_path))
             else:
                 dic = {"role": "model", "parts": [{"text": m["content"]}]}
                 context_list.append(dic)
@@ -1083,7 +1081,7 @@ def gemini_thinking(
         temp: float, 
         p: float, 
         max_tok: int,
-        _image_file_path: str = "",
+        _image_file_paths: list = [],
         ) -> str:
     """
     Generates a response using the Gemini thinking API.
@@ -1094,7 +1092,7 @@ def gemini_thinking(
         temp: The temperature parameter for the Gemini API.
         p: The top-p parameter for the Gemini API.
         max_tok: The maximum number of tokens for the Gemini API.
-        _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
+        _image_file_paths (list): List of paths to image files to be processed.
     """
 
     google_search_tool = Tool(
@@ -1102,9 +1100,8 @@ def gemini_thinking(
     )
 
     with st.chat_message("user"):
-        if _image_file_path != "":
-            image_file = PIL.Image.open(_image_file_path)
-            st.image(image_file, width=None)
+        for img_path in _image_file_paths:
+            st.image(PIL.Image.open(img_path), width=None)
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
@@ -1142,9 +1139,8 @@ def gemini_thinking(
             if m["role"] == "user":
                 dic = {"role": "user", "parts": [{"text": m["content"]}]}
                 context_list.append(dic)
-                if m["image"] != "":
-                    _context_image_file = PIL.Image.open(m["image"])
-                    context_list.append(_context_image_file)
+                for img_path in m["image"]:
+                    context_list.append(PIL.Image.open(img_path))
             else:
                 dic = {"role": "model", "parts": [{"text": m["content"]}]}
                 context_list.append(dic)
@@ -1259,7 +1255,7 @@ def mistral(
         temp: float, 
         p: float, 
         max_tok: int,
-        _image_file_path: str = "",
+        _image_file_paths: list = [],
         ) -> str:
     """
     Generates a response using the mistral API.
@@ -1273,9 +1269,8 @@ def mistral(
         max_tok: The maximum number of tokens for the mistral API.
     """
     with st.chat_message("user"):
-        if _image_file_path != "":
-            image_file = PIL.Image.open(_image_file_path)
-            st.image(image_file, width=None)
+        for img_path in _image_file_paths:
+            st.image(PIL.Image.open(img_path), width=None)
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
@@ -1313,20 +1308,20 @@ def mistral(
         context_list = []
         for m in st.session_state.messages:
             if m["role"] == "user":
-                if m["image"] != "":
-                    base64_image = encode_image(m["image"])
-                    dic = {"role": "user", 
-                           "content": [
-                                {
-                                    "type": "text",
-                                    "text": m["content"],
-                                },
-                                {
-                                    "type": "image_url",
-                                    "image_url": f"data:image/png;base64,{base64_image}",
-                                },
-                           ],
-                        }
+                if m["image"]:
+                    content = [
+                        {
+                            "type": "text",
+                            "text": m["content"],
+                        },
+                    ]
+                    for img_path in m["image"]:
+                        base64_image = encode_image(img_path)
+                        content.append({
+                            "type": "image_url",
+                            "image_url": f"data:image/png;base64,{base64_image}",
+                        })
+                    dic = {"role": "user", "content": content}
                     context_list.append(dic)
                 else:
                     dic = {"role": "user", "content": m["content"]}
@@ -1383,7 +1378,7 @@ def claude(
         temp: float, 
         p: float, 
         max_tok: int,
-        _image_file_path: str = "",
+        _image_file_paths: list = [],
         ) -> str:
     """
     Processes a chat prompt using Anthropic's Claude 4.6 model and updates the chat session.
@@ -1394,16 +1389,14 @@ def claude(
         temp (float): The temperature parameter for OpenAI's ChatCompletion.
         p (float): The top_p parameter for OpenAI's ChatCompletion.
         max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
-        _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
+        _image_file_paths (list): List of paths to image files to be processed.
 
     Raises:
         Raises an exception if there is a failure in database operations or OpenAI's API call.
     """
     with st.chat_message("user"):
-        # print("_image_file_path: ", _image_file_path)
-        if _image_file_path != "":
-            image_file = PIL.Image.open(_image_file_path)
-            st.image(image_file, width=None)
+        for img_path in _image_file_paths:
+            st.image(PIL.Image.open(img_path), width=None)
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
@@ -1425,24 +1418,20 @@ def claude(
         context_list = []
         for m in st.session_state.messages:
             if m["role"] == "user":
-                if m["image"] != "":
-                    base64_image = encode_image(m["image"])
-                    dic = {"role": "user", 
-                           "content": [
-                                {
-                                    "type": "image",
-                                    "source": {
-                                        "type": "base64",
-                                        "media_type": "image/png",
-                                        "data": base64_image,
-                                    },
-                                },
-                                {
-                                    "type": "text",
-                                    "text": m["content"],
-                                },
-                           ],
-                    }
+                if m["image"]:
+                    content = []
+                    for img_path in m["image"]:
+                        base64_image = encode_image(img_path)
+                        content.append({
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/png",
+                                "data": base64_image,
+                            },
+                        })
+                    content.append({"type": "text", "text": m["content"]})
+                    dic = {"role": "user", "content": content}
                     context_list.append(dic)
                 else:
                     dic = {"role": "user", "content": m["content"]}
@@ -1563,7 +1552,7 @@ def claude(
 def claude_thinking(
         prompt1: str, 
         model_role: str, 
-        _image_file_path: str = "",
+        _image_file_paths: list = [],
         ) -> str:
     """
     Processes a chat prompt using Anthropic's Claude 4.6 model and updates the chat session. Change
@@ -1575,16 +1564,14 @@ def claude_thinking(
         temp (float): The temperature parameter for OpenAI's ChatCompletion.
         p (float): The top_p parameter for OpenAI's ChatCompletion.
         max_tok (int): The maximum number of tokens for OpenAI's ChatCompletion.
-        _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
+        _image_file_paths (list): List of paths to image files to be processed.
 
     Raises:
         Raises an exception if there is a failure in database operations or OpenAI's API call.
     """
     with st.chat_message("user"):
-        # print("_image_file_path: ", _image_file_path)
-        if _image_file_path != "":
-            image_file = PIL.Image.open(_image_file_path)
-            st.image(image_file, width=None)
+        for img_path in _image_file_paths:
+            st.image(PIL.Image.open(img_path), width=None)
         st.markdown(prompt1)
 
     with st.chat_message("assistant"):
@@ -1607,24 +1594,20 @@ def claude_thinking(
         messages = []
         for m in st.session_state.messages:
             if m["role"] == "user":
-                if m["image"] != "":
-                    base64_image = encode_image(m["image"])
-                    dic = {"role": "user", 
-                           "content": [
-                                {
-                                    "type": "image",
-                                    "source": {
-                                        "type": "base64",
-                                        "media_type": "image/png",
-                                        "data": base64_image,
-                                    },
-                                },
-                                {
-                                    "type": "text",
-                                    "text": m["content"],
-                                },
-                           ],
-                    }
+                if m["image"]:
+                    content = []
+                    for img_path in m["image"]:
+                        base64_image = encode_image(img_path)
+                        content.append({
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/png",
+                                "data": base64_image,
+                            },
+                        })
+                    content.append({"type": "text", "text": m["content"]})
+                    dic = {"role": "user", "content": content}
                     messages.append(dic)
                 else:
                     dic = {"role": "user", 
@@ -2146,7 +2129,7 @@ def process_prompt(
         temperature, 
         top_p, 
         max_token,
-        _image_file_path: str = "",
+        _image_file_paths: list = [],
         ):
     """
     This function processes a given prompt by performing the following steps:
@@ -2164,28 +2147,28 @@ def process_prompt(
     temperature (float): The temperature parameter for the model.
     top_p (float): The top_p parameter for the model.
     max_token (int): The maximum number of tokens for the model's response.
-    _image_file_path (str): The path to the image file to be processed (= st.session_state.image_file_path).
+    _image_file_paths (list): List of paths to image files to be processed.
 
     Returns:
         None
     """
     determine_if_terminate_current_session_and_start_a_new_one(conn)
-    st.session_state.messages.append({"role": "user", "model": "", "content": prompt1, "image": _image_file_path})
+    st.session_state.messages.append({"role": "user", "model": "", "content": prompt1, "image": _image_file_paths})
     try:
         if model_name == "gpt-5.2-2025-12-11":
-            responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
+            responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token), _image_file_paths)
         elif model_name == "gpt-5.2-2025-12-11-thinking":
-            responses = chatgpt_thinking(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
+            responses = chatgpt_thinking(prompt1, model_role, temperature, top_p, int(max_token), _image_file_paths)
         elif model_name == "claude-sonnet-4-6":
-            responses = claude(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
+            responses = claude(prompt1, model_role, temperature, top_p, int(max_token), _image_file_paths)
         elif model_name == "claude-sonnet-4-6-thinking":
-            responses = claude_thinking(prompt1, model_role, _image_file_path)
+            responses = claude_thinking(prompt1, model_role, _image_file_paths)
         elif model_name == "gemini-3.1-pro-preview":
-            responses = gemini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
+            responses = gemini(prompt1, model_role, temperature, top_p, int(max_token), _image_file_paths)
         elif model_name == "gemini-3.1-pro-preview-thinking":
-            responses = gemini_thinking(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
+            responses = gemini_thinking(prompt1, model_role, temperature, top_p, int(max_token), _image_file_paths)
         elif model_name == "pixtral-large-latest":
-            responses = mistral(prompt1, model_role, temperature, top_p, int(max_token), _image_file_path)
+            responses = mistral(prompt1, model_role, temperature, top_p, int(max_token), _image_file_paths)
         elif model_name == "perplexity-sonar-pro":
             responses = perplexity(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "nvidia-llama-3.1-nemotron-70b-instruct":
@@ -2203,9 +2186,9 @@ def process_prompt(
         raise
 
     st.session_state.messages.append({"role": "assistant", "model": model_name,
-                "content": responses, "image": _image_file_path})
+                "content": responses, "image": []})
     
-    save_to_mysql_message(conn, st.session_state.session, "user", "", prompt1, _image_file_path)
+    save_to_mysql_message(conn, st.session_state.session, "user", "", prompt1, _image_file_paths)
     save_to_mysql_message(conn, st.session_state.session, "assistant", model_name, responses)
 
 
@@ -2245,15 +2228,16 @@ def convert_clipboard_to_image_file_path_image(_image: str) -> bytes:
         # Use the environment variable (only set in docker-compose.yml) or a default path in Python project
         os.makedirs(save_folder, exist_ok=True)  # Create the folder if it doesn't exist
 
-        # Find next available file name
+        # Find next available file name (skip paths already claimed this session)
         image_number = 1
-        while os.path.exists(os.path.join(save_folder, f"image-chat-{image_number}.png")):
+        while os.path.exists(os.path.join(save_folder, f"image-chat-{image_number}.png")) or \
+              os.path.join(save_folder, f"image-chat-{image_number}.png") in st.session_state.image_file_paths:
             image_number += 1
 
         file_name = f"image-chat-{image_number}.png"
         file_path = os.path.join(save_folder, file_name)       
-        # Store file path in session state
-        st.session_state.image_file_path = file_path
+        # Append file path to the session state list
+        st.session_state.image_file_paths.append(file_path)
         
     except OSError as e:
         st.error(f"Error accessing save directory: {str(e)}")
@@ -2262,31 +2246,27 @@ def convert_clipboard_to_image_file_path_image(_image: str) -> bytes:
     return binary_data
 
 
-def save_image_to_file(_image_binary):
+def save_images_to_files():
     """
-    Save binary image data to a file if it doesn't already exist.
+    Save all pending clipboard image binaries to their pre-assigned file paths.
 
-    Args:
-        _image_binary: Binary image data to be saved to file
+    Iterates over the parallel lists st.session_state.clipboard_images and
+    st.session_state.image_file_paths and writes each binary to disk if the
+    file does not already exist.
 
     Returns:
         None
-
-    Notes:
-        - Uses file path stored in st.session_state.image_file_path
-        - Skips saving if file already exists at the path
-        - Prints error message if exception occurs during save
     """
-    
-    file_path = st.session_state.image_file_path
-    if os.path.exists(file_path):
-        print(f"File {file_path} already exists. Skipping save.")
-    else:
-        try:
-            with open(file_path, "wb") as f:
-                f.write(_image_binary)
-        except Exception as e:
-            print(f"An error occurred: {e}")
+    for _image_binary, file_path in zip(st.session_state.clipboard_images,
+                                        st.session_state.image_file_paths):
+        if os.path.exists(file_path):
+            print(f"File {file_path} already exists. Skipping save.")
+        else:
+            try:
+                with open(file_path, "wb") as f:
+                    f.write(_image_binary)
+            except Exception as e:
+                print(f"An error occurred saving {file_path}: {e}")
 
 
 def wrap_dollar_amounts(text):
@@ -2467,6 +2447,8 @@ index_column_content_in_table_message(connection)  # index column content in tab
 
 add_column_image_to_message_table(connection)  # Add image column to message table if not exist
 add_column_image_to_message_search_table(connection) # Add image column to message_search table if not exist
+migrate_column_image_to_text_in_message_table(connection)  # Widen image column to TEXT if still VARCHAR
+migrate_column_image_to_text_in_message_search_table(connection)  # Widen image column to TEXT if still VARCHAR
 
 init_session_states()  # Initialize all streamlit session states if there is no value
 
@@ -2488,7 +2470,9 @@ if new_chat_button:
     st.session_state.drop_file = False
     st.session_state.drop_clip = False
     st.session_state.drop_clip_loaded = False
-    # st.session_state.image_file_path = ""
+    st.session_state.image_file_paths = []
+    st.session_state.clipboard_images = []
+    st.session_state.clipboard_key = 0
 
 
 # The following code handles the search and retreival of the messages of a chat session
@@ -2744,9 +2728,12 @@ drop_clip = st.sidebar.button \
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         if message["role"] == "user":
-            if message["image"] != "":
-                image_file = PIL.Image.open(message["image"])
-                st.image(image_file, width=None)
+            # image may be a list (new format) or a bare string (old DB record loaded before migration)
+            img_list = message["image"] if isinstance(message["image"], list) else \
+                       ([message["image"]] if message["image"] else [])
+            for img_path in img_list:
+                if img_path:
+                    st.image(PIL.Image.open(img_path), width=None)
             st.markdown(wrap_dollar_amounts(message["content"]), unsafe_allow_html=True)
 
         else:
@@ -2807,6 +2794,9 @@ if empty_database:
     st.session_state.empty_data = True
     st.session_state.drop_clip = False
     st.session_state.drop_clip_loaded = False
+    st.session_state.image_file_paths = []
+    st.session_state.clipboard_images = []
+    st.session_state.clipboard_key = 0
     st.error(r"$\textsf{\large Do you really wanna DELETE THE ENTIRE CHAT HISTORY?}$", \
              icon="🔥")
 
@@ -2842,13 +2832,19 @@ if drop_clip:
 if st.session_state.drop_clip:
     image_data = paste(
         label="Click to Paste From Clipboard",
-        key="image_clipboard",
+        key=f"image_clipboard_{st.session_state.clipboard_key}",
         )
 
     if image_data is not None:
         image_binary = convert_clipboard_to_image_file_path_image(image_data)
-        # image_file = PIL.Image.open(image_file_path)
+        st.session_state.clipboard_images.append(image_binary)
         st.session_state.drop_clip_loaded = True
+        st.session_state.clipboard_key += 1  # force a fresh paste widget on next render
+
+    if st.session_state.drop_clip_loaded:
+        n = len(st.session_state.clipboard_images)
+        st.info(f"{'🖼️ ' * n}**{n} image{'s' if n != 1 else ''} ready.** "
+                f"Click **From Clipboard** again to add more, or type your prompt below.")
 
 
 # The following code handles previous session deletion after uploading. The code needs to be
@@ -2906,11 +2902,12 @@ model_role = (
 
 if prompt := st.chat_input("What is up?"):
     if st.session_state.drop_clip is True and st.session_state.drop_clip_loaded is True:
-        save_image_to_file(image_binary)
-        process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token, st.session_state.image_file_path)
+        save_images_to_files()
+        process_prompt(connection, prompt, model_name, model_role, temperature, top_p, max_token, st.session_state.image_file_paths)
         st.session_state.drop_clip = False
         st.session_state.drop_clip_loaded = False
-        st.session_state.image_file_path = ""
+        st.session_state.image_file_paths = []
+        st.session_state.clipboard_images = []
         st.rerun()
     elif st.session_state.drop_file is True:
         prompt = change_to_prompt_text(prompt_f, prompt)
