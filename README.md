@@ -9,6 +9,7 @@ Version 2.18 of this APP has made the following changes:
 - Implement voice prompt input using `streamlit-audiorecorder` and OpenAI Whisper-1 with automatic language detection.
 - Add `ffmpeg` dependency to Dockerfile for audio processing.
 - Update Together AI base URL (together.xyz -> together.ai) and fix its response handling with safer attribute access. 
+- Optimize HTML export for mobile and Chinese characters
 
 Version 2.17 of this APP has made the following changes:
 - Add support that allows users to paste multiple images before sending a prompt by clicking "From Clipboard" repeatedly; a badge shows the count.
