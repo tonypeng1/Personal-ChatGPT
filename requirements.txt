@@ -14,3 +14,4 @@ google-genai==1.52.0
 st-img-pastebutton==0.0.6
 python-markdown-math==0.9
 beautifulsoup4==4.13.4
+streamlit-audiorecorder==0.0.6

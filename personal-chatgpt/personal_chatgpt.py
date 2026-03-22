@@ -18,6 +18,7 @@ import openai
 from openai import OpenAI
 from openai import OpenAIError
 import streamlit as st
+from audiorecorder import audiorecorder
 from st_img_pastebutton import paste
 # from streamlit_paste_button import paste_image_button as pasteButton
 import tempfile
@@ -842,7 +843,8 @@ def together_deepseek(prompt1: str, model_role: str, temp: float, p: float, max_
         try:
             for response in together_client.chat.completions.create(
                 # model="nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
-                model="deepseek-ai/DeepSeek-R1",
+                model="deepseek-ai/DeepSeek-R1-0528",
+                # model="deepseek-ai/DeepSeek-V3.1",
                 messages=
                     [{"role": "system", "content": model_role + output_format_instruction + math_instruction}] +
                     [
@@ -854,7 +856,19 @@ def together_deepseek(prompt1: str, model_role: str, temp: float, p: float, max_
                 max_tokens=max_tok,
                 stream=True,
                 ):
-                full_response += response.choices[0].delta.content or ""
+                choices = getattr(response, "choices", None) or []
+                if not choices:
+                    continue
+
+                delta = getattr(choices[0], "delta", None)
+                if delta is None:
+                    continue
+
+                content_piece = getattr(delta, "content", None)
+                if not content_piece:
+                    continue
+
+                full_response += content_piece
                 message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
             message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
@@ -2415,7 +2429,7 @@ chatgpt_client = openai.OpenAI(
 # Set together api configuration
 together_client = openai.OpenAI(
   api_key=TOGETHER_API_KEY,
-  base_url='https://api.together.xyz/v1'
+  base_url='https://api.together.ai/v1'
 )
 
 # Set openrouter api configuration
@@ -2899,6 +2913,63 @@ model_role = (
     "5. Test the code before sending to ensure it works as expected. \n"
     "---------- \n"
     )
+
+# Voice input: record audio and transcribe with OpenAI Whisper
+# Keep a small gap above the chat input without forcing the recorder's default size
+st.markdown("""
+<style>
+div[data-testid="stVerticalBlock"] > div:has(iframe[title="audiorecorder.audiorecorder"]) {
+    margin-bottom: 8px;
+    overflow: hidden !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+iframe[title="audiorecorder.audiorecorder"] {
+    box-shadow: none !important;
+    border: 0 !important;
+    overflow: hidden !important;
+    background: transparent !important;
+}
+</style>
+""", unsafe_allow_html=True)
+_mic_base_style = {
+    "backgroundColor": "rgb(240,242,246)",
+    "border": "1px solid rgb(210,213,218)",
+    "borderRadius": "12px",
+    "color": "#555",
+    "cursor": "pointer",
+    "textAlign": "left",
+    "boxSizing": "border-box",
+    "boxShadow": "none",
+    "outline": "none",
+}
+_mic_style = dict(_mic_base_style)
+_mic_stop_style = {**_mic_base_style, "backgroundColor": "rgb(220,225,235)"}
+audio = audiorecorder(
+    start_prompt="🎤 Voice input: click to record",
+    stop_prompt="⏹️ Recording... click to stranscribe",
+    key="voice_input",
+    custom_style=_mic_base_style,
+    start_style=_mic_style,
+    stop_style=_mic_stop_style,
+)
+if len(audio) > 0 and audio.frame_rate > 0:
+    audio_bytes = audio.export().read()
+    # Only transcribe if this is new audio (different from last transcription)
+    if audio_bytes != st.session_state.get("last_audio_bytes"):
+        st.session_state.last_audio_bytes = audio_bytes
+        with st.spinner("Transcribing..."):
+            audio_file = io.BytesIO(audio_bytes)
+            audio_file.name = "recording.wav"
+            transcript = chatgpt_client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+            )
+        voice_prompt = transcript.text.strip()
+        if voice_prompt:
+            process_prompt(connection, voice_prompt, model_name, model_role, temperature, top_p, max_token)
+            st.rerun()
 
 if prompt := st.chat_input("What is up?"):
     if st.session_state.drop_clip is True and st.session_state.drop_clip_loaded is True:

@@ -8,7 +8,7 @@ with open(Path(BASE_DIR, "requirements.txt")) as file:
 
 setup(
     name="personal-chatgpt",
-    version="2.16",
+    version="2.18",
     description="Personal ChatGpt ",
     author="Tony Peng",
     author_email="tony3t3t@hotmail.com",

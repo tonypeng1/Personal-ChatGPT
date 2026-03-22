@@ -5,6 +5,11 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
+Version 2.18 of this APP has made the following changes:
+- Implement voice prompt input using `streamlit-audiorecorder` and OpenAI Whisper-1 with automatic language detection.
+- Add `ffmpeg` dependency to Dockerfile for audio processing.
+- Update Together AI base URL (together.xyz -> together.ai) and fix its response handling with safer attribute access. 
+
 Version 2.17 of this APP has made the following changes:
 - Add support that allows users to paste multiple images before sending a prompt by clicking "From Clipboard" repeatedly; a badge shows the count.
 - Improve the disambiguation between inline math expressions and currency dollar amounts. Specifically, any `$...$` span whose content contains Markdown bold markers (`**`) is no longer misclassified as LaTeX math.
@@ -257,18 +262,20 @@ To clone the GitHub directory type the command as follows.
 ```
 git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
-To create a Python virtual environment, check out version 2.17 of this APP, and install the project,
+If you want to use the voice input feature outside Docker, install `ffmpeg` on your machine first because the audio recorder depends on it to decode recorded audio. For example, use `brew install ffmpeg` on macOS, `sudo apt-get install ffmpeg` on Debian/Ubuntu, or install `ffmpeg` with `winget`/`choco` on Windows.
+
+To create a Python virtual environment, check out version 2.18 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v2.17
+git checkout v2.18
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
-To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`.
+To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`. The Docker image already installs `ffmpeg`, so no extra host setup is needed for voice input inside the container.
 ```
-docker build -t streamlit-mysql:2.17 .
+docker build -t streamlit-mysql:2.18 .
 docker compose up
 ```
 ## Medium Article
