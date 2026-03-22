@@ -259,9 +259,47 @@ def markdown_to_html(md_content: str) -> str:
     # """)
 
     return f"""
-    <html>
+    <!DOCTYPE html>
+    <html lang="zh-CN">
     <head>
-    <style>{css}</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        {css}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            padding: 15px;
+            margin: 0;
+            word-wrap: break-word;
+        }}
+        img {{
+            max-width: 100%;
+            height: auto;
+        }}
+        pre {{
+            white-space: pre-wrap;
+            word-break: break-all;
+            overflow-x: auto;
+        }}
+        .codehilite {{
+            white-space: pre-wrap;
+            word-break: break-all;
+            overflow-x: auto;
+        }}
+        table {{
+            display: block;
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-collapse: collapse;
+        }}
+        table th, table td {{
+            padding: 8px;
+            border: 1px solid #ddd;
+            min-width: 80px;
+        }}
+    </style>
     {mathjax_config}
     {mathjax_script}
     </head>
