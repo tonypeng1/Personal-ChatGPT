@@ -500,9 +500,91 @@ def check_if_column_content_in_message_table_is_indexed(conn) -> str:
         raise
 
 
+def check_if_fulltext_index_uses_ngram(conn) -> bool:
+    """
+    Checks whether the FULLTEXT index on the 'content' column of the 'message' table
+    was created with the ngram parser.
+
+    Args:
+        conn: A database connection object.
+
+    Returns:
+        bool: True if the ngram parser is in use, False otherwise.
+    """
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+            """
+            SELECT COMMENT
+            FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'message'
+              AND COLUMN_NAME = 'content'
+              AND INDEX_TYPE = 'FULLTEXT';
+            """
+            )
+            rows = cursor.fetchall()
+            return len(rows) > 0 and rows[0][0].lower() == "ngram"
+
+    except Error as error:
+        st.error(f"Failed to check FULLTEXT parser for message.content: {error}")
+        raise
+
+
+def migrate_fulltext_index_to_ngram(conn):
+    """
+    Migrates the FULLTEXT index on 'message.content' to use the ngram parser if it
+    currently uses a different parser.  This is required for Chinese (and other CJK)
+    full-text search to work correctly.
+
+    The function is a no-op when the index already uses ngram or does not exist yet.
+
+    Args:
+        conn: A database connection object.
+    """
+    if check_if_column_content_in_message_table_is_indexed(conn) == 'No':
+        return  # index_column_content_in_table_message will create it with ngram
+
+    if check_if_fulltext_index_uses_ngram(conn):
+        return  # already correct
+
+    try:
+        with conn.cursor() as cursor:
+            # Retrieve the index name so we can drop it by name
+            cursor.execute(
+            """
+            SELECT INDEX_NAME
+            FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'message'
+              AND COLUMN_NAME = 'content'
+              AND INDEX_TYPE = 'FULLTEXT'
+            LIMIT 1;
+            """
+            )
+            rows = cursor.fetchall()
+            if not rows:
+                return
+            index_name = rows[0][0]
+
+            cursor.execute(f"ALTER TABLE message DROP INDEX `{index_name}`;")
+            cursor.execute(
+            """
+            ALTER TABLE message
+            ADD FULLTEXT(content) WITH PARSER ngram;
+            """
+            )
+        conn.commit()
+
+    except Error as error:
+        st.error(f"Failed to migrate FULLTEXT index to ngram parser: {error}")
+        raise
+
+
 def index_column_content_in_table_message(conn):
     """
-    Creates a full-text index on the 'content' column in the 'message' table if it doesn't already exist.
+    Creates a full-text index (ngram parser) on the 'content' column in the 'message'
+    table if it doesn't already exist.
 
     Args:
         conn: A database connection object.
@@ -519,7 +601,7 @@ def index_column_content_in_table_message(conn):
                 cursor.execute(
                 """
                 ALTER TABLE message
-                ADD FULLTEXT(content);
+                ADD FULLTEXT(content) WITH PARSER ngram;
                 """
                 )
             conn.commit()

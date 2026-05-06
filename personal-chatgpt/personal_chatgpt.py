@@ -37,6 +37,7 @@ from init_database import add_column_image_to_message_table, \
                         add_column_model_to_message_search_table, \
                         add_column_model_to_message_table, \
                         index_column_content_in_table_message, \
+                        migrate_fulltext_index_to_ngram, \
                         init_mysql_timezone, \
                         init_database_tables, \
                         modify_content_column_data_type_if_different
@@ -2458,6 +2459,7 @@ modify_content_column_data_type_if_different(connection)
 add_column_model_to_message_table(connection)  # Add model column to message table if not exist
 add_column_model_to_message_search_table(connection) # Add model column to message_search table if not exist
 index_column_content_in_table_message(connection)  # index column content in table message if not yet indexed
+migrate_fulltext_index_to_ngram(connection)  # upgrade FULLTEXT index to ngram parser for CJK (Chinese) search support
 
 add_column_image_to_message_table(connection)  # Add image column to message table if not exist
 add_column_image_to_message_search_table(connection) # Add image column to message_search table if not exist
