@@ -268,7 +268,7 @@ def chatgpt(
         def _request_non_streaming() -> str:
             with st.spinner(""):
                 response = chatgpt_client.responses.create(
-                    model="gpt-5.2-2025-12-11",
+                    model="gpt-5.4-2026-03-05",
                     tools=[{
                         "type": "web_search_preview",
                         "search_context_size": "high",
@@ -289,7 +289,7 @@ def chatgpt(
             final_response_obj = None
 
             with chatgpt_client.responses.stream(
-                model="gpt-5.2-2025-12-11",
+                model="gpt-5.4-2026-03-05",
                 tools=[{
                     "type": "web_search_preview",
                     "search_context_size": "high",
@@ -488,7 +488,7 @@ def chatgpt_thinking(
         def _request_non_streaming() -> str:
             with st.spinner(""):
                 response = chatgpt_client.responses.create(
-                    model="gpt-5.2-2025-12-11",
+                    model="gpt-5.4-2026-03-05",
                     tools=[{
                         "type": "web_search_preview",
                         "search_context_size": "high",
@@ -506,7 +506,7 @@ def chatgpt_thinking(
             final_response_obj = None
 
             with chatgpt_client.responses.stream(
-                model="gpt-5.2-2025-12-11",
+                model="gpt-5.4-2026-03-05",
                 tools=[{
                     "type": "web_search_preview",
                     "search_context_size": "high",
@@ -844,8 +844,7 @@ def together_deepseek(prompt1: str, model_role: str, temp: float, p: float, max_
         try:
             for response in together_client.chat.completions.create(
                 # model="nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
-                model="deepseek-ai/DeepSeek-R1-0528",
-                # model="deepseek-ai/DeepSeek-V3.1",
+                model="deepseek-ai/DeepSeek-V4-Pro",
                 messages=
                     [{"role": "system", "content": model_role + output_format_instruction + math_instruction}] +
                     [
@@ -2170,9 +2169,9 @@ def process_prompt(
     determine_if_terminate_current_session_and_start_a_new_one(conn)
     st.session_state.messages.append({"role": "user", "model": "", "content": prompt1, "image": _image_file_paths})
     try:
-        if model_name == "gpt-5.2-2025-12-11":
+        if model_name == "gpt-5.4-2026-03-05":
             responses = chatgpt(prompt1, model_role, temperature, top_p, int(max_token), _image_file_paths)
-        elif model_name == "gpt-5.2-2025-12-11-thinking":
+        elif model_name == "gpt-5.4-2026-03-05-thinking":
             responses = chatgpt_thinking(prompt1, model_role, temperature, top_p, int(max_token), _image_file_paths)
         elif model_name == "claude-sonnet-4-6":
             responses = claude(prompt1, model_role, temperature, top_p, int(max_token), _image_file_paths)
@@ -2191,7 +2190,7 @@ def process_prompt(
             # responses = together_nvidia(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "qwen3-235b-a22b-2507":
             responses = openrouter_qwen(prompt1, model_role, temperature, top_p, int(max_token))
-        elif model_name == "DeepSeek-R1-0528":
+        elif model_name == "DeepSeek-V4-Pro":
             responses = together_deepseek(prompt1, model_role, temperature, top_p, int(max_token))
         else:
             raise ValueError('Model is not in the list.')
@@ -2573,14 +2572,14 @@ type_index = return_type_index(st.session_state.type)  # from string to int (0 t
 model_name = st.sidebar.radio(
                                 label="Choose model:",
                                 options=(
-                                    "gpt-5.2-2025-12-11",
-                                    "gpt-5.2-2025-12-11-thinking",
+                                    "gpt-5.4-2026-03-05",
+                                    "gpt-5.4-2026-03-05-thinking",
                                     "claude-sonnet-4-6",
                                     "claude-sonnet-4-6-thinking",
                                     "pixtral-large-latest",
                                     "gemini-3.1-pro-preview",
                                     "gemini-3.1-pro-preview-thinking",
-                                    "DeepSeek-R1-0528",
+                                    "DeepSeek-V4-Pro",
                                     "perplexity-sonar-pro",
                                     "nvidia-llama-3.1-nemotron-70b-instruct",
                                     "qwen3-235b-a22b-2507"

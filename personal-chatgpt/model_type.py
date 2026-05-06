@@ -95,20 +95,23 @@ def Load_the_last_saved_model_type(conn) -> None:
                                  "gpt-4.1-2025-04-14",
                                  "gpt-5-2025-08-07",
                                  "gpt-5-mini-2025-08-07",
-                                 "gpt-5.1-2025-11-13"):
-                    result = ("gpt-5.2-2025-12-11", )
+                                 "gpt-5.1-2025-11-13",
+                                 "gpt-5.2-2025-12-11"):
+                    result = ("gpt-5.4-2026-03-05", )
                 if result[0] in ("mistral-large-latest", ):
                     result = ("pixtral-large-latest", )
                 if result[0] in ("Qwen2.5-Coder-32B-Instruct",
                                  "Qwen2.5-Max",
                                  "Qwen3-235b-a22b"):
                     result = ("qwen3-235b-a22b-2507", )
-                if result[0] in ("DeepSeek-R1", ):
-                    result = ("DeepSeek-R1-0528", )
+                if result[0] in ("DeepSeek-R1", 
+                                 "DeepSeek-R1-0528"):
+                    result = ("DeepSeek-V4-Pro", )
                 if result[0] in ("o3-mini-high", 
                                  "gpt-5-mini-2025-08-07-thinking",
-                                 "gpt-5.1-2025-11-13-thinking"):
-                    result = ("gpt-5.2-2025-12-11-thinking", )
+                                 "gpt-5.1-2025-11-13-thinking",
+                                 "gpt-5.2-2025-12-11-thinking"):
+                    result = ("gpt-5.4-2026-03-05-thinking", )
                 st.session_state.type = result[0]
             else:
                 st.session_state.type = None
@@ -135,14 +138,14 @@ def return_type_index(type1: str) -> int:
         KeyError: If the type description is not found in the predefined dictionary.
     """
     type_dic = {
-        "gpt-5.2-2025-12-11": 0,
-        "gpt-5.2-2025-12-11-thinking": 1,
+        "gpt-5.4-2026-03-05": 0,
+        "gpt-5.4-2026-03-05-thinking": 1,
         "claude-sonnet-4-6": 2, 
         "claude-sonnet-4-6-thinking": 3, 
         "pixtral-large-latest": 4,
         "gemini-3.1-pro-preview":5,
         "gemini-3.1-pro-preview-thinking":6,
-        "DeepSeek-R1-0528": 7,
+        "DeepSeek-V4-Pro": 7,
         "perplexity-sonar-pro": 8,
         "nvidia-llama-3.1-nemotron-70b-instruct": 9,
         "qwen3-235b-a22b-2507": 10

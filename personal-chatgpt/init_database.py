@@ -1,3 +1,5 @@
+import re
+
 from mysql.connector import Error
 import streamlit as st
 
@@ -482,22 +484,48 @@ def check_if_column_content_in_message_table_is_indexed(conn) -> str:
         Error: If there's an error executing the SQL query.
     """
     try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-            """
-            SELECT COLUMN_NAME
-            FROM INFORMATION_SCHEMA.STATISTICS
-            WHERE TABLE_NAME = 'message';
-            """
-            )
-            if "content" in [row[0] for row in cursor.fetchall()]:
-                return "Yes"
-            else:
-                return "No"
+        if _get_message_content_fulltext_indexes(conn):
+            return "Yes"
+        return "No"
 
     except Error as error:
         st.error(f"Failed to show index of the table message: {error}")
         raise
+
+
+def _get_message_content_fulltext_indexes(conn) -> list[tuple[str, bool]]:
+    with conn.cursor() as cursor:
+        cursor.execute("SHOW CREATE TABLE message;")
+        result = cursor.fetchone()
+
+    if not result or len(result) < 2:
+        return []
+
+    create_table_sql = result[1]
+    pattern = re.compile(
+        r"FULLTEXT\s+(?:KEY|INDEX)\s+`(?P<name>[^`]+)`\s+\((?P<columns>[^)]+)\)"
+        r"(?P<parser>\s+/\*![0-9]+\s+WITH\s+PARSER\s+`?(?P<versioned_parser>[^`*\s]+)`?\s+\*/"
+        r"|\s+WITH\s+PARSER\s+`?(?P<plain_parser>[^`\s]+)`?)?",
+        re.IGNORECASE,
+    )
+
+    indexes = []
+    for match in pattern.finditer(create_table_sql):
+        columns = [
+            column.strip().strip("`")
+            for column in match.group("columns").split(",")
+        ]
+        if columns != ["content"]:
+            continue
+
+        parser_name = (
+            match.group("versioned_parser")
+            or match.group("plain_parser")
+            or ""
+        ).lower()
+        indexes.append((match.group("name"), parser_name == "ngram"))
+
+    return indexes
 
 
 def check_if_fulltext_index_uses_ngram(conn) -> bool:
@@ -512,19 +540,7 @@ def check_if_fulltext_index_uses_ngram(conn) -> bool:
         bool: True if the ngram parser is in use, False otherwise.
     """
     try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-            """
-            SELECT COMMENT
-            FROM INFORMATION_SCHEMA.STATISTICS
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = 'message'
-              AND COLUMN_NAME = 'content'
-              AND INDEX_TYPE = 'FULLTEXT';
-            """
-            )
-            rows = cursor.fetchall()
-            return len(rows) > 0 and rows[0][0].lower() == "ngram"
+        return any(uses_ngram for _, uses_ngram in _get_message_content_fulltext_indexes(conn))
 
     except Error as error:
         st.error(f"Failed to check FULLTEXT parser for message.content: {error}")
@@ -542,32 +558,17 @@ def migrate_fulltext_index_to_ngram(conn):
     Args:
         conn: A database connection object.
     """
-    if check_if_column_content_in_message_table_is_indexed(conn) == 'No':
-        return  # index_column_content_in_table_message will create it with ngram
-
-    if check_if_fulltext_index_uses_ngram(conn):
-        return  # already correct
-
     try:
-        with conn.cursor() as cursor:
-            # Retrieve the index name so we can drop it by name
-            cursor.execute(
-            """
-            SELECT INDEX_NAME
-            FROM INFORMATION_SCHEMA.STATISTICS
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = 'message'
-              AND COLUMN_NAME = 'content'
-              AND INDEX_TYPE = 'FULLTEXT'
-            LIMIT 1;
-            """
-            )
-            rows = cursor.fetchall()
-            if not rows:
-                return
-            index_name = rows[0][0]
+        indexes = _get_message_content_fulltext_indexes(conn)
+        if not indexes:
+            return
 
-            cursor.execute(f"ALTER TABLE message DROP INDEX `{index_name}`;")
+        if any(uses_ngram for _, uses_ngram in indexes):
+            return
+
+        with conn.cursor() as cursor:
+            for index_name, _ in indexes:
+                cursor.execute(f"ALTER TABLE message DROP INDEX `{index_name}`;")
             cursor.execute(
             """
             ALTER TABLE message

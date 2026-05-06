@@ -5,6 +5,11 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
+Version 2.19 of this APP has made the following changes:
+- Migrate message FULLTEXT index to ngram parser for CJK (Chinese) search.
+- Upgrade `gpt-5.2-2025-12-11` to `gpt-5.4-2026-03-05`, which supports up to 1M token context, and shows superior performance in complex reasoning, document parsing, and coding with a slightly higher cost.
+- Upgrade `DeepSeek-R1-0528` to `DeepSeek-V4-Pro`, which supports 1M token context. It introduces a hybrid attention architecture that dramatically improves long-context efficiency while reducing KV and compute overhead.
+
 Version 2.18 of this APP has made the following changes:
 - Implement voice prompt input using `streamlit-audiorecorder` and OpenAI Whisper-1 with automatic language detection.
 - Add `ffmpeg` dependency to Dockerfile for audio processing.
@@ -265,12 +270,12 @@ git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
 If you want to use the voice input feature outside Docker, install `ffmpeg` on your machine first because the audio recorder depends on it to decode recorded audio. For example, use `brew install ffmpeg` on macOS, `sudo apt-get install ffmpeg` on Debian/Ubuntu, or install `ffmpeg` with `winget`/`choco` on Windows.
 
-To create a Python virtual environment, check out version 2.18 of this APP, and install the project,
+To create a Python virtual environment, check out version 2.19 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v2.18
+git checkout v2.19
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
