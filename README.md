@@ -5,6 +5,21 @@ The short video below demonstrates some of the features.
 https://youtu.be/cHsequP0Wsw
 
 ## APP Features
+Version 2.20 of this APP has made the following changes:
+- Add local `gemma4-e4b` model support via Ollama's OpenAI-compatible API (`http://localhost:11434/v1`). This multimodal model supports both text and image input and runs entirely on your local machine without an API key.
+- Fix Gemini Google Search tool: replace deprecated `GoogleSearchRetrieval` with the correctly instantiated `GoogleSearch()`. Refactor Gemini response-parsing and citation logic into reusable helper functions.
+
+In version 2.20 of this APP, you can use the following 8 multimodal LLM models with both image and text input:
+
+1. `gpt-5.4-2026-03-05`
+2. `gpt-5.4-2026-03-05-thinking`
+3. `claude-sonnet-4-6`
+4. `claude-sonnet-4-6-thinking`
+5. `gemini-3.1-pro-preview`
+6. `gemini-3.1-pro-preview-thinking`
+7. `pixtral-large-latest`
+8. `gemma4-e4b`
+
 Version 2.19 of this APP has made the following changes:
 - Migrate message FULLTEXT index to ngram parser for CJK (Chinese) search.
 - Upgrade `gpt-5.2-2025-12-11` to `gpt-5.4-2026-03-05`, which supports up to 1M token context, and shows superior performance in complex reasoning, document parsing, and coding with a slightly higher cost.
@@ -270,18 +285,18 @@ git clone https://github.com/tonypeng1/Personal-ChatGPT.git
 ```
 If you want to use the voice input feature outside Docker, install `ffmpeg` on your machine first because the audio recorder depends on it to decode recorded audio. For example, use `brew install ffmpeg` on macOS, `sudo apt-get install ffmpeg` on Debian/Ubuntu, or install `ffmpeg` with `winget`/`choco` on Windows.
 
-To create a Python virtual environment, check out version 2.19 of this APP, and install the project,
+To create a Python virtual environment, check out version 2.20 of this APP, and install the project,
 ```
 cd Personal-ChatGPT
 python3 -m venv .venv
 source .venv/bin/activate
-git checkout v2.19
+git checkout v2.20
 python3 -m pip install --upgrade pip setuptools wheel
 python3 -m pip install -e .
 ```
 To create and run a Docker image, type the following commands in the project directory `Personal-ChatGPT` where there is a file called `Dockerfile`. The Docker image already installs `ffmpeg`, so no extra host setup is needed for voice input inside the container.
 ```
-docker build -t streamlit-mysql:2.18 .
+docker build -t streamlit-mysql:2.20 .
 docker compose up
 ```
 ## Medium Article

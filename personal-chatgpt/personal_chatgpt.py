@@ -10,7 +10,7 @@ import PIL.Image
 import anthropic
 from bs4 import BeautifulSoup
 from google import genai
-from google.genai.types import Tool, GenerateContentConfig, GoogleSearchRetrieval, ThinkingConfig
+from google.genai.types import Tool, GenerateContentConfig, GoogleSearch, ThinkingConfig
 from mistralai import Mistral
 from mysql.connector import connect, Error
 import ocrspace
@@ -919,6 +919,83 @@ def get_real_title(uri):
         return None
 
 
+def extract_gemini_response_text(response):
+    response_text = ""
+
+    # Don't directly access response.text - check response structure first
+    if hasattr(response, 'candidates') and response.candidates:
+        for candidate in response.candidates:
+            if hasattr(candidate, 'content') and candidate.content:
+                for part in candidate.content.parts:
+                    # Skip thinking/thought parts to avoid polluting full_response
+                    if hasattr(part, 'thought') and part.thought:
+                        continue
+                    if hasattr(part, 'text') and part.text is not None:
+                        response_text += part.text
+                    elif hasattr(part, 'executable_code') and part.executable_code is not None:
+                        # Keep executable-code handling centralized for future rendering support.
+                        code_lang = part.executable_code.language.lower() if hasattr(part.executable_code, 'language') else 'python'
+                        # response_text += f"\n```{code_lang}\n{part.executable_code.code}\n```\n"
+    # Only access text directly if it exists
+    elif hasattr(response, 'text') and response.text is not None:
+        response_text += response.text
+
+    return response_text
+
+
+def collect_gemini_grounding_citations(response, citation_title_list, citations):
+    last_grounding_metadata = None
+
+    # Access titles and URIs from grounding chunks; track metadata for fallback.
+    if hasattr(response, 'candidates') and response.candidates:
+        for candidate in response.candidates:
+            if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
+                last_grounding_metadata = candidate.grounding_metadata
+                if hasattr(candidate.grounding_metadata, 'grounding_chunks') and candidate.grounding_metadata.grounding_chunks:
+                    for chunk in candidate.grounding_metadata.grounding_chunks:
+                        if hasattr(chunk, 'web') and chunk.web:
+                            title = chunk.web.title
+                            uri = chunk.web.uri
+                            if title not in citation_title_list:
+                                citation_title_list.append(title)
+                                citations += f"* [{title}]({uri})\n"
+
+    return citations, last_grounding_metadata
+
+
+def strip_gemini_model_sources(full_response):
+    # Strip any model-generated SOURCES/Citations section (links may be hallucinated).
+    header = "\n\n##### SOURCES:\n"
+    header2 = "\n\n##### Citations:\n"
+    if header in full_response:
+        before, sep, after = full_response.partition(header)
+        full_response = before
+    elif header2 in full_response:
+        before, sep, after = full_response.partition(header2)
+        full_response = before
+
+    return full_response
+
+
+def append_gemini_citations(full_response, citation_title_list, citations):
+    full_response = strip_gemini_model_sources(full_response)
+
+    # Always append API-collected citations (or "No sources" if none found).
+    if citation_title_list:
+        full_response += citations
+    else:
+        full_response += citations
+        full_response += "\n\n##### No sources found."
+
+    # Leave at most one "No sources found."
+    no_src = "\n\n##### No sources found."
+    if full_response.count(no_src) > 1:
+        parts = full_response.split(no_src)
+        full_response = parts[0] + no_src
+
+    return full_response
+
+
 def gemini(
         prompt1: str, 
         model_role: str, 
@@ -940,7 +1017,7 @@ def gemini(
 
     """
     google_search_tool = Tool(
-        google_search = GoogleSearchRetrieval
+        google_search=GoogleSearch()
         )
 
     with st.chat_message("user"):
@@ -956,7 +1033,7 @@ def gemini(
         full_response = ""
 
         additional_model_role = (
-        "Do not provide INLINE citation.\n"
+        "When you use web or grounded sources, include concise inline source citations in the body of your answer when appropriate.\n"
         )
 
         math_instruction = (
@@ -966,7 +1043,7 @@ def gemini(
         system_list = \
                 [{"role": "user",
                 "parts": [{
-                        "text": model_role +  "If you understand your role, please response 'I understand.'"
+                        "text": model_role + additional_model_role + "If you understand your role, please response 'I understand.'"
                         }]
                 },
                 {"role": "model",
@@ -1004,79 +1081,16 @@ def gemini(
                     response_modalities=["TEXT"],
                     ),
                 ):
-                # Don't directly access response.text - check response structure first
-                if hasattr(response, 'candidates') and response.candidates:
-                    for candidate in response.candidates:
-                        if hasattr(candidate, 'content') and candidate.content:
-                            for part in candidate.content.parts:
-                                # Skip thinking/thought parts to avoid polluting full_response
-                                if hasattr(part, 'thought') and part.thought:
-                                    continue
-                                if hasattr(part, 'text') and part.text is not None:
-                                    full_response += part.text
-                                elif hasattr(part, 'executable_code') and part.executable_code is not None:
-                                    # Format code with markdown code block
-                                    code_lang = part.executable_code.language.lower() if hasattr(part.executable_code, 'language') else 'python'
-                                    # full_response += f"\n```{code_lang}\n{part.executable_code.code}\n```\n"
-                # Only access text directly if it exists
-                elif hasattr(response, 'text') and response.text is not None:
-                    full_response += response.text
+                full_response += extract_gemini_response_text(response)
                 
                 message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
 
-                # Access titles and URIs from grounding chunks; track metadata for fallback
-                if hasattr(response, 'candidates') and response.candidates:
-                    for candidate in response.candidates:
-                        if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
-                            last_grounding_metadata = candidate.grounding_metadata
-                            if hasattr(candidate.grounding_metadata, 'grounding_chunks') and candidate.grounding_metadata.grounding_chunks:
-                                for chunk in candidate.grounding_metadata.grounding_chunks:
-                                    if hasattr(chunk, 'web') and chunk.web:
-                                        title = chunk.web.title
-                                        uri = chunk.web.uri
-                                        real_title = get_real_title(uri)  # Fetch the real title
-                                        title = real_title if real_title else title  # Use real title if available, otherwise use the original title
-                                        if title not in citation_title_list:
-                                            citation_title_list.append(title)
-                                            citations += f"* [{title}]({uri})\n"
+                citations, response_grounding_metadata = collect_gemini_grounding_citations(
+                    response, citation_title_list, citations
+                )
+                last_grounding_metadata = response_grounding_metadata or last_grounding_metadata
 
-            # --- Fallback: some models omit grounding_chunks but populate search_entry_point
-            # --- chips; extract those <a class="chip"> links as sources instead ---
-            if not citation_title_list and last_grounding_metadata:
-                sep_obj = last_grounding_metadata.search_entry_point
-                if sep_obj and sep_obj.rendered_content:
-                    soup = BeautifulSoup(sep_obj.rendered_content, 'html.parser')
-                    for a_tag in soup.find_all('a', class_='chip'):
-                        link_text = a_tag.get_text(strip=True)
-                        link_href = a_tag.get('href', '')
-                        if link_href and link_text not in citation_title_list:
-                            citation_title_list.append(link_text)
-                            citations += f"* [Google Search: {link_text}]({link_href})\n"
-
-            # --- Strip any model-generated SOURCES/Citations section (links may be hallucinated),
-            # --- then always re-append the verified API grounding_chunks citations ---
-            header = "\n\n##### SOURCES:\n"
-            header2 = "\n\n##### Citations:\n"
-            if header in full_response:
-                # strip the model's own sources section
-                before, sep, after = full_response.partition(header)
-                full_response = before
-            elif header2 in full_response:
-                before, sep, after = full_response.partition(header2)
-                full_response = before
-            # Always append API-collected citations (or "No sources" if none found)
-            if citation_title_list:
-                full_response += citations
-            else:
-                full_response += citations
-                full_response += "\n\n##### No sources found."
-
-            # --- new dedupe logic: leave at most one "No sources found." ---
-            no_src = "\n\n##### No sources found."
-            if full_response.count(no_src) > 1:
-                # keep only the first occurrence and drop any extras
-                parts = full_response.split(no_src)
-                full_response = parts[0] + no_src
+            full_response = append_gemini_citations(full_response, citation_title_list, citations)
 
             message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
@@ -1110,7 +1124,7 @@ def gemini_thinking(
     """
 
     google_search_tool = Tool(
-    google_search = GoogleSearchRetrieval
+        google_search=GoogleSearch()
     )
 
     with st.chat_message("user"):
@@ -1133,6 +1147,10 @@ def gemini_thinking(
         message_placeholder = st.empty()
         full_response = ""
 
+        additional_model_role = (
+        "When you use web or grounded sources, include concise inline source citations in the body of your answer when appropriate.\n"
+        )
+
         math_instruction = (
         "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
         )
@@ -1140,7 +1158,7 @@ def gemini_thinking(
         system_list = \
                     [{"role": "user",
                     "parts": [{
-                            "text": model_role + math_instruction + "If you understand your role, please response 'I understand.'"
+                            "text": model_role + additional_model_role + math_instruction + "If you understand your role, please response 'I understand.'"
                             }]
                     },
                     {"role": "model",
@@ -1151,7 +1169,7 @@ def gemini_thinking(
         context_list = []
         for m in st.session_state.messages:
             if m["role"] == "user":
-                dic = {"role": "user", "parts": [{"text": m["content"]}]}
+                dic = {"role": "user", "parts": [{"text": m["content"] + additional_model_role}]}
                 context_list.append(dic)
                 for img_path in m["image"]:
                     context_list.append(PIL.Image.open(img_path))
@@ -1178,79 +1196,16 @@ def gemini_thinking(
                     response_modalities=["TEXT"],
                     ),
                 ):
-                # Don't directly access response.text - check response structure first
-                if hasattr(response, 'candidates') and response.candidates:
-                    for candidate in response.candidates:
-                        if hasattr(candidate, 'content') and candidate.content:
-                            for part in candidate.content.parts:
-                                # Skip thinking/thought parts to avoid polluting full_response
-                                if hasattr(part, 'thought') and part.thought:
-                                    continue
-                                if hasattr(part, 'text') and part.text is not None:
-                                    full_response += part.text
-                                elif hasattr(part, 'executable_code') and part.executable_code is not None:
-                                    # Format code with markdown code block
-                                    code_lang = part.executable_code.language.lower() if hasattr(part.executable_code, 'language') else 'python'
-                                    # full_response += f"\n```{code_lang}\n{part.executable_code.code}\n```\n"
-                # Only access text directly if it exists
-                elif hasattr(response, 'text') and response.text is not None:
-                    full_response += response.text
+                full_response += extract_gemini_response_text(response)
                 
                 message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
 
-                # Access titles and URIs from grounding chunks; track metadata for fallback
-                if hasattr(response, 'candidates') and response.candidates:
-                    for candidate in response.candidates:
-                        if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
-                            last_grounding_metadata = candidate.grounding_metadata
-                            if hasattr(candidate.grounding_metadata, 'grounding_chunks') and candidate.grounding_metadata.grounding_chunks:
-                                for chunk in candidate.grounding_metadata.grounding_chunks:
-                                    if hasattr(chunk, 'web') and chunk.web:
-                                        title = chunk.web.title
-                                        uri = chunk.web.uri
-                                        real_title = get_real_title(uri)  # Fetch the real title
-                                        title = real_title if real_title else title  # Use real title if available, otherwise use the original title
-                                        if title not in citation_title_list:
-                                            citation_title_list.append(title)
-                                            citations += f"* [{title}]({uri})\n"
+                citations, response_grounding_metadata = collect_gemini_grounding_citations(
+                    response, citation_title_list, citations
+                )
+                last_grounding_metadata = response_grounding_metadata or last_grounding_metadata
 
-            # --- Fallback: some models omit grounding_chunks but populate search_entry_point
-            # --- chips; extract those <a class="chip"> links as sources instead ---
-            if not citation_title_list and last_grounding_metadata:
-                sep_obj = last_grounding_metadata.search_entry_point
-                if sep_obj and sep_obj.rendered_content:
-                    soup = BeautifulSoup(sep_obj.rendered_content, 'html.parser')
-                    for a_tag in soup.find_all('a', class_='chip'):
-                        link_text = a_tag.get_text(strip=True)
-                        link_href = a_tag.get('href', '')
-                        if link_href and link_text not in citation_title_list:
-                            citation_title_list.append(link_text)
-                            citations += f"* [Google Search: {link_text}]({link_href})\n"
-
-            # --- Strip any model-generated SOURCES/Citations section (links may be hallucinated),
-            # --- then always re-append the verified API grounding_chunks citations ---
-            header = "\n\n##### SOURCES:\n"
-            header2 = "\n\n##### Citations:\n"
-            if header in full_response:
-                # strip the model's own sources section
-                before, sep, after = full_response.partition(header)
-                full_response = before
-            elif header2 in full_response:
-                before, sep, after = full_response.partition(header2)
-                full_response = before
-            # Always append API-collected citations (or "No sources" if none found)
-            if citation_title_list:
-                full_response += citations
-            else:
-                full_response += citations
-                full_response += "\n\n##### No sources found."
-
-            # --- new dedupe logic: leave at most one "No sources found." ---
-            no_src = "\n\n##### No sources found."
-            if full_response.count(no_src) > 1:
-                # keep only the first occurrence and drop any extras
-                parts = full_response.split(no_src)
-                full_response = parts[0] + no_src
+            full_response = append_gemini_citations(full_response, citation_title_list, citations)
 
             message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
 
@@ -1890,6 +1845,105 @@ def openrouter_qwen(prompt1: str, model_role: str, temp: float, p: float, max_to
     return full_response
 
 
+def ollama_gemma4(
+        prompt1: str,
+        model_role: str,
+        temp: float,
+        p: float,
+        max_tok: int,
+        _image_file_paths: list = [],
+        ) -> str:
+    """
+    Processes a chat prompt using a local Gemma 4 model served by Ollama.
+    Gemma 4 (e4b) supports both text and image input via Ollama's OpenAI-compatible API.
+
+    Args:
+        prompt1: The user's input.
+        model_role: System role/instruction string.
+        temp: Temperature parameter.
+        p: Top-p parameter.
+        max_tok: Maximum number of tokens to generate.
+        _image_file_paths: List of local image file paths.
+    """
+    with st.chat_message("user"):
+        for img_path in _image_file_paths:
+            st.image(PIL.Image.open(img_path), width=None)
+        st.markdown(prompt1)
+
+    with st.chat_message("assistant"):
+        text = f":blue-background[:blue[**{model_name}**]]"
+        st.markdown(text)
+
+        message_placeholder = st.empty()
+        full_response = ""
+
+        math_instruction = (
+        "\n\nOutput math in LaTeX, wrapped in $...$ for inline or $$...$$ for block math."
+        )
+
+        output_format_instruction = (
+        "\n\nConstruct your answer in the format of MARKDOWN SYNTAX such as headings (Note: start with H2. Use H3, H4, H5 etc. as needed), bold, italic,  \n"
+        "ordered lists, unordered lists, horizontal rules, etc. \n"
+        "When using unordered lists, use an asterisk (*) RATHER THAN a hyphen (-). \n"
+        "When using NESTED ordered or unordered lists, use FOUR spaces for indentation. \n"
+        "Examples: \n"
+        "\n"
+        "* Item 1\n"
+        "    * Subitem 1\n"
+        "    * Subitem 2\n"
+        "* Item 2\n"
+        "\n"
+        "1. Item 1\n"
+        "    1. Subitem 1\n"
+        "    2. Subitem 2\n"
+        "2. Item 2\n"
+        )
+
+        system_list = [{"role": "system", "content": model_role + output_format_instruction + math_instruction}]
+
+        context_list = []
+        for m in st.session_state.messages:
+            if m["role"] == "user":
+                img_list = m["image"] if isinstance(m["image"], list) else ([m["image"]] if m["image"] else [])
+                if img_list:
+                    # Gemma 4 best practice: place image content before text
+                    content_parts = []
+                    for img_path in img_list:
+                        base64_image = encode_image(img_path)
+                        content_parts.append({
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/png;base64,{base64_image}"},
+                        })
+                    content_parts.append({"type": "text", "text": m["content"]})
+                    context_list.append({"role": "user", "content": content_parts})
+                else:
+                    context_list.append({"role": "user", "content": m["content"]})
+            else:
+                context_list.append({"role": "assistant", "content": m["content"]})
+
+        input_list = system_list + context_list
+
+        try:
+            for response in ollama_client.chat.completions.create(
+                model="gemma4:e4b",
+                messages=input_list,
+                temperature=temp,
+                top_p=p,
+                max_tokens=max_tok,
+                stream=True,
+                ):
+                full_response += response.choices[0].delta.content or ""
+                message_placeholder.markdown(wrap_dollar_amounts(full_response) + "▌", unsafe_allow_html=True)
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+
+        except Exception as e:
+            error_response = f"An unexpected error occurred in Ollama Gemma 4 API call: {e}"
+            full_response = error_response
+            message_placeholder.markdown(wrap_dollar_amounts(full_response), unsafe_allow_html=True)
+
+    return full_response
+
+
 # def perplexity(prompt1: str, model_role: str, temp: float, p: float, max_tok: int) -> str:
 #     """
 #     Processes a chat prompt using Perplexity OpenAI's ChatCompletion and updates the chat session.
@@ -2192,6 +2246,8 @@ def process_prompt(
             responses = openrouter_qwen(prompt1, model_role, temperature, top_p, int(max_token))
         elif model_name == "DeepSeek-V4-Pro":
             responses = together_deepseek(prompt1, model_role, temperature, top_p, int(max_token))
+        elif model_name == "gemma4-e4b":
+            responses = ollama_gemma4(prompt1, model_role, temperature, top_p, int(max_token), _image_file_paths)
         else:
             raise ValueError('Model is not in the list.')
 
@@ -2450,6 +2506,12 @@ nvidia_client = OpenAI(
     base_url = "https://integrate.api.nvidia.com/v1",
     )
 
+# Set ollama (local) api configuration
+ollama_client = OpenAI(
+    api_key="ollama",
+    base_url="http://localhost:11434/v1",
+    )
+
 # Database initial operation
 connection = connect(**st.secrets["mysql"])  # get database credentials from .streamlit/secrets.toml
 init_database_tables(connection) # Create tables if not existing
@@ -2582,7 +2644,8 @@ model_name = st.sidebar.radio(
                                     "DeepSeek-V4-Pro",
                                     "perplexity-sonar-pro",
                                     "nvidia-llama-3.1-nemotron-70b-instruct",
-                                    "qwen3-235b-a22b-2507"
+                                    "qwen3-235b-a22b-2507",
+                                    "gemma4-e4b"
                                  ),
                                 index=type_index,
                                 key="type1"
