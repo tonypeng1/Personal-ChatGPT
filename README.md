@@ -9,6 +9,8 @@ Version 2.20 of this APP has made the following changes:
 - Add local `gemma4-e4b` model support via Ollama's OpenAI-compatible API (`http://localhost:11434/v1`). This multimodal model supports both text and image input and runs entirely on your local machine without an API key.
 - Fix Gemini Google Search tool: replace deprecated `GoogleSearchRetrieval` with the correctly instantiated `GoogleSearch()`. Refactor Gemini response-parsing and citation logic into reusable helper functions.
 
+---
+
 ### Running Gemma 4 E4B Locally with Ollama
 
 Gemma 4 E4B is a multimodal local model that supports both text and image input and requires no API key. For a MacBook with 24 GB of unified memory, `gemma4:e4b` is the recommended variant — it runs at full 16-bit precision (~15 GB) while leaving comfortable headroom for the OS, KV cache, and other apps. Ollama is chosen over LM Studio for its lightweight background service, clean REST API, and rich ecosystem of integrations.
