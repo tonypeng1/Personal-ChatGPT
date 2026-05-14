@@ -11,6 +11,7 @@ services:
       - IMAGE_SAVE_PATH=/app/images
       - PYTHONUNBUFFERED=1  # Enable unbuffered output for Python scripts
       - EXPORT_DIR=/app/exported-images  # Needed if a .HTML file is saved
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434/v1  # Reach host Ollama from container
       # - HOST_DESINATION_DIR=images  # An folder named "images" will be created in the host "Downloads" folder
     volumes:
       - image-data:/app/images

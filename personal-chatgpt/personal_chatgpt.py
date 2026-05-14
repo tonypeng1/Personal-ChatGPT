@@ -2507,9 +2507,10 @@ nvidia_client = OpenAI(
     )
 
 # Set ollama (local) api configuration
+# When running in Docker, OLLAMA_BASE_URL should be set to http://host.docker.internal:11434/v1
 ollama_client = OpenAI(
     api_key="ollama",
-    base_url="http://localhost:11434/v1",
+    base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
     )
 
 # Database initial operation
