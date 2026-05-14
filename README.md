@@ -9,6 +9,34 @@ Version 2.20 of this APP has made the following changes:
 - Add local `gemma4-e4b` model support via Ollama's OpenAI-compatible API (`http://localhost:11434/v1`). This multimodal model supports both text and image input and runs entirely on your local machine without an API key.
 - Fix Gemini Google Search tool: replace deprecated `GoogleSearchRetrieval` with the correctly instantiated `GoogleSearch()`. Refactor Gemini response-parsing and citation logic into reusable helper functions.
 
+### Running Gemma 4 E4B Locally with Ollama
+
+Gemma 4 E4B is a multimodal local model that supports both text and image input and requires no API key. For a MacBook with 24 GB of unified memory, `gemma4:e4b` is the recommended variant — it runs at full 16-bit precision (~15 GB) while leaving comfortable headroom for the OS, KV cache, and other apps. Ollama is chosen over LM Studio for its lightweight background service, clean REST API, and rich ecosystem of integrations.
+
+#### Step 1: Install Ollama
+1. Download the macOS installer from [https://ollama.com/download](https://ollama.com/download)
+2. Unzip and move the Ollama app to your `/Applications` folder
+3. Launch Ollama — a llama icon will appear in your menu bar (it runs as a background service)
+4. Verify in Terminal:
+```bash
+ollama --version
+```
+
+#### Step 2: Pull the Gemma 4 E4B Model
+```bash
+ollama pull gemma4:e4b
+```
+Confirm the download:
+```bash
+ollama list
+```
+You should see `gemma4:e4b` in the list.
+
+#### Step 3: Select the Model in the App
+Make sure Ollama is running, then select `gemma4:e4b` from the model selector in the sidebar. No API key is required. When running the app via Docker, the `OLLAMA_BASE_URL` environment variable in `compose.yml` routes traffic to the host machine automatically.
+
+---
+
 In version 2.20 of this APP, you can use the following 8 multimodal LLM models with both image and text input:
 
 1. `gpt-5.4-2026-03-05`
